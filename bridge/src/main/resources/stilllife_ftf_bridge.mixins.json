@@ -1,0 +1,23 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "stilllife.ftfbridge.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SamplerDecorationMixin",
+    "ScreeFeatureMixin",
+    "DecorateSnowFeatureMixin",
+    "HeightmapMixin",
+    "UpliftRiverCarverMixin",
+    "NetworkMixin",
+    "WetlandMixin",
+    "MinecraftBiomeSourceGraphsMixin",
+    "FTFBiomeLocateQueryMixin",
+    "CellMixin",
+    "TerrainBiomeRoleSelectionMixin",
+    "UpliftContinentGeneratorMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:has_wetland_pools",
+  "features": "stilllife_ftf_bridge:wetland_pools",
+  "step": "lakes"
+}

@@ -1,0 +1,17 @@
+# build output
+build/
+.gradle/
+run/
+out/
+*.class
+
+# third-party jars (see libs/README.md)
+libs/*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/

@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = 'https://maven.neoforged.net/releases' }
+    }
+    plugins {
+        // version from gradle.properties
+        id 'net.neoforged.moddev' version "${moddev_version}"
+    }
+}
+
+plugins {
+    // downloads the Java 21 toolchain if the machine has none
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.9.0'
+}
+
+rootProject.name = 'lifeforged'
+
+// The bridge mod. Still Life's FTF edition is not built here: Still Life is All Rights Reserved, so this repository only
+// holds the script that turns your own copy of Still Life into the FTF edition (still-life-patch/).
+include 'bridge'

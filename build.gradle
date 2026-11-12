@@ -1,0 +1,44 @@
+// The bridge is built with NeoForge's ModDevGradle against NeoForge for Minecraft 1.21.1, Java 21.
+// It also compiles against FreeTerraForged, which is not on a public Maven: put its jar in libs/ (see libs/README.md).
+plugins {
+    id 'net.neoforged.moddev' apply false
+}
+
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'net.neoforged.moddev'
+
+    group = 'io.github.lifeforged'
+
+    repositories {
+        mavenCentral()
+        flatDir { dirs rootProject.file('libs') }
+    }
+
+    java {
+        toolchain.languageVersion = JavaLanguageVersion.of(21)
+        withSourcesJar()
+    }
+
+    neoForge {
+        version = project.neo_version
+    }
+
+    dependencies {
+        // FreeTerraForged: the mixins hook into its classes (compile only; players install FTF themselves)
+        compileOnly files(rootProject.file("libs/${project.ftf_jar}"))
+        // MixinExtras ships inside NeoForge; this only makes its annotations visible to the compiler
+        compileOnly "io.github.llamalad7:mixinextras-common:${project.mixinextras_version}"
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+
+    tasks.named('jar') {
+        manifest {
+            attributes('Implementation-Title': base.archivesName.get(), 'Implementation-Version': project.version)
+        }
+    }
+}
