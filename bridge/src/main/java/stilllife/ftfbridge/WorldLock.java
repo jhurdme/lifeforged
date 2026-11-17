@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 10;
+   private static final int FORMAT = 11;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -59,9 +59,6 @@ final class WorldLock {
                   num(o, "swamp_max_height", d.swampMaxHeight()),
                   bool(o, "snow_caps", false),
                   num(o, "snow_cliff_steepness", d.snowCliffSteepness()),
-                  bool(o, "river_headwaters", false),
-                  num(o, "river_mountain_height", d.riverMountainHeight()),
-                  num(o, "river_fade_in", d.riverFadeIn()),
                   // 4.0 / 4.1 worlds (format 2) were made with Still Life 0.3.1, whose saved layout already has these biomes
                   num(o, "pale_garden", 1.0),
                   num(o, "dappled_forest", 1.0),
@@ -69,14 +66,8 @@ final class WorldLock {
                   // worlds from before bridge 4.4 (format 2/3) keep generating without the dry wetlands
                   num(o, "aspen_swamps", 0.0),
                   num(o, "salt_lakes", 0.0),
-                  // salt lakes on FTF lakes came with bridge 4.6 (format 6)
-                  bool(o, "salt_lakes_on_lakes", false),
                   // and without wetland pools (format 2-4)
                   bool(o, "wetland_pools", false),
-                  // full-width lake beds came with bridge 4.7 (format 7)
-                  bool(o, "lake_fill", false),
-                  // bridge 4.7.0 (format 7) filled lakes with at least 1 block of water; the setting came with 4.7.1 (format 8)
-                  num(o, "lake_min_depth", 1.0),
                   // uplift smoothing came with bridge 4.8 (format 9)
                   num(o, "uplift_smoothing", 0.0),
                   // bridge 4.x tied the wetland hillside guard to river_flank_max_cut (0 in 3.x / 4.0 worlds = no guard)
@@ -87,7 +78,14 @@ final class WorldLock {
                   bool(o, "sulfur_rock", true),
                   // beach limits came with bridge 5.0 (format 10)
                   num(o, "beach_max_height", format >= 10 ? d.beachMaxHeight() : 0.0),
-                  num(o, "beach_shallows", format >= 10 ? d.beachShallows() : 0.0)
+                  num(o, "beach_shallows", format >= 10 ? d.beachShallows() : 0.0),
+                  // water on salt lakes came with bridge 5.1 (format 10 worlds made with 5.0 get it in new chunks)
+                  // 0.2 in bridge 5.1 test builds (format 10), 0.35 from format 11
+                  num(o, "salt_lake_water", format >= 11 ? d.saltLakeWater() : format >= 10 ? 0.2 : 0.0),
+                  num(o, "salt_lake_max_relief", 4.0),
+                  bool(o, "salt_lake_slope_pools", false),
+                  // blended biome-set borders came with format 11; older worlds keep the sharp switch
+                  num(o, "biome_set_blend", format >= 11 ? d.biomeSetBlend() : 0.0)
                );
             }
 
@@ -132,9 +130,6 @@ final class WorldLock {
          o.addProperty("swamp_max_height", s.swampMaxHeight());
          o.addProperty("snow_caps", s.snowCaps());
          o.addProperty("snow_cliff_steepness", s.snowCliffSteepness());
-         o.addProperty("river_headwaters", s.riverHeadwaters());
-         o.addProperty("river_mountain_height", s.riverMountainHeight());
-         o.addProperty("river_fade_in", s.riverFadeIn());
          if (lock.format >= 3) {
             o.addProperty("pale_garden", s.paleGarden());
             o.addProperty("dappled_forest", s.dappledForest());
@@ -150,18 +145,6 @@ final class WorldLock {
             o.addProperty("wetland_pools", s.wetlandPools());
          }
 
-         if (lock.format >= 6) {
-            o.addProperty("salt_lakes_on_lakes", s.saltLakesOnLakes());
-         }
-
-         if (lock.format >= 7) {
-            o.addProperty("lake_fill", s.lakeFill());
-         }
-
-         if (lock.format >= 8) {
-            o.addProperty("lake_min_depth", s.lakeMinDepth());
-         }
-
          if (lock.format >= 9) {
             o.addProperty("uplift_smoothing", s.upliftSmoothing());
          }
@@ -173,6 +156,13 @@ final class WorldLock {
             o.addProperty("sulfur_rock", s.sulfurRock());
             o.addProperty("beach_max_height", s.beachMaxHeight());
             o.addProperty("beach_shallows", s.beachShallows());
+            o.addProperty("salt_lake_water", s.saltLakeWater());
+         }
+
+         if (lock.format >= 11) {
+            o.addProperty("salt_lake_max_relief", s.saltLakeMaxRelief());
+            o.addProperty("salt_lake_slope_pools", s.saltLakeSlopePools());
+            o.addProperty("biome_set_blend", s.biomeSetBlend());
          }
       }
 

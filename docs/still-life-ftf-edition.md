@@ -1,12 +1,13 @@
 # The Still Life FTF edition
 
 `still-life-patch/make_ftf_edition.py` turns the Still Life 0.3 jar (NeoForge, from Modrinth) into
-`still_life-0.3.5-ftf`. Still Life is All Rights Reserved, so neither the original nor the result is in this repository;
+`still_life-0.3.6-ftf`. Still Life is All Rights Reserved, so neither the original nor the result is in this repository;
 the script edits your own download on your own computer. Its output was checked to be identical, file for file, to the
-0.3.5-ftf jar used in testing.
+0.3.6-ftf jar used in testing.
 
-The edition works unchanged with FreeTerraForged 1.0.0027 and bridge 5.0: nothing FTF changed in 1.0.0027 touches what it
-patches (checked by generating a salt lake, a wetland and a coast with it, with no datapack or tag errors).
+The edition works with FreeTerraForged 1.0.0027-1.0.0032 and bridge 5.x: nothing FTF changed in those versions touches what
+it patches (checked by generating salt lakes, wetlands, rivers and coasts with it, with no datapack or tag errors).
+0.3.5-ftf still works with bridge 5.1; it only lacks the river beds.
 
 The edition has two layers.
 
@@ -29,7 +30,7 @@ terrain half has nothing to do except break: it references Lithosphere functions
 Everything else (biomes, the climate table, surface rules, features, structures) is kept as Still Life ships it. Placing
 the biomes correctly on FTF terrain is the bridge's job (`docs/bridge.md`).
 
-## 2. The fixes (0.3.1-ftf to 0.3.5-ftf): `patch_sl.py`
+## 2. The fixes (0.3.1-ftf to 0.3.6-ftf): `patch_sl.py`
 
 Found while testing on FTF terrain. Each change is applied to Still Life's own files by the script, not copied in.
 
@@ -56,12 +57,32 @@ snow line had almost no snow. The patches now also cover rock.
 
 Still Life builds these for sea level, because Lithosphere drops its wetland climate band there: the salt crust only exists
 at Y 62-64 and the lake bed at Y 40-61; the aspen swamp's mud only at Y 62. On FTF terrain they sit at any height (the
-bridge places them on flat dry land and on FTF's lakes), where they looked like plain desert or forest.
+bridge places them on flat dry land), where they looked like plain desert or forest.
 
 - Salt lake: on dry ground, a white calcite crust dithered with clay (as Still Life's Y 62 band looks) at any height; clay
   under water.
-- Aspen swamp: patches of mud on dry ground at any height (the bridge adds pools of standing water).
+- Aspen swamp: patches of mud on dry ground at any height (the bridge adds pools of standing water, and sheets of shallow
+  water in salt lakes).
 - The `disk_calcite_salt_lake` feature (rings of calcite in shallow water) no longer only at Y 60-62.
+
+### River beds by water depth (0.3.6)
+
+Still Life picks the bed of sea-level rivers (Y 52-62) from one noise, `still_life:river_sediments`, whose features are
+about 500 blocks across: mud, packed mud, gravel or clay by threshold. On Lithosphere's narrow rivers that reads as
+variety; FTF's rivers are wide and long, so a river ran one material for hundreds of blocks and then switched across its
+whole width along a nearly straight line, which looked artificial. Rivers above Y 63 never used this rule.
+
+Now the bed follows the water depth, read with the surface rule's water condition: in the shallows (1 block deep) mud and
+packed mud, at 2 blocks a mix with gravel, in the channel (3 or more) mostly gravel with some clay. Minecraft's
+`surface` noise (~64-block features) mixes them. Arid rivers (desert, Mediterranean and savanna) use their own materials
+the same way: coarse dirt and packed mud in the shallows, packed mud and clay in the channel. Tropical rivers, which are
+almost all mud, are unchanged. On the test river: shallows 47% mud / 37% packed mud, channel 72% gravel / 26% clay.
+
+The jar's Fabric and Quilt metadata now carry the version too: some launchers (Prism) read it from there and showed 0.3.5-ftf.
+
+![river beds](images/river-beds.png)
+*A sea-level river on FTF (temperate river, 384 x 224 blocks, bed blocks under the water; dark = mud, tan = packed mud,
+grey = gravel, blue-grey = clay). Left: 0.3.5-ftf; right: 0.3.6-ftf.*
 
 ### VanillaBackport biomes in the climate table (0.3.1, moved to the bridge in 0.3.2)
 

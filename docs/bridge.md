@@ -1,10 +1,13 @@
 # The bridge, feature by feature
 
 Each section says what was wrong, why, what the bridge changes (with the FreeTerraForged code it hooks into) and how it was
-checked, with a bridge-on / bridge-off image made on FreeTerraForged 1.0.0027 (same seed, preset and settings, only the
-one option changed; see "How the images were made" at the end). FreeTerraForged (FTF) class names are from FTF 1.0.0027 (bridge 5.x; bridge 4.x was built on 1.0.0025); the bridge's
-own classes are in
-`bridge/src/main/java/stilllife/ftfbridge`. Version numbers say when a feature came in (see `CHANGELOG.md`).
+checked, with a bridge-on / bridge-off image (same seed, preset and settings, only the one option changed; see "How the
+images were made" at the end). FreeTerraForged (FTF) class names are from FTF 1.0.0027-1.0.0032 (bridge 5.x; bridge 4.x
+was built on 1.0.0025); the bridge's own classes are in `bridge/src/main/java/stilllife/ftfbridge`. Version numbers say
+when a feature came in (see `CHANGELOG.md`).
+
+Bridge 5.1 keeps out of FTF's lakes and rivers (section 12): of the 11 hooks into FTF code in 5.0, 7 are left, so that the
+bridge keeps working as FTF changes and FTF's own terrain stays as its developer means it.
 
 Every option that changes terrain or biomes is **saved per world** (`WorldLock`, `<world>/stilllife_ftf_bridge.json`),
 because a world whose settings change halfway would generate chunks that don't match. Worlds made before an option existed
@@ -15,18 +18,16 @@ a readable message.
 - [1. Climate translation](#1-climate-translation)
 - [2. Latitude, continents and biome sets](#2-latitude-continents-and-biome-sets)
 - [3. Swamps in humid lowland](#3-swamps-in-humid-lowland)
-- [4. Dry wetlands: aspen swamps and salt flats](#4-dry-wetlands-aspen-swamps-and-salt-flats)
-- [5. FTF lakes as salt lakes](#5-ftf-lakes-as-salt-lakes)
-- [6. Wetland biomes keep their water](#6-wetland-biomes-keep-their-water)
-- [7. Lakes filled to their banks](#7-lakes-filled-to-their-banks)
-- [8. Standing water in wetlands](#8-standing-water-in-wetlands)
-- [9. Snow on peaks](#9-snow-on-peaks)
-- [10. Rivers start below mountains](#10-rivers-start-below-mountains)
-- [11. Wetlands stay off hillsides](#11-wetlands-stay-off-hillsides)
-- [12. The coastal uplift cliff](#12-the-coastal-uplift-cliff)
-- [13. VanillaBackport biomes](#13-vanillabackport-biomes)
-- [14. Sulfur Caves rock](#14-sulfur-caves-rock)
-- [15. Removed in 5.0: no longer needed with FTF 1.0.0027](#15-removed-in-50-no-longer-needed-with-ftf-100027)
+- [4. Dry wetlands: aspen swamps and salt lakes](#4-dry-wetlands-aspen-swamps-and-salt-lakes)
+- [5. Wetland biomes keep their water](#5-wetland-biomes-keep-their-water)
+- [6. Standing water in wetlands and salt lakes](#6-standing-water-in-wetlands-and-salt-lakes)
+- [7. Snow on peaks](#7-snow-on-peaks)
+- [8. Wetlands stay off hillsides](#8-wetlands-stay-off-hillsides)
+- [9. The coastal uplift cliff](#9-the-coastal-uplift-cliff)
+- [10. VanillaBackport biomes](#10-vanillabackport-biomes)
+- [11. Sulfur Caves rock](#11-sulfur-caves-rock)
+- [12. Removed in 5.1: FTF's lakes and rivers left to FTF](#12-removed-in-51-ftfs-lakes-and-rivers-left-to-ftf)
+- [13. Removed in 5.0: no longer needed with FTF 1.0.0027](#13-removed-in-50-no-longer-needed-with-ftf-100027)
 
 ## 1. Climate translation
 
@@ -103,7 +104,7 @@ gravel); middle: the bridge before this fix at the same FTF spot (all of it "bea
 
 ## 2. Latitude, continents and biome sets
 
-*3.x. `latitude`, `pole_distance`, `american_share`.*
+*3.x; blended borders 5.1. `latitude`, `pole_distance`, `american_share`, `biome_set_blend`.*
 
 - `latitude=still_life` gives Still Life's own climate: one equator and colder bands toward the poles, `pole_distance`
   blocks away. `ftf` keeps FTF's repeating temperature bands (with altitude cooling).
@@ -112,6 +113,19 @@ gravel); middle: the bridge before this fix at the same FTF spot (all of it "bea
 
 ![biome sets](images/biome-sets.png)
 *Still Life biome set per FTF continent at `american_share` 0.6, 80 x 80 km of the test world (biome-map tool, FTF 1.0.0027). Each continent is one set; mountain land shows as "both sets" (peaks and rivers exist in both).*
+
+**Blended borders (5.1).** FTF's continents are Voronoi cells, and where two of them share land their border is a long,
+nearly straight line. With one set per continent, every biome switched along that line: on one side salt lakes and cacti
+savanna (American), on the other xeric shrubland (Afro-Eurasian), with temperature and humidity the same on both sides
+(found in a test world from a straight biome edge several kilometres long). Now the set is read from the continent at a
+point moved by a smooth warp of up to about `biome_set_blend` blocks (two noises with ~256-block features) plus a small
+random jitter per 4-block cell. Near a border the switch wanders back and forth and frays into a dithered edge, like FTF's
+other biome edges; away from borders the moved point is on the same continent and nothing changes. The continent at the
+moved point comes from FTF's continent generator (`Heightmap.continent().apply`, a Voronoi lookup, not a full terrain cell).
+0 gives the sharp border.
+
+![biome set border](images/biome-set-border.png)
+*6 x 6 km around a border between an American and an Afro-Eurasian continent (red dots: the border), one colour per biome. Left: `biome_set_blend=0`; right: 384.*
 
 ## 3. Swamps in humid lowland
 
@@ -127,20 +141,26 @@ Lithosphere's scale), not highland and at least ~110 blocks inland (coasts keep 
 ![humid swamps](images/humid-swamps.png)
 *12 x 12 km. Left: bridge on; right: `humid_swamps=false`. Wetland-band biomes highlighted; with the rule a very humid lowland becomes a bayou (28% of this map), without it only coastal marsh remains.*
 
-## 4. Dry wetlands: aspen swamps and salt flats
+## 4. Dry wetlands: aspen swamps and salt lakes
 
-*4.4, surfaces in Still Life 0.3.5-ftf. `aspen_swamps`, `salt_lakes`.*
+*4.4, surfaces in Still Life 0.3.5-ftf, salt lake flatness 5.1. `aspen_swamps`, `salt_lakes`, `salt_lake_max_relief`.*
 
 **Problem.** Two of Still Life's wetland biomes need the wetland band *together with* fairly dry air: `aspen_swamp`
 (cool) and `salt_lake` (hot). The humid-swamp rule above never gives dry air, so they never generated. `/ftf locate biome`
 found none.
 
-**Change.** On American-set continents (the Afro-Eurasian set has neither biome), inland **flat** ground (at most 4 blocks
-between the column and the ground 16 blocks away in four directions) whose climate falls inside one of the two biomes'
-climate boxes (taken from Still Life's table, `ASPEN_SWAMP` / `SALT_LAKE`) gets the wetland band in noise-shaped patches a
-few hundred blocks across. `1` gives about a quarter of the qualifying land (thresholds measured over several seeds,
-`MASK_COVER`/`MASK_THRESHOLD`), `2` about half. Salt flats may sit 25 blocks higher than `swamp_max_height`, because dry
-inland basins are often raised.
+**Change.** On American-set continents (the Afro-Eurasian set has neither biome), inland **flat** ground whose climate
+falls inside one of the two biomes' climate boxes (taken from Still Life's table, `ASPEN_SWAMP` / `SALT_LAKE`) gets the
+wetland band in noise-shaped patches a few hundred blocks across. Flat means at most 4 blocks between the column and the
+ground 16 blocks away in four directions for aspen swamps, and at most `salt_lake_max_relief` (default 2) for salt lakes.
+`1` gives about a quarter of the qualifying land (thresholds measured over several seeds, `MASK_COVER`/`MASK_THRESHOLD`),
+`2` about half. Salt lakes may sit 25 blocks higher than `swamp_max_height`, because dry inland basins are often raised.
+
+**Why salt lakes need flatter ground (5.1).** With standing water (section 6) a salt lake should look like a sheet of
+shallow water on a white flat. FTF's "flat" land is often a gentle slope of 1-block terraces: a test salt lake at relief 4
+climbed 30 blocks (Y 103-132) with a step every 6-8 blocks, and since water cannot cross a step, its water could only lie in
+bands along each terrace. At relief 2 that lake shrank to a sixth of its area, onto the flat part, and salt lakes in
+general became fewer and flatter; 4 gives the 5.0 layout.
 
 **Why the Still Life patch too.** Still Life builds both biomes for sea level (Lithosphere drops the wetland band to the
 sea): its salt crust is only at Y 62-64 and its aspen-swamp mud only at Y 62. On FTF terrain they sit at any height and
@@ -151,34 +171,9 @@ clay) on dry salt-lake ground, clay under water, mud in aspen swamps (see `still
 *6 x 6 km, cool dry American lowland. Left: bridge on; right: `aspen_swamps=0, salt_lakes=0`. Aspen swamp patches (red) on flat ground.*
 
 ![dry wetlands salt flats](images/dry-wetlands-salt-flats.png)
-*6 x 6 km, hot dry inland. Same comparison: salt flats (red, 15% of this map).*
+*6 x 6 km, hot dry inland, bridge 5.1. Left: bridge on (`salt_lake_max_relief` 2); right: `aspen_swamps=0, salt_lakes=0`. Salt lakes in red: 11% of this map (15% with 5.0's relief 4).*
 
-## 5. FTF lakes as salt lakes
-
-*4.6. `salt_lakes_on_lakes`. `LakeCell`, `mixin/CellMixin`, `mixin/UpliftRiverCarverMixin`, `mixin/TerrainBiomeRoleSelectionMixin`.*
-
-**Problem.** A salt lake should be a lake. FTF has no lake objects: its "lakes" are stretches where a river widens on a
-flat step of the water table (`UpliftRiverCarver.getLakeMultiplier`, which multiplies the river bed radius). Their cells
-are marked `TerrainType.RIVER` like any river and `Terrain.isLake()` is never true (FTF 1.0.0027 added a
-`TerrainType.LAKE`, but nothing assigns it yet). FTF gives river water the nearest river biome
-(`TerrainBiomeRoleSelection.resolve`; since 1.0.0027 only submerged cells, and only when the biome chosen there is not
-already a river biome). A first attempt in 4.5 keyed on `isLake()` and so never fired.
-
-**Change.**
-- A boolean is added to FTF's `Cell` (`LakeCell`, copied in `copyFrom`, cleared in `reset`). Right after FTF carves a
-  river bed (`carveZone1Riverbed`), the bridge marks the cell as lake when the river is widened at least 1.5x there.
-- In the salt-lake climate, lake cells and ground within 16 blocks of them get the wetland band (on either continent set;
-  Afro-Eurasian ones use the American wetland band, where the only possible biome there is the salt lake).
-- A biome in the tag `stilllife_ftf_bridge:lake_biomes` (`still_life:salt_lake`) counts as a river biome in FTF's
-  river-water check, so the lake keeps its biome (`@WrapOperation` on the second `Holder.is(TagKey)` call in `resolve`,
-  the one in the river/lake branch; 4.x wrapped `Terrain.isRiver()`, which 1.0.0027 no longer calls there).
-
-**Checked** on the harness: 46k salt-lake columns around a test lake; render and cross-sections. Re-checked on 1.0.0027.
-
-![salt lakes on lakes](images/salt-lakes-on-lakes.png)
-*1.5 x 1.5 km around the test lake. Left: bridge on (the lake is `salt_lake`); right: `salt_lakes_on_lakes=false` (FTF gives it its river biome).*
-
-## 6. Wetland biomes keep their water
+## 5. Wetland biomes keep their water
 
 *5.0. `keep_wetland_biomes`. `mixin/TerrainBiomeRoleSelectionMixin`, tag `stilllife_ftf_bridge:wetland_biomes`.*
 
@@ -190,7 +185,7 @@ the muskegs (`muskeg`, `snowy_muskeg`, `frozen_muskeg`), `floodplain`, `flooded_
 `flooded_tropical_deciduous_rainforest`, `marl_prairie` or `salt_lake`: their water would have become patches of bog, fen or
 marsh inside the biome.
 
-**Change.** Every Still Life wetland-band biome (the 23 in `has_wetland_pools`, plus `lake_biomes`) also counts as a
+**Change.** Every Still Life wetland-band biome (the 24 in `has_wetland_pools`, salt lake included) also counts as a
 wetland in that check (`@WrapOperation` on the `WetlandBiomeTags.isWetland` call in `resolve`).
 
 ![wetland biomes keep muskeg](images/wetland-biomes-keep-muskeg.png)
@@ -199,53 +194,52 @@ wetland in that check (`@WrapOperation` on the `WetlandBiomeTags.isWetland` call
 ![wetland biomes keep flooded forest](images/wetland-biomes-keep-flooded-forest.png)
 *Same for a flooded tropical forest wetland: without the setting its water turns into mangrove marsh.*
 
-## 7. Lakes filled to their banks
+## 6. Standing water in wetlands and salt lakes
 
-*4.7.0, `lake_min_depth` in 4.7.1. `lake_fill`, `lake_min_depth`. `mixin/UpliftRiverCarverMixin`.*
-
-**Problem.** Most FTF lakes were ringed by a dry shelf 20-40 blocks wide, exactly at water level, between the water and
-the bank. A cross-section of a test lake (water at Y 88) showed ground at Y 88 for 25-35 blocks on each side. Two causes,
-both in FTF:
-
-1. FTF clears the lake to its width-noise-varied radius (`zone1Radius`, which includes `biasedScale`) but shapes the bed
-   for the river's plain width (`carveZone1Riverbed` is passed `scaleFactor` 1, not `biasedScale`). Wherever the noise
-   widens the lake, the outer ring of the cleared area has no bed depth: it stays flat at water level.
-2. A water column's floor block is the block the bed height reaches into, rounded *up* (measured by dumping FTF's cells
-   along a transect and comparing them with the generated blocks). A bed less than one whole block under the surface
-   block therefore ends flush with the water surface and stays dry.
-
-**Change.** In lake stretches (blended in as the river widens from 1x to 1.5x, so ordinary river beds are unchanged):
-the bed is shaped for the full cleared width (`@ModifyArg` on the `carveZone1Riverbed` call), and the bed stays at least
-`lake_min_depth` whole blocks under the water surface block (`@ModifyReturnValue` on `carveZone1Riverbed`).
-
-**Checked**: the test lake's water area grew 46% (24.9k to 36.4k columns) and now reaches within ~2 blocks of the bank; the
-banks and the ridge around the lake are unchanged. With depth 1 a quarter of the lake was 1-block shallows that looked
-white over the salt crust; 2 (the default since 4.7.1) reads as water.
-
-**FTF 1.0.0027** rewrote the river carver (natural valley sides, no terraces) but still shapes the bed with `scaleFactor`
-1, so the shelf is still there: on the same test lake `lake_fill` still adds about a quarter more water.
-
-![lake fill](images/lake-fill.png)
-*The test lake, raw FTF terrain cells (hillshade). Left: `lake_fill=false` (dry shelf at water level around the lake); right: bridge on.*
-
-## 8. Standing water in wetlands
-
-*4.5. `wetland_pools`. `WetlandPoolsFeature`.*
+*4.5; salt lakes and level-ground pools 5.1. `wetland_pools`, `salt_lake_water`, `salt_lake_slope_pools`.
+`WetlandPoolsFeature`.*
 
 **Problem.** Still Life floods its swamps, marshes, bogs and fens only at sea level (its surface rules put water and mud
-at Y 62-63), because Lithosphere drops them there. They are meant to be filled in by Lithosphere's terrain; FTF has no such
-hook, so above sea level they were dry forests.
+at Y 62-63), and its salt lakes are sea-level flats where Lithosphere's terrain dips just below the water: about a fifth of
+the lake is water one block deep over calcite, in wide irregular sheets with round calcite islands (measured on a
+Lithosphere + Still Life world: 21% water, sheets up to 16k columns). FTF's terrain puts these biomes at any height, so
+they were dry.
 
-**Change.** A feature (lakes step, added to the 23 Still Life wetland biomes in tag `stilllife_ftf_bridge:has_wetland_pools`
-by a NeoForge biome modifier) places noise-shaped pools from a few to twenty blocks across in the top ground block, 1-2
-blocks deep, with a mud bed and a muddy rim. A column only becomes water where all four neighbours reach at least as high,
-so a pool is always held by ground and never spills down a slope; the decision depends only on the terrain, so pools match
-across chunk borders.
+**Change.** A feature (lakes step, added to Still Life's 24 wetland-band biomes in tag
+`stilllife_ftf_bridge:has_wetland_pools` by a NeoForge biome modifier) places water in the top ground block. Whether a
+column becomes water depends only on the terrain and noise, so pools match across chunk borders, and water is only placed
+where the ground around holds it, so it never spills.
+
+- **Wetlands:** noise-shaped pool patches from a few to twenty blocks across, 1-2 blocks deep, with a mud bed and a muddy
+  rim. Water only sits where the ground is level for 2 blocks around (nothing lower, nothing more than one block higher).
+  The parts of a patch on sloping ground become mud, level with the ground. Up to 5.0 a column only needed its four
+  neighbours to reach as high, so on a sloped marsh water filled every 1-block step and left grass steps between them:
+  stripes of water that looked like broken ground (a test marsh on a slope of 0.7 blocks per block: 16% water, median pool 1-2
+  columns).
+- **Salt lakes (5.1):** one block of water over calcite, no mud, covering about `salt_lake_water` (default 0.35) of the
+  lake: wide, ragged sheets from a noise with 64-128-block features read at a warped point, broken by round calcite islands
+  (radius 3-6, like Still Life's salt crust disks), on ground that is level for 2 blocks around. Where the ground is not one
+  level for 6 blocks around (a stepped lake), sheets could only lie in bands along each step, so with
+  `salt_lake_slope_pools` (default true) the water there comes as small round pools held by their four neighbours instead.
+
+**Checked** on generated chunks: the sloped marsh (16% water in stripes, then 2% water in small level pools and 30% mud);
+the bayou below; and salt lakes on the tester's seed and preset: 26% of a flat salt lake under water, in sheets up
+to 2,300 columns.
 
 ![wetland pools](images/wetland-pools.png)
-*256 x 256 blocks of a bayou (a humid-lowland swamp), top blocks. Left: `wetland_pools=false` (dry forest floor); right: bridge on (pools on 10% of the ground, mud rims).*
+*256 x 256 blocks of a bayou (a humid-lowland swamp), ground under trees and plants. Left: `wetland_pools=false` (dry forest floor); right: bridge on (water on 20% of the ground, mud on 20%).*
 
-## 9. Snow on peaks
+![wetland pools slope](images/wetland-pools-slope.png)
+*A marsh on a slope (100 x 100 blocks, top blocks, water blue, mud brown). Left: bridge 5.0's rule (water in every held 1-block step); right: 5.1.*
+
+![salt lake water](images/salt-lake-water.png)
+*256 x 256 blocks, salt lake biome bright (water turquoise, calcite white, clay grey). Left: Still Life's own salt lake (Lithosphere + Still Life, sea level); right: a salt lake on FTF with bridge 5.1 (defaults).*
+
+> **Streams Reflowing** restyles other mods' water as its own banks by default (`allWaterBanks=1` in
+> `config/streamsreflowing.properties`), which removes these pools and leaves mud rings where they were (salt lake water
+> 26% -> 1% on the same lake). Set `allWaterBanks=0`.
+
+## 7. Snow on peaks
 
 *4.0. `snow_caps`, `snow_cliff_steepness`. `SnowCaps`, `mixin/ScreeFeatureMixin`, `mixin/DecorateSnowFeatureMixin`.*
 
@@ -260,24 +254,7 @@ height made for 256-block worlds), so in tall worlds almost no snow survived on 
 ![snow caps](images/snow-caps.png)
 *256 x 256 blocks of peaks near the test spawn, top blocks. Left: `snow_caps=false` (FTF turns snow into moss, tuff and stone); right: bridge on. Snow above Y 450: 34% vs 49% of columns.*
 
-## 10. Rivers start below mountains
-
-*4.0. `river_headwaters`, `river_mountain_height`, `river_fade_in`. `RiverHeadwaters`, `mixin/UpliftRiverCarverMixin`, `mixin/NetworkMixin`.*
-
-**Problem.** FTF's rivers are warped straight lines from the continent's interior to the sea that ignore the terrain, so
-they slice deep canyons through mountain ranges. Still true in 1.0.0027 (its own `MountainRiverCutTest` checks that rivers
-cut through mountains), now as wide V-shaped valleys.
-
-**Change.** Once per river, its course is sampled every 48 blocks on FTF's terrain before any river carving; the last
-point (going downstream) where the ground is more than `river_mountain_height` above the river's water is found, and the
-river is only carved below it. Over `river_fade_in` blocks it fades in from a dry valley (which keeps the land's own
-terrain type and biome) to a full river. A branch that would join its parent upstream of the parent's new start has
-nowhere to flow and is dropped too (`NetworkMixin` tells each branch which river it joins).
-
-![river headwaters](images/river-headwaters.png)
-*6 x 6 km of coastal mountains, raw FTF terrain. Left: `river_headwaters=false` (a river valley cut through the range); right: bridge on (the river is dropped, the mountains stay).*
-
-## 11. Wetlands stay off hillsides
+## 8. Wetlands stay off hillsides
 
 *4.0, own setting in 5.0. `wetland_max_height`. `mixin/WetlandMixin`.*
 
@@ -290,7 +267,7 @@ than the full value above it is left alone, and in between the wetland fades out
 ![wetland hillside](images/wetland-hillside.png)
 *2.4 x 2.4 km of mountainside. Left: `wetland_max_height=0` (FTF flattens a wetland into a pit up to 381 blocks deep); right: bridge on.*
 
-## 12. The coastal uplift cliff
+## 9. The coastal uplift cliff
 
 *4.8.0. `uplift_smoothing`. `UpliftSmoothing`, `mixin/UpliftContinentGeneratorMixin`.*
 
@@ -324,7 +301,7 @@ same map the biggest jump between cells 4 blocks apart is 48 blocks without smoo
 ![uplift cliff map](images/uplift-cliff-map.png)
 *3 x 3 km at the test spawn, raw FTF terrain. Left: `uplift_smoothing=0` (the thin bright line is the cliff); right: 1600.*
 
-## 13. VanillaBackport biomes
+## 10. VanillaBackport biomes
 
 *4.2. `pale_garden`, `dappled_forest`, `sulfur_caves`. `VanillaBackportBiomes`, `mixin/MinecraftBiomeSourceGraphsMixin`.*
 
@@ -344,7 +321,7 @@ double). Before 4.2 the Still Life patch wrote these into Still Life's table; no
 ![vb sulfur caves](images/vb-sulfur-caves.png)
 *Sulfur Caves at Y -20 (`sulfur_caves` 0.5) vs 0. The square shapes are FreeTerraForged's underground biome banding (cave biomes are laid out in square cells), not the bridge.*
 
-## 14. Sulfur Caves rock
+## 11. Sulfur Caves rock
 
 *4.3, own setting in 5.0. `sulfur_rock`. `SulfurRockFeature`.*
 
@@ -356,7 +333,44 @@ as the first feature step, before VanillaBackport's sulfur pools and spikes: bas
 ![sulfur rock](images/sulfur-rock.png)
 *A horizontal slice at Y -20 through a Sulfur Cave (128 x 128 blocks). Left: `sulfur_rock=false` (plain deepslate); right: bridge on (sulfur yellow, cinnabar red).*
 
-## 15. Removed in 5.0: no longer needed with FTF 1.0.0027
+## 12. Removed in 5.1: FTF's lakes and rivers left to FTF
+
+Bridge 5.0 also reshaped FTF's lakes and rivers. 5.1 removes those changes, so the bridge depends on less of FTF's code
+(4 of its 11 hooks went: the river carver, the river network, the heightmap and FTF's `Cell`) and FTF's own lakes and rivers
+are used as its developer makes them. Their settings in older worlds' files are ignored, so new chunks there will not match
+old ones along lakes and rivers. A side effect: Worldgen Accelerator's fast path for FTF rivers ("far rivers skipped"),
+which these hooks had switched off, works again.
+
+### FTF lakes as salt lakes (`salt_lakes_on_lakes`, 4.6-5.0)
+
+**Was:** FTF has no lake objects; its lakes are stretches where a river widens on a flat step of the water table, marked as
+river. The bridge added a flag to FTF's `Cell`, set it where FTF carves a widened river bed, gave lake cells and their shores
+the salt-lake climate, and stopped FTF's river-biome swap from replacing it there.
+
+**Why removed:** it changed FTF's lakes and needed three hooks into FTF code. FTF is getting real lakes; salt lakes now come
+from the dry-wetland climate alone (section 4), with water of their own (section 6). The test lake is now FTF's own
+desert river lake.
+
+### Lakes filled to their banks (`lake_fill`, `lake_min_depth`, 4.7-5.0)
+
+**Was:** FTF clears a lake to its noise-widened radius but shapes the bed for the river's plain width, so most lakes had a
+dry shelf 20-40 blocks wide at water level; the bridge shaped the bed for the full width and kept it 2 blocks under the
+water. Water area of the test lake: 41k columns with FTF's own lake, 51k with the fill (FTF 1.0.0027).
+
+**Why removed:** a change to FTF's river carver for a look FTF may change itself when it adds real lakes.
+
+### Rivers start below mountains (`river_headwaters`, `river_mountain_height`, `river_fade_in`, 4.0-5.0)
+
+**Was:** FTF's rivers are warped lines from a continent's interior to the sea, and they cut through mountain ranges. The
+bridge sampled each river's course before carving and only let it start below the last point where the ground rose more
+than 160 blocks above its water, fading it in from a dry valley.
+
+**Why removed:** FTF 1.0.0027-1.0.0032 place rivers much better, and cutting through ranges is FTF's design (its own test
+checks that rivers do). One FTF effect shows again where a river crosses a coastal range: a straight cliff 15-20 blocks
+high can run from the river mouth up the slope along the edge of FTF's valley carving (seen in a test world with FTF
+1.0.0030, also without the bridge and without Worldgen Accelerator): that is FTF's own valley carving.
+
+## 13. Removed in 5.0: no longer needed with FTF 1.0.0027
 
 ### Even valley sides (`river_flank_max_cut`, `river_flank_slope`, 4.0-4.8)
 
@@ -370,7 +384,7 @@ cut that slope off: it left a terrace edge around each valley where the 48-block
 floors. Cell maps with and without it, at an inland lake and two coastal rivers: valley-floor slopes (median) 0.43-0.52
 without it against 0.49-0.85 with it; everywhere else the same or within noise. A world's saved
 `river_flank_max_cut` / `river_flank_slope` no longer shape valleys; the wetland limit it also set is now
-`wetland_max_height` (section 11).
+`wetland_max_height` (section 8).
 
 ![removed river flank](images/removed-river-flank.png)
 *A coastal river on FTF 1.0.0027, raw terrain. Left: without the flank limit (FTF's own valley); right: with it (48 blocks, slope 1): the terrace edge around the valley.*
@@ -387,10 +401,14 @@ nothing left to do.
 
 ## How the images were made
 
-All on a headless NeoForge 21.1.265 server with FreeTerraForged 1.0.0027, Worldgen Accelerator 0.63.4, VanillaBackport 1.2.2
-and Still Life 0.3.5-ftf, the same seed and preset, and the settings of the tested world; each pair changes one option.
+All on a headless NeoForge 21.1.265 server with Worldgen Accelerator 0.63.4, VanillaBackport 1.2.2 and the same seed
+(8982759974645396284), with the settings of the tested world; each pair changes one option. Images up to bridge 5.0: FTF
+1.0.0027, Still Life 0.3.5-ftf and the test preset. Images new in 5.1 (biome-set border, salt lakes, wetland pools, river
+beds): FTF 1.0.0030 or 1.0.0032 and Still Life 0.3.6-ftf, with the test preset (salt flats map, bayou) or the in-game
+tester's preset (the rest); the "5.0 rule" and "0.3.5-ftf" panels were read from the tester's own world.
 - **Raw terrain** (hillshaded heights, blue = water): a debug build of the bridge dumps FreeTerraForged's terrain cells over
   an area in seconds, without generating chunks.
 - **Biome maps**: the same debug build asks the game's biome source for the biome at the surface (or a given Y) of every
   sample point, so these are the biomes chunks would get. Highlighted biomes are coloured, the rest faded.
-- **Block images** (snow, sulfur, climate): chunks generated with Chunky and read back from the region files.
+- **Block images** (snow, sulfur, climate, pools, salt lakes, river beds): chunks generated with Chunky and read back from
+  the region files; pool and bed images show the block under trees, plants and water.

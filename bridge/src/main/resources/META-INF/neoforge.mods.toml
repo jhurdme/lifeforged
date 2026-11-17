@@ -4,12 +4,12 @@ license = "MIT"
 
 [[mods]]
 modId = "stilllife_ftf_bridge"
-version = "5.0.0"
+version = "5.1.0"
 displayName = "Still Life x FreeTerraForged Bridge"
 authors = "Sondre"
 credits = "Still Life by Jayzet; FreeTerraForged by the FreeTerraForged team; Lithosphere, whose climate layout Still Life's table follows. 4.0: snow caps, river headwaters, valley-side limits and humid swamps. 4.1: valley sides as even slopes. 4.2: VanillaBackport biome prevalence. 4.3: Sulfur Caves rock."
 description = '''Places Still Life's biomes properly on FreeTerraForged terrain: oceans, coasts, mountains and continents get the biomes Still Life meant for them.
-Also (each in config/stilllife_ftf_bridge.properties, saved per world): Still Life's snow on peaks at every altitude; rivers that start below mountains instead of cutting through them; wetlands kept off hillsides; humid lowland swamps; aspen swamps and salt flats on dry flat land; FreeTerraForged lakes in dry climates as salt lakes; standing water in Still Life's wetlands at any height; FreeTerraForged lakes filled to their banks; adjustable VanillaBackport biomes; and the coastal "uplift cliff" turned into gentle terraces. Needs FreeTerraForged 1.0.0027 or later.'''
+Also (each in config/stilllife_ftf_bridge.properties, saved per world): beaches like Still Life's own; Still Life's snow on peaks at every altitude; wetlands kept off hillsides; humid lowland swamps; aspen swamps and salt lakes on dry flat land; standing water in Still Life's wetlands and salt lakes at any height; irregular, blended borders where two continents with different Still Life biome sets meet; adjustable VanillaBackport biomes; and the coastal "uplift cliff" turned into gentle terraces. Needs FreeTerraForged 1.0.0027 or later.'''
 
 [[mixins]]
 config = "stilllife_ftf_bridge.mixins.json"

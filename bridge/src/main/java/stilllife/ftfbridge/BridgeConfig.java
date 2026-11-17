@@ -56,27 +56,26 @@ final class BridgeConfig {
       double swampMaxHeight = number(p, "swamp_max_height", d.swampMaxHeight(), 63.0, 400.0);
       boolean snowCaps = bool(p, "snow_caps", d.snowCaps());
       double snowCliff = number(p, "snow_cliff_steepness", d.snowCliffSteepness(), 0.0, 10.0);
-      boolean headwaters = bool(p, "river_headwaters", d.riverHeadwaters());
-      double mountain = number(p, "river_mountain_height", d.riverMountainHeight(), 16.0, 2048.0);
-      double fadeIn = number(p, "river_fade_in", d.riverFadeIn(), 0.0, 4096.0);
       double pale = number(p, "pale_garden", d.paleGarden(), 0.0, 2.0);
       double dappled = number(p, "dappled_forest", d.dappledForest(), 0.0, 2.0);
       double sulfur = number(p, "sulfur_caves", d.sulfurCaves(), 0.0, 2.0);
       double aspen = number(p, "aspen_swamps", d.aspenSwamps(), 0.0, 2.0);
       double salt = number(p, "salt_lakes", d.saltLakes(), 0.0, 2.0);
-      boolean saltOnLakes = bool(p, "salt_lakes_on_lakes", d.saltLakesOnLakes());
       boolean pools = bool(p, "wetland_pools", d.wetlandPools());
-      boolean lakeFill = bool(p, "lake_fill", d.lakeFill());
-      double lakeMinDepth = number(p, "lake_min_depth", d.lakeMinDepth(), 1.0, 8.0);
       double upliftSmoothing = number(p, "uplift_smoothing", d.upliftSmoothing(), 0.0, 4000.0);
       double wetlandMaxHeight = number(p, "wetland_max_height", d.wetlandMaxHeight(), 0.0, 2048.0);
       boolean keepWetlandBiomes = bool(p, "keep_wetland_biomes", d.keepWetlandBiomes());
       boolean sulfurRock = bool(p, "sulfur_rock", d.sulfurRock());
       double beachMaxHeight = number(p, "beach_max_height", d.beachMaxHeight(), 0.0, 256.0);
       double beachShallows = number(p, "beach_shallows", d.beachShallows(), 0.0, 32.0);
+      double saltLakeWater = number(p, "salt_lake_water", d.saltLakeWater(), 0.0, 0.8);
+      double saltLakeMaxRelief = number(p, "salt_lake_max_relief", d.saltLakeMaxRelief(), 1.0, 16.0);
+      boolean saltLakeSlopePools = bool(p, "salt_lake_slope_pools", d.saltLakeSlopePools());
+      double biomeSetBlend = number(p, "biome_set_blend", d.biomeSetBlend(), 0.0, 2048.0);
       settings = new Settings(
-         stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, headwaters, mountain, fadeIn, pale, dappled, sulfur,
-         aspen, salt, saltOnLakes, pools, lakeFill, lakeMinDepth, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows
+         stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, pale, dappled, sulfur,
+         aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows, saltLakeWater,
+         saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend
       );
 
       String text = String.format(
@@ -99,6 +98,9 @@ final class BridgeConfig {
 
          # share of FreeTerraForged continents that get Still Life's American biomes (the rest get Afro-Eurasian ones), 0 to 1
          american_share=%s
+         # where two continents with different biome sets share land, the switch is spread over about this many blocks as an
+         # irregular, dithered edge (like other biome edges) instead of a straight line along the continent border. 0 = sharp
+         biome_set_blend=%s
 
          # --- Beaches -------------------------------------------------------------------------------------------
          # coastal land more than this many blocks above the sea never becomes a beach biome (Still Life only lays sand or gravel
@@ -117,19 +119,29 @@ final class BridgeConfig {
          # highest land that can become swamp, on Lithosphere's height scale (63 = sea, 74 = lowest quarter of land, 84 = median land). Coasts never become swamp.
          swamp_max_height=%s
          # Still Life's dry-climate wetlands, on continents with Still Life's American biomes (the Afro-Eurasian set has none):
-         # aspen swamps on cool, fairly dry flat lowland; salt lakes (white salt flats) on warm-to-hot, dry flat land 350+ blocks
-         # inland (up to a little above swamp_max_height), plus every FreeTerraForged lake in that climate and its shore.
+         # aspen swamps on cool, fairly dry flat lowland; salt lakes (white salt flats with shallow pools of water) on warm-to-hot,
+         # dry flat land 350+ blocks inland (up to a little above swamp_max_height).
          # They come in patches a few hundred blocks across, on flat ground only.
          # 0 = only where a FreeTerraForged river wetland happens to fall there, 1 = about a quarter of that land, up to 2 = about half
          aspen_swamps=%s
          salt_lakes=%s
-         # true = FreeTerraForged lakes (the widened stretches of its rivers) and their shores in the salt-lake climate become
-         #        salt lakes, on both continent sets (Still Life itself only has salt lakes in its American set). Needs salt_lakes above 0.
-         salt_lakes_on_lakes=%s
-         # true = shallow pools of standing water in Still Life's swamps, marshes, bogs, fens, muskegs and other wetlands at any
-         #        height (Still Life only floods them at sea level, where Lithosphere's terrain puts them). Pools only form where
-         #        the ground holds them, so water never spills down slopes.
+         # true = shallow pools of standing water in Still Life's swamps, marshes, bogs, fens, muskegs, salt lakes and other
+         #        wetlands at any height (Still Life only floods them at sea level, where Lithosphere's terrain puts them). Water only
+         #        sits on flat ground (level for 2 blocks around), so it never spills or lines the steps of a slope; the sloped parts
+         #        of a pool patch become mud.
          wetland_pools=%s
+         # share of a salt lake's flat ground under one block of water over white calcite, in wide irregular sheets with calcite
+         # islands (Still Life's own salt lakes: about a fifth). Water only sits on flat ground, so on stepped flats it comes out a
+         # little lower. 0 = dry salt flats. Needs wetland_pools=true.
+         salt_lake_water=%s
+         # salt lakes only form where the ground varies by at most this many blocks over 32 (1 to 16). FreeTerraForged's "flat"
+         # land is often a gentle slope of 1-block terraces, where water can only lie in narrow bands along each step, so the
+         # default 2 keeps salt lakes to properly flat ground (wide sheets of water); 4 = more, terraced salt lakes (as in 5.0).
+         # Aspen swamps always use 4.
+         salt_lake_max_relief=%s
+         # true = on stepped salt-lake ground (not one level for 6 blocks around) the water comes as small round pools; the wide
+         #        sheets with calcite islands stay on wide level ground. false = sheets only, so stepped ground stays dry
+         salt_lake_slope_pools=%s
          # FreeTerraForged flattens everything within a wetland's radius down to its water, which digs pits (up to hundreds of
          # blocks deep) where a wetland touches a hill or mountain. Ground more than this many blocks above the wetland's water is
          # left alone, ground up to half of it is flooded normally, and in between the wetland fades out. 0 = FreeTerraForged's own
@@ -145,22 +157,6 @@ final class BridgeConfig {
          snow_caps=%s
          # slope above which snow is cleared (bare cliffs). 0 = use FreeTerraForged's rock steepness from the preset
          snow_cliff_steepness=%s
-
-         # --- Rivers -------------------------------------------------------------------------------------------
-         # true = rivers no longer cut through mountains: the part of a river's course that crosses mountains is
-         #        dropped, so the river starts (fades in) below them. Branches that would join a dropped part are dropped too.
-         river_headwaters=%s
-         # ground at least this many blocks above the river's water level counts as a mountain on its course
-         river_mountain_height=%s
-         # blocks over which a shortened river fades in from a dry valley to a full river
-         river_fade_in=%s
-         # true = FreeTerraForged lakes are filled to their banks: the lake bed is shaped to the full width FreeTerraForged clears
-         #        for the lake, so the water reaches the foot of the bank. false = FreeTerraForged's own lakes, which leave a
-         #        dry shelf at water level (often 20-40 blocks wide) between the water and the bank.
-         lake_fill=%s
-         # least water depth in blocks over a filled lake's bed, right up to the bank (lake_fill only). 1 = very shallow, pale margins
-         # (white over salt crust), 2 = shallow but clearly water
-         lake_min_depth=%s
 
          # --- Terrain ------------------------------------------------------------------------------------------
          # On UPLIFT continents FreeTerraForged lifts the land towards plate borders but drops that lift to almost nothing in a band
@@ -185,6 +181,7 @@ final class BridgeConfig {
          stillLife ? "still_life" : "ftf",
          plain(pole),
          plain(share),
+         plain(biomeSetBlend),
          plain(beachMaxHeight),
          plain(beachShallows),
          swamps,
@@ -192,17 +189,14 @@ final class BridgeConfig {
          plain(swampMaxHeight),
          plain(aspen),
          plain(salt),
-         saltOnLakes,
          pools,
+         plain(saltLakeWater),
+         plain(saltLakeMaxRelief),
+         saltLakeSlopePools,
          plain(wetlandMaxHeight),
          keepWetlandBiomes,
          snowCaps,
          plain(snowCliff),
-         headwaters,
-         plain(mountain),
-         plain(fadeIn),
-         lakeFill,
-         plain(lakeMinDepth),
          plain(upliftSmoothing),
          plain(pale),
          plain(dappled),

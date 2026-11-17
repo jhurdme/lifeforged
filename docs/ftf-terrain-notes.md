@@ -1,7 +1,7 @@
 # Notes on FreeTerraForged's terrain
 
 What measuring FreeTerraForged (FTF) 1.0.0025 on generated worlds showed, while tuning a preset and the bridge, with what
-changed in 1.0.0027 at the end. Useful for anyone tuning an FTF preset. Heights are block Y in a 1024-block-tall world (sea level 63); FTF's internal height
+changed in 1.0.0027, 1.0.0030 and 1.0.0032 at the end. Useful for anyone tuning an FTF preset. Heights are block Y in a 1024-block-tall world (sea level 63); FTF's internal height
 scale is 256 blocks per 1.0 (`Levels.terrainScaleFactor = min(worldHeight, 256)`).
 
 ## Which preset values do what
@@ -98,3 +98,23 @@ From FTF's source changes (git `40b2a1e9..a3b1142b`) and cell maps (FTF's raw te
   lake water keeps a river biome, wetland water keeps a biome FTF recognises as a wetland (swamp/wetland tags or names), and
   dry banks lose river biomes.
 - **Lakes as a terrain**: `TerrainType.LAKE` exists, but nothing assigns it yet; lakes are still river cells.
+
+## 1.0.0030 and 1.0.0032
+
+- **1.0.0030**: preset snapshots, biome locate changes, a stronghold cache fix and `findValueBruteForce` (an exhaustive
+  search) in biome selection; terrain unchanged.
+- **1.0.0032**: back to Minecraft's `findValue` in biome selection; the snow decorator can now cover small plants (a new
+  preset setting) with a `snow_coverable` block tag. Terrain unchanged. Bridge 5.1's hooks apply on both.
+- **A straight cliff along river valleys**: where a river crosses a coastal range, a straight step 15-20 blocks high can run
+  from the river mouth up the slope for several hundred blocks (seen at X 3365490, Z -48790 to X 3365990, Z -48370 with the
+  tester's preset, seed 8982759974645396284). Cell maps show no continent, terrain-region or control-point change across
+  it; it lies in the river carver's `ValleyFadeout` zone, with high ground on one side, a sudden drop, then a gentle valley
+  floor, as if the valley carve depth jumps where the nearest river segment changes. It appears with FTF and Still Life
+  alone, with or without Worldgen Accelerator. Still Life's steep-slope rule paints the face bare stone, so it shows as a
+  grey strip. (Up to bridge 5.0, its "rivers start below mountains" setting kept rivers out of such ranges, which hid it.)
+
+## Other mods
+
+- **Streams Reflowing** (2.17.5) adds its own streams and lakes and, with its default `allWaterBanks=1`, restyles other
+  water's banks with its materials. That replaces shallow water placed by other mods (the bridge's salt lake and wetland
+  pools) with bank blocks and leaves mud rings where it was. `allWaterBanks=0` keeps its banks on its own water only.
