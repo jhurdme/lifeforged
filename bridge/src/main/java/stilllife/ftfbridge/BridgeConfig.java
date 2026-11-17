@@ -72,10 +72,12 @@ final class BridgeConfig {
       double saltLakeMaxRelief = number(p, "salt_lake_max_relief", d.saltLakeMaxRelief(), 1.0, 16.0);
       boolean saltLakeSlopePools = bool(p, "salt_lake_slope_pools", d.saltLakeSlopePools());
       double biomeSetBlend = number(p, "biome_set_blend", d.biomeSetBlend(), 0.0, 2048.0);
+      double peakLineVariation = number(p, "peak_line_variation", d.peakLineVariation(), 0.0, 160.0);
+      double snowCapFade = number(p, "snow_cap_fade", d.snowCapFade(), 0.0, 64.0);
       settings = new Settings(
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, pale, dappled, sulfur,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows, saltLakeWater,
-         saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend
+         saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade
       );
 
       String text = String.format(
@@ -157,6 +159,13 @@ final class BridgeConfig {
          snow_caps=%s
          # slope above which snow is cleared (bare cliffs). 0 = use FreeTerraForged's rock steepness from the preset
          snow_cliff_steepness=%s
+         # Still Life places its mountain biome bands (alpine, then snowy peaks) by height, so on its own every snow cap
+         # starts at the same height and the snow line is level, like a contour. This makes that height wander by up to
+         # about this many blocks: up and down across a range, lower in gullies, higher on ridges. 0 = a level line.
+         peak_line_variation=%s
+         # the lowest this many blocks of a snowy peaks cap get snow only in patches that thin out downwards, with bare
+         # rock between, so the cap fades in instead of starting with a solid edge (needs snow_caps). 0 = solid snow
+         snow_cap_fade=%s
 
          # --- Terrain ------------------------------------------------------------------------------------------
          # On UPLIFT continents FreeTerraForged lifts the land towards plate borders but drops that lift to almost nothing in a band
@@ -197,6 +206,8 @@ final class BridgeConfig {
          keepWetlandBiomes,
          snowCaps,
          plain(snowCliff),
+         plain(peakLineVariation),
+         plain(snowCapFade),
          plain(upliftSmoothing),
          plain(pale),
          plain(dappled),

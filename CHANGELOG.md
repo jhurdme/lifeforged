@@ -6,6 +6,18 @@ earlier version keep them off.
 
 ## Still Life x FreeTerraForged Bridge
 
+### 5.2.0
+A natural snow line. Tested with FreeTerraForged 1.0.0032 and Still Life 0.3.6-ftf.
+- **The snow line wanders** (`peak_line_variation`, default 40 blocks): Still Life's mountain biomes (alpine bands, then
+  snowy peaks) start at a height that wanders up and down across a range by about 40 blocks, reaches further down gullies
+  and stays higher on ridges, with a dithered edge. Before, every snow cap started at one height (about Y 380 in the
+  tested world), so the snow line ran level around every mountain like a contour. Lowland biomes don't move.
+- **Snow caps fade in** (`snow_cap_fade`, default 24 blocks; needs `snow_caps`): the lowest 24 blocks of a snowy peaks
+  cap keep their snow only in patches that thin out downwards (steep spots first), with bare rock or gravel between, in
+  the pattern Still Life's arctic desert uses for its snow. Before, the cap began with a solid white edge: snow went from
+  2% to 79% of the ground within 8 blocks of height; now over about 60.
+- World settings format 12. Older worlds keep their level snow line.
+
 ### 5.1.0
 Fewer changes to FreeTerraForged itself, so the bridge keeps working with future FTF versions and leaves FTF's lakes and
 rivers as its developer intends. Tested with FreeTerraForged 1.0.0027, 1.0.0030 and 1.0.0032 (all hooks apply on each).

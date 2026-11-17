@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 11;
+   private static final int FORMAT = 12;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -85,7 +85,9 @@ final class WorldLock {
                   num(o, "salt_lake_max_relief", 4.0),
                   bool(o, "salt_lake_slope_pools", false),
                   // blended biome-set borders came with format 11; older worlds keep the sharp switch
-                  num(o, "biome_set_blend", format >= 11 ? d.biomeSetBlend() : 0.0)
+                  num(o, "biome_set_blend", format >= 11 ? d.biomeSetBlend() : 0.0),
+                  num(o, "peak_line_variation", format >= 12 ? d.peakLineVariation() : 0.0),
+                  num(o, "snow_cap_fade", format >= 12 ? d.snowCapFade() : 0.0)
                );
             }
 
@@ -163,6 +165,11 @@ final class WorldLock {
             o.addProperty("salt_lake_max_relief", s.saltLakeMaxRelief());
             o.addProperty("salt_lake_slope_pools", s.saltLakeSlopePools());
             o.addProperty("biome_set_blend", s.biomeSetBlend());
+         }
+
+         if (lock.format >= 12) {
+            o.addProperty("peak_line_variation", s.peakLineVariation());
+            o.addProperty("snow_cap_fade", s.snowCapFade());
          }
       }
 

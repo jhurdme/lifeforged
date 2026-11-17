@@ -18,7 +18,7 @@ abstract class DecorateSnowFeatureMixin {
    private static void stilllife$onlyCliffs(
       ScreeFeature.Config erodeConfig, float x, float z, float steepness, float height, CallbackInfoReturnable<Boolean> cir
    ) {
-      Boolean erode = BridgeHooks.snowLayerErosion(erodeConfig, steepness);
+      Boolean erode = BridgeHooks.snowLayerErosion(erodeConfig, x, z, steepness);
       if (erode != null) {
          cir.setReturnValue(erode);
       }

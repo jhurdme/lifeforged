@@ -15,16 +15,30 @@ public final class BridgeHooks {
 
    // ---------------------------------------------------------------- snow
 
-   /** True when FTF's erosion decorator should leave this column alone: a snow top that is not on a cliff. */
-   public static boolean keepSnow(ScreeFeature.Config config, BlockState top, float steepness) {
+   /**
+    * True when FTF's erosion decorator should leave this column alone: a snow top that is not on a cliff. With
+    * snow_cap_fade the lowest part of a snowy peaks cap is bared in patches here.
+    */
+   public static boolean keepSnow(ScreeFeature.Config config, net.minecraft.world.level.chunk.ChunkAccess chunk, int x, int y, int z, float steepness) {
       Settings s = WorldLock.activeSettings();
-      return SnowCaps.active(s) && SnowCaps.isSnow(top) && steepness <= SnowCaps.cliffSteepness(s, config);
+      if (!SnowCaps.active(s)) {
+         return false;
+      }
+      float cliff = SnowCaps.cliffSteepness(s, config);
+      boolean snow = SnowCaps.isSnow(chunk.getBlockState(new net.minecraft.core.BlockPos(x, y, z))) && steepness <= cliff;
+      if (s.snowCapFade() > 0.0 && SnowCaps.fadeBare(chunk, x, y, z, cliff > 0.0F ? steepness / cliff : 0.0F) && snow) {
+         SnowCaps.bareRock(chunk, x, y, z);
+      }
+      return snow;
    }
 
    /** Replacement answer for FTF's snow-layer erosion test, or null to keep FTF's own. */
-   public static Boolean snowLayerErosion(ScreeFeature.Config config, float steepness) {
+   public static Boolean snowLayerErosion(ScreeFeature.Config config, float x, float z, float steepness) {
       Settings s = WorldLock.activeSettings();
-      return SnowCaps.active(s) ? steepness > SnowCaps.cliffSteepness(s, config) : null;
+      if (!SnowCaps.active(s)) {
+         return null;
+      }
+      return steepness > SnowCaps.cliffSteepness(s, config) || SnowCaps.bared((int)Math.floor(x), (int)Math.floor(z));
    }
 
    // ---------------------------------------------------------------- biomes
