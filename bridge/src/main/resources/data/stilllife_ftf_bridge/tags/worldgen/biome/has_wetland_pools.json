@@ -92,6 +92,10 @@
     {
       "id": "still_life:temperate_rainforest_wetlands",
       "required": false
+    },
+    {
+      "id": "still_life:salt_lake",
+      "required": false
     }
   ]
 }

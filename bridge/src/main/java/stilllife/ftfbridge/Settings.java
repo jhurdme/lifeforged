@@ -12,27 +12,28 @@ package stilllife.ftfbridge;
  * @param swampMaxHeight      highest ground, on Lithosphere's height scale (sea = 63), that can become swamp land
  * @param snowCaps            keep Still Life's snow blocks on peaks at every altitude (FTF erosion only bares cliffs)
  * @param snowCliffSteepness  steepness above which snow is eroded off; 0 or less = FTF's own rock steepness
- * @param riverHeadwaters     rivers start below mountains instead of cutting through them
- * @param riverMountainHeight blocks above a river's water level that count as a mountain on its course
- * @param riverFadeIn         blocks over which a shortened river fades in below the mountains
- * @param riverFlankMaxCut    most blocks a river valley may lower land away from the river (and how high above the water a
- *                            wetland may reach); 0 = unlimited (FTF default)
- * @param riverFlankSlope     beside the river the limit relaxes along this slope (blocks up per block out from the bank),
- *                            so valley sides become an even slope instead of a wall
  * @param paleGarden          VanillaBackport Pale Garden prevalence (1 = standard layout, 0 = none, up to 2)
  * @param dappledForest       VanillaBackport Dappled Forest prevalence
  * @param sulfurCaves         VanillaBackport Sulfur Caves prevalence
  * @param aspenSwamps         Still Life aspen swamps on cool, fairly dry lowland (American continents): 0 = none, 1 = about
  *                            a quarter of that land, up to 2
  * @param saltLakes           Still Life salt lakes on warm-to-hot dry lowland far inland (American continents), same scale
- * @param saltLakesOnLakes    FreeTerraForged lakes (and their shores) in the salt-lake climate become salt lakes, on both
- *                            continent sets (Still Life itself only has salt lakes in its American set)
  * @param wetlandPools        shallow pools of standing water in Still Life's swamps, marshes, bogs and other wetlands at any
  *                            height (Still Life only floods them at sea level, where Lithosphere's terrain puts them)
- * @param lakeFill            FreeTerraForged lake beds are shaped to the full width FTF clears for the lake, so the water reaches
- *                            the foot of the bank instead of leaving a dry shelf at water level around it
- * @param lakeMinDepth        least water depth (blocks) over a filled lake's bed, right up to the bank (lake_fill only)
  * @param upliftSmoothing     blocks over which continental uplift climbs back from FTF's coastal band (instead of a cliff); 0 = FTF's cliff
+ * @param wetlandMaxHeight    FTF wetlands leave ground more than this many blocks above their water alone (and fade out above half
+ *                            of it), so they never dig pits into hillsides; 0 = FTF's own wetlands
+ * @param keepWetlandBiomes   wetland water keeps a Still Life wetland biome FTF 1.0.0027+ does not recognise as a wetland
+ * @param sulfurRock          sulfur and cinnabar rock in VanillaBackport's Sulfur Caves
+ * @param beachMaxHeight      coastal land more than this many blocks above the sea is never a beach biome; 0 = no limit
+ * @param beachShallows       sea up to this many blocks deep (not deep ocean) gets beach biomes; 0 = ocean biomes everywhere
+ * @param saltLakeWater       share of a salt lake's flat ground covered by one block of water over calcite (wetland_pools only)
+ * @param saltLakeMaxRelief   salt lakes only on ground that varies by at most this many blocks over 32 (aspen swamps: 4;
+ *                            5.1 test builds and older worlds: 4)
+ * @param saltLakeSlopePools  on salt-lake ground that is not one level for 6 blocks around, small round pools instead of
+ *                            wide sheets (which would only lie in bands along each 1-block step)
+ * @param biomeSetBlend       blocks over which the Still Life biome set (American / Afro-Eurasian) blends across a border between
+ *                            two FTF continents, so the switch is an irregular, dithered edge; 0 = a sharp switch on the border
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -43,27 +44,28 @@ record Settings(
    double swampMaxHeight,
    boolean snowCaps,
    double snowCliffSteepness,
-   boolean riverHeadwaters,
-   double riverMountainHeight,
-   double riverFadeIn,
-   double riverFlankMaxCut,
-   double riverFlankSlope,
    double paleGarden,
    double dappledForest,
    double sulfurCaves,
    double aspenSwamps,
    double saltLakes,
-   boolean saltLakesOnLakes,
    boolean wetlandPools,
-   boolean lakeFill,
-   double lakeMinDepth,
-   double upliftSmoothing
+   double upliftSmoothing,
+   double wetlandMaxHeight,
+   boolean keepWetlandBiomes,
+   boolean sulfurRock,
+   double beachMaxHeight,
+   double beachShallows,
+   double saltLakeWater,
+   double saltLakeMaxRelief,
+   boolean saltLakeSlopePools,
+   double biomeSetBlend
 ) {
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, true, 160.0, 192.0, 48.0, 1.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, true, true, 2.0, 1600.0);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, false, 160.0, 192.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, false, 1.0, 0.0);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0);
    }
 }

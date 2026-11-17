@@ -42,7 +42,7 @@ final class SulfurRockFeature extends Feature<NoneFeatureConfiguration> {
 
    @Override
    public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
-      if (!BridgeConfig.enabled()) {
+      if (!BridgeConfig.enabled() || !WorldLock.activeSettings().sulfurRock()) {
          return false;
       }
 

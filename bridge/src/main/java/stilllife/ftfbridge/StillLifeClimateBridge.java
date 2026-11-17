@@ -31,6 +31,14 @@ import net.minecraft.world.level.levelgen.XoroshiroRandomSource;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 public final class StillLifeClimateBridge {
+   /** Still Life's beach entries: weirdness magnitude 0.05-0.08 and continentalness up to 0.02. */
+   private static final double BEACH_W_MIN = 0.05;
+   private static final double BEACH_W_MAX = 0.08;
+   private static final float BEACH_C_MAX = 0.02F;
+   /** Inside Still Life's next weirdness band (0.08-0.267), clear of the beach band's edge. */
+   private static final double ABOVE_BEACH_W = 0.09;
+   /** The middle of the beach band. */
+   private static final double SHORE_W = 0.065;
    static final double[] Y_LITHO = new double[]{63.0, 66.0, 74.0, 84.0, 109.0, 142.0, 172.0, 201.0, 223.0, 256.0, 292.0, 349.0};
    private static final double[] LITHO_LAND_PERCENTILES = new double[]{0.0, 9.3, 26.3, 50.7, 75.3, 90.0, 95.0, 97.0, 98.0, 99.0, 99.5, 99.9};
    private static final double[] DEFAULT_HEIGHTS = new double[]{63.0, 67.0, 80.0, 106.0, 140.0, 166.0, 182.0, 194.0, 202.0, 218.0, 236.0, 275.0};
@@ -131,9 +139,11 @@ public final class StillLifeClimateBridge {
       );
       double equatorZ = (temperature.getValue(0.0, 0.0, 0.0) * 0.25 - 0.5) * 43000.0;
       NormalNoise dryWetlands = NormalNoise.create(new XoroshiroRandomSource(seed ^ 7640891576956012809L), -9, new double[]{1.0, 1.0, 0.5});
+      NormalNoise setWarpX = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x2545F4914F6CDD1DL), -8, new double[]{1.0, 0.6, 0.35});
+      NormalNoise setWarpZ = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x9E3779B97F4A7C15L), -8, new double[]{1.0, 0.6, 0.35});
       return new StillLifeClimateBridge.World(
          ctx, seed, lock, settings, variant, temperature, equatorZ, s.heights, s.edge, dryWetlands,
-         maskThreshold(settings.aspenSwamps()), maskThreshold(settings.saltLakes())
+         maskThreshold(settings.aspenSwamps()), maskThreshold(settings.saltLakes()), setWarpX, setWarpZ
       );
    }
 
@@ -195,12 +205,25 @@ public final class StillLifeClimateBridge {
          boolean submerged = ocean || freshWater || cell.height <= levels.water;
          double y = cell.height * levels.terrainScaleFactor;
          long continentalness = !ocean && terrain != TerrainType.MUSHROOM_FIELDS
-            ? Climate.quantizeCoord((float)lerp(w.edge, CONT, cell.continentEdge))
+            ? Climate.quantizeCoord((float)lerp(w.edge, CONT, cell.controlPoint))
             : target.continentalness();
          double yL = y <= heights[heights.length - 1] ? lerp(heights, Y_LITHO, y) : Y_LITHO[Y_LITHO.length - 1] + (y - heights[heights.length - 1]);
          double magnitude = submerged ? 0.0 : ridgeMagnitude(yL);
+         // Beaches. Still Life's beach biomes are coastal points (continentalness up to 0.02) in the weirdness band 0.05-0.08. On
+         // Lithosphere that band is land within ~12 blocks of the sea plus the shallow sea in front of it, and Still Life's beach
+         // surface rule only lays sand or gravel below Y 65. The height mapping above squeezes FreeTerraForged's much taller
+         // coastal land into that band, so beach biomes climbed 30-50 blocks up grassy slopes, while the sea stayed ocean.
+         Settings bs = w.settings;
+         if (!ocean && bs.beachMaxHeight() > 0.0 && magnitude >= BEACH_W_MIN && magnitude <= BEACH_W_MAX
+            && Climate.unquantizeCoord(continentalness) < BEACH_C_MAX && (cell.height - levels.water) / levels.unit > bs.beachMaxHeight()) {
+            // coastal land too high above the sea for a beach: the band just above (the land's inland biome)
+            magnitude = ABOVE_BEACH_W;
+         } else if (ocean && bs.beachShallows() > 0.0 && !terrain.isDeepOcean() && (levels.water - cell.height) / levels.unit <= bs.beachShallows()) {
+            // shallow sea along the shore: beach biome, as in Still Life's own worlds (sand or gravel floor)
+            magnitude = SHORE_W;
+         }
          long weirdness = Climate.quantizeCoord((float)(w.variant.getValue(bx, 0.0, bz) >= 0.0 ? magnitude : -magnitude));
-         double group = continentRoll(cell.continentId) < w.settings.americanShare() ? -0.5 : 0.5;
+         double group = continentRoll(setContinent(w, ctx, cell.continentId, bx, bz)) < w.settings.americanShare() ? -0.5 : 0.5;
          double topo = (yL - 136.16) / 144.0;
          double aboveLowland = topo > -0.3 ? 1.0 : 0.0;
          boolean highland = terrain.getDelegate() == TerrainCategory.HIGHLAND;
@@ -208,7 +231,7 @@ public final class StillLifeClimateBridge {
          // FTF wetlands always get Still Life's wetland climate band. With humid_swamps, very humid low land does too,
          // so Still Life's swamps/marshes/fens also appear in moisture-rich lowland away from FTF's river wetlands.
          // inland only (about 110+ blocks from the sea), so coasts keep their beaches
-         double inland = lerp(w.edge, CONT, cell.continentEdge);
+         double inland = lerp(w.edge, CONT, cell.controlPoint);
          float humidity = Climate.unquantizeCoord(target.humidity());
          boolean humidSwamp = w.settings.humidSwamps()
             && !submerged
@@ -226,47 +249,28 @@ public final class StillLifeClimateBridge {
          // Dry wetlands: Still Life's aspen swamps and salt lakes need its wetland climate together with fairly dry air, which
          // the humid-swamp rule never gives. On American-set continents, inland FLAT low ground whose climate falls in one of
          // their niches gets the wetland climate in patches (a few hundred blocks across) of the configured share.
-         // Salt lakes on FreeTerraForged's lakes: lake water (the widened stretches of its rivers, marked by the bridge) and the
-         // ground within 16 blocks of it get the wetland climate in the salt-lake niche on either continent set; the Afro-Eurasian
-         // set has no salt lake of its own, so those cells use the American wetland climate (only ever salt lake there).
          boolean dryWetland = false;
-         boolean saltLakeWater = false;
-         if (!ocean && !highland && inland >= CONT[3] && !terrain.isWetland() && !humidSwamp) {
+         if (!ocean && !highland && !submerged && !freshWater && inland >= CONT[3] && !terrain.isWetland() && !humidSwamp && group < 0.0) {
             float t = Climate.unquantizeCoord(temperature);
             float c = Climate.unquantizeCoord(continentalness);
             float wv = Climate.unquantizeCoord(weirdness);
-            boolean american = group < 0.0;
-            boolean saltClimate = w.settings.saltLakes() > 0.0 && inside(SALT_LAKE, t, humidity, c, wv);
-            boolean onLakes = saltClimate && w.settings.saltLakesOnLakes();
-            if (terrain.isRiver() || terrain.isLake()) {
-               saltLakeWater = onLakes && (terrain.isLake() || LakeCell.isLake(cell));
-            } else if (!submerged) {
-               boolean aspen = american && yL <= w.settings.swampMaxHeight() && inside(ASPEN_SWAMP, t, humidity, c, wv);
-               boolean saltFlat = american && !aspen && saltClimate && yL <= w.settings.swampMaxHeight() + SALT_LAKE_EXTRA_HEIGHT;
-               double threshold = aspen ? w.aspenThreshold : saltFlat ? w.saltThreshold : Double.POSITIVE_INFINITY;
-               boolean patch = threshold != Double.POSITIVE_INFINITY && w.dryWetlands.getValue(bx, 0.0, bz) > threshold;
-               if (patch || onLakes && !aspen) {
-                  // reads the neighbouring cells; `cell` may be reused by these lookups, so it is not used after this
-                  double lo = y;
-                  double hi = y;
-                  boolean lakeNearby = false;
-                  for (int k = 0; k < 4; k++) {
-                     Cell n = CellSampler.getCachedOrLookup(ctx.lookup, bx + FLAT_DX[k], bz + FLAT_DZ[k], false);
-                     double ny = n.height * levels.terrainScaleFactor;
-                     lakeNearby |= n.terrain.isLake() || n.terrain.isRiver() && LakeCell.isLake(n);
-                     lo = Math.min(lo, ny);
-                     hi = Math.max(hi, ny);
-                  }
-
-                  saltLakeWater = onLakes && !aspen && lakeNearby;
-                  dryWetland = patch && hi - lo <= FLAT_RELIEF;
+            boolean aspen = yL <= w.settings.swampMaxHeight() && inside(ASPEN_SWAMP, t, humidity, c, wv);
+            boolean saltFlat = !aspen && w.settings.saltLakes() > 0.0 && inside(SALT_LAKE, t, humidity, c, wv)
+               && yL <= w.settings.swampMaxHeight() + SALT_LAKE_EXTRA_HEIGHT;
+            double threshold = aspen ? w.aspenThreshold : saltFlat ? w.saltThreshold : Double.POSITIVE_INFINITY;
+            if (threshold != Double.POSITIVE_INFINITY && w.dryWetlands.getValue(bx, 0.0, bz) > threshold) {
+               // reads the neighbouring cells; `cell` may be reused by these lookups, so it is not used after this
+               double lo = y;
+               double hi = y;
+               for (int k = 0; k < 4; k++) {
+                  Cell n = CellSampler.getCachedOrLookup(ctx.lookup, bx + FLAT_DX[k], bz + FLAT_DZ[k], false);
+                  double ny = n.height * levels.terrainScaleFactor;
+                  lo = Math.min(lo, ny);
+                  hi = Math.max(hi, ny);
                }
-            }
-         }
 
-         if (saltLakeWater) {
-            dryWetland = true;
-            group = -0.5;
+               dryWetland = hi - lo <= (saltFlat ? w.settings.saltLakeMaxRelief() : FLAT_RELIEF);
+            }
          }
 
          double wetland = terrain.isWetland() || humidSwamp || dryWetland ? 1.0 : 0.0;
@@ -382,7 +386,7 @@ public final class StillLifeClimateBridge {
                ctx.lookup.applyCell(cell.reset(), x0 + i * step, z0 + j * step, false, false);
                int k = j * cells + i;
                sea[k] = isSea(cell, levels);
-               edge[k] = cell.continentEdge;
+               edge[k] = cell.controlPoint;
                anySea |= sea[k];
                anyLand |= !sea[k];
             }
@@ -591,6 +595,35 @@ public final class StillLifeClimateBridge {
       return ys[ys.length - 1];
    }
 
+   /**
+    * The FTF continent whose biome set a point takes. Each continent rolls one set, so where two continents share land the
+    * biomes used to switch along their (straight) border. With biome_set_blend the set is read at a point displaced by a smooth
+    * warp (up to about biome_set_blend blocks) plus a small per-cell jitter, so the switch becomes an irregular, dithered edge
+    * spread over a few hundred blocks, like FTF's other biome edges. Far from a border the warped point is on the same
+    * continent, so nothing changes there.
+    */
+   private static float setContinent(StillLifeClimateBridge.World w, GeneratorContext ctx, float own, int bx, int bz) {
+      double blend = w.settings.biomeSetBlend();
+      if (blend <= 0.0) {
+         return own;
+      }
+
+      long h = (bx >> 2) * 0x9E3779B97F4A7C15L ^ (bz >> 2) * 0xC2B2AE3D27D4EB4FL ^ w.seed;
+      h ^= h >>> 29;
+      h *= 0xBF58476D1CE4E5B9L;
+      h ^= h >>> 32;
+      double jitter = Math.min(32.0, blend / 8.0);
+      double jx = ((h & 0xFFFF) / 65535.0 * 2.0 - 1.0) * jitter;
+      double jz = (((h >>> 16) & 0xFFFF) / 65535.0 * 2.0 - 1.0) * jitter;
+      double wx = bx + blend * w.setWarpX.getValue(bx, 0.0, bz) + jx;
+      double wz = bz + blend * w.setWarpZ.getValue(bx, 0.0, bz) + jz;
+      Cell scratch = SET_SCRATCH.get();
+      ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
+      return scratch.continentId;
+   }
+
+   private static final ThreadLocal<Cell> SET_SCRATCH = ThreadLocal.withInitial(Cell::new);
+
    static double continentRoll(float continentId) {
       long h = Float.floatToIntBits(continentId) * -7046029254386353131L;
       h ^= h >>> 31;
@@ -639,7 +672,9 @@ public final class StillLifeClimateBridge {
       double[] edge,
       NormalNoise dryWetlands,
       double aspenThreshold,
-      double saltThreshold
+      double saltThreshold,
+      NormalNoise setWarpX,
+      NormalNoise setWarpZ
    ) {
    }
 }

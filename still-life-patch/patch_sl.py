@@ -97,6 +97,43 @@ floor_seq.insert(i + 1, cond(biome('still_life:aspen_swamp'),
 log.append('surface: salt_lake crust (calcite/clay) on dry ground and clay lake bed at any height; aspen_swamp mud patches')
 save(ns_path, ns)
 
+# 1d. 0.3.6-ftf: river beds by water depth. Still Life picks sea-level river beds (Y 52-62) from one noise with ~500-block
+#     features, so FTF's wide rivers ran one material for hundreds of blocks and switched across their full width in a straight
+#     line. Now: shallows (<= 1 deep) mud / packed mud, 2 deep mixed, 3+ deep gravel / clay (arid rivers: coarse dirt / packed
+#     mud / clay), mixed by the 64-block surface noise. Tropical rivers (almost all mud) are unchanged.
+def _water(off): return {'type': 'minecraft:water', 'offset': off, 'surface_depth_multiplier': 0, 'add_stone_depth': False}
+def _mix(parts):
+    out = [cond(noise('minecraft:surface', lo, 10.0), block('minecraft:' + b)) for lo, b in parts[:-1]]
+    out.append(block('minecraft:' + parts[-1][1]))
+    return {'type': 'minecraft:sequence', 'sequence': out}
+def _by_depth(shallow, mid, deep):
+    return {'type': 'minecraft:sequence', 'sequence': [cond(_water(-2), _mix(shallow)), cond(_water(-3), _mix(mid)), _mix(deep)]}
+_RIVER_BEDS = {
+    'still_life:temperate_river': _by_depth([(-0.2, 'mud'), (None, 'packed_mud')], [(0.25, 'mud'), (-0.25, 'packed_mud'), (None, 'gravel')],
+                                            [(-0.55, 'gravel'), (None, 'clay')]),
+    'still_life:desert_river': _by_depth([(-0.2, 'coarse_dirt'), (None, 'packed_mud')], [(0.25, 'coarse_dirt'), (-0.25, 'packed_mud'), (None, 'clay')],
+                                         [(-0.55, 'packed_mud'), (None, 'clay')]),
+}
+_beds = 0
+def _walk_rivers(o):
+    global _beds
+    if isinstance(o, dict):
+        if o.get('type') == 'minecraft:condition' and o['if_true'].get('type') == 'minecraft:biome':
+            key = next((k for k in _RIVER_BEDS if k in o['if_true']['biome_is']), None)
+            if key and 'river_sediments' in json.dumps(o['then_run']):
+                inner = o['then_run']['then_run']['sequence'][0]
+                assert inner['if_true']['type'] == 'minecraft:not' and 'river_sediments' in json.dumps(inner['then_run'])
+                inner['then_run'] = copy.deepcopy(_RIVER_BEDS[key])
+                _beds += 1
+                return
+        for v in o.values(): _walk_rivers(v)
+    elif isinstance(o, list):
+        for v in o: _walk_rivers(v)
+_walk_rivers(sr)
+assert _beds == 2, _beds
+log.append('river beds: by water depth for the temperate and arid river groups')
+save(ns_path, ns)
+
 # ---------------------------------------------------------------- 2. big snow patches also on rock
 ds_path = p('data/still_life/worldgen/configured_feature/cf_terrain/disk_snow_mountains.json')
 ds = load(ds_path)

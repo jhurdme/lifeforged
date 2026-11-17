@@ -7,13 +7,8 @@
     "SamplerDecorationMixin",
     "ScreeFeatureMixin",
     "DecorateSnowFeatureMixin",
-    "HeightmapMixin",
-    "UpliftRiverCarverMixin",
-    "NetworkMixin",
     "WetlandMixin",
     "MinecraftBiomeSourceGraphsMixin",
-    "FTFBiomeLocateQueryMixin",
-    "CellMixin",
     "TerrainBiomeRoleSelectionMixin",
     "UpliftContinentGeneratorMixin"
   ],
