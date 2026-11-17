@@ -6,6 +6,27 @@ earlier version keep them off.
 
 ## Still Life x FreeTerraForged Bridge
 
+### 5.0.0
+- **Needs FreeTerraForged 1.0.0027** or later (4.x needs 1.0.0025). Built and tested against 1.0.0027 with Worldgen
+  Accelerator 0.63.4.
+- **Removed `river_flank_max_cut` / `river_flank_slope`.** FTF now gives river valleys natural ~24-degree sides itself; the
+  bridge's limit on top of that only left a terrace edge around valleys and steeper valley floors. Saved values in existing
+  worlds are ignored.
+- **Removed the `/ftf locate biome` fix**: FTF 1.0.0027 fixed the crash itself.
+- **Wetland biomes keep their water**: FTF 1.0.0027 re-picks the biome of wetland water and only keeps biomes it recognises
+  as wetlands, so Still Life's muskegs, floodplain, flooded prairie and salt lake water would have turned into bog or fen
+  patches. They now keep their biome.
+- Salt lakes on FTF lakes adapted to FTF's rewritten river-biome rule.
+- New settings for functions that only `enabled=false` could turn off before: **`wetland_max_height`** (default 48; the
+  wetland hillside limit, which 4.x took from `river_flank_max_cut`), **`keep_wetland_biomes`** (default true) and
+  **`sulfur_rock`** (default true). Older worlds keep what they had: their saved `river_flank_max_cut` becomes their
+  `wetland_max_height`.
+- **Beaches** (`beach_max_height`, default 8; `beach_shallows`, default 4): beach biomes only on coastal land within 8 blocks
+  of the sea, plus the shallow sea in front of it, as in Still Life's own worlds. Before, the beach biome covered coastal
+  slopes up to 30-50 blocks above the sea (grassland, since Still Life only lays sand below Y 65) and the sea was ocean right
+  up to the shore. Older worlds keep their beaches.
+- World settings format 10.
+
 ### 4.8.1
 - `mountain_width` removed (mountains are again exactly as the preset makes them). Worlds made with 4.8.0 generate
   full-width mountains in new chunks.
@@ -63,6 +84,7 @@ earlier version keep them off.
 
 ## Still Life FTF edition
 
+- 0.3.5-ftf works unchanged with FreeTerraForged 1.0.0027 (bridge 5.0).
 - **0.3.5-ftf**: salt lakes (white calcite crust, clay beds) and aspen swamps (mud) at any height, not only at sea level;
   salt-crust rings in lakes at any height.
 - **0.3.3-ftf**: granite and diorite only where erosion exposes rock (no pink or white mountains).

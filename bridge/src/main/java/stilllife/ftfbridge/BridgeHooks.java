@@ -91,6 +91,20 @@ public final class BridgeHooks {
    }
 
    /** True for biomes that lake water keeps instead of FTF's river biome (Still Life's salt lake). */
+   private static final net.minecraft.tags.TagKey<net.minecraft.world.level.biome.Biome> KEEPS_WETLAND_BIOME = net.minecraft.tags.TagKey.create(
+      net.minecraft.core.registries.Registries.BIOME,
+      net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(StillLifeFtfBridge.MOD_ID, "wetland_biomes")
+   );
+
+   /** Wetland water keeps a Still Life wetland biome FTF's own wetland test does not recognise. */
+   @SuppressWarnings("unchecked")
+   public static boolean keepsWetlandBiome(Object biome) {
+      return BridgeConfig.enabled()
+         && WorldLock.activeSettings().keepWetlandBiomes()
+         && biome instanceof net.minecraft.core.Holder<?> h
+         && ((net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome>)h).is(KEEPS_WETLAND_BIOME);
+   }
+
    public static boolean keepsLakeBiome(net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome) {
       return BridgeConfig.enabled() && biome != null && biome.is(KEEPS_LAKE_BIOME);
    }
@@ -142,28 +156,6 @@ public final class BridgeHooks {
       return false;
    }
 
-   /**
-    * Inside FTF's carve, once it has picked the height for a cell beside the river (valley floor or fade-out, outside the
-    * river's banks): the land may be lowered by at most river_flank_max_cut blocks, but close to the river that limit relaxes
-    * along a slope rising from the riverbank, so the valley side is an even slope that meets the banks without a wall.
-    */
-   public static float riverFlank(Cell cell, float finalHeight, float dist, float bankRadius, float valleyFloor, Levels levels) {
-      if (!(finalHeight < cell.height) || !(dist >= bankRadius) || !BridgeConfig.enabled()) {
-         return finalHeight;
-      }
-
-      Settings s = WorldLock.activeSettings();
-      double flank = s.riverFlankMaxCut();
-      if (flank <= 0.0) {
-         return finalHeight;
-      }
-
-      float unit = levels.unit;
-      float slope = valleyFloor + (float)(s.riverFlankSlope() * (dist - bankRadius)) * unit;
-      float limit = Math.min(cell.height - (float)flank * unit, slope);
-      return Math.max(finalHeight, limit);
-   }
-
    /** After a river carved a cell: fade in a shortened river below the mountains. */
    public static void riverAfter(Cell cell, Levels levels) {
       RiverPass pass = RIVER_PASS.get();
@@ -191,9 +183,10 @@ public final class BridgeHooks {
    // ---------------------------------------------------------------- wetlands
 
    /**
-    * Before a wetland shapes a cell. Wetlands only flood land near their water: ground up to half of river_flank_max_cut above
+    * Before a wetland shapes a cell. Wetlands only flood land near their water: ground up to half of wetland_max_height above
     * the water is shaped normally, ground above the full value is left alone (returns true to skip), and in between the
-    * wetland fades out, so wetlands never cut pits into hillsides.
+    * wetland fades out, so wetlands never cut pits into hillsides (FTF flattens everything within a wetland's radius to its
+    * water level, which on a mountainside digs a pit hundreds of blocks deep).
     */
    public static boolean wetlandBefore(Cell cell, Levels levels) {
       WetlandPass pass = WETLAND_PASS.get();
@@ -202,15 +195,15 @@ public final class BridgeHooks {
          return false;
       }
 
-      double flank = WorldLock.activeSettings().riverFlankMaxCut();
-      if (flank <= 0.0) {
+      double max = WorldLock.activeSettings().wetlandMaxHeight();
+      if (max <= 0.0) {
          return false;
       }
 
       float water = levels.water + ContinentalHydrology.getComplexWaterHeight(cell.waterTable, cell.globalContinentScale, cell.continentSizeModifier);
       float above = (cell.height - water) / levels.unit;
-      float lo = (float)flank * 0.5F;
-      float hi = (float)flank;
+      float lo = (float)max * 0.5F;
+      float hi = (float)max;
       if (above <= lo) {
          return false;
       }

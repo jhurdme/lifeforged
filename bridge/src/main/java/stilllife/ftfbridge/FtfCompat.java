@@ -36,7 +36,7 @@ final class FtfCompat {
          {"cell.Cell", "field", "gradient"},
          {"cell.Cell", "field", "waterTable"},
          {"cell.Cell", "field", "riverZone"},
-         {"cell.Cell", "field", "continentEdge"},
+         {"cell.Cell", "field", "controlPoint"},
          {"cell.Cell", "field", "continentId"},
          {"cell.Cell", "field", "terrain"},
          {"cell.rivermap.ContinentalHydrology", "method", "getComplexWaterHeight", float.class, float.class, float.class},

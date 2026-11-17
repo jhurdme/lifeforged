@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 9;
+   private static final int FORMAT = 10;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -62,8 +62,6 @@ final class WorldLock {
                   bool(o, "river_headwaters", false),
                   num(o, "river_mountain_height", d.riverMountainHeight()),
                   num(o, "river_fade_in", d.riverFadeIn()),
-                  num(o, "river_flank_max_cut", 0.0),
-                  num(o, "river_flank_slope", d.riverFlankSlope()),
                   // 4.0 / 4.1 worlds (format 2) were made with Still Life 0.3.1, whose saved layout already has these biomes
                   num(o, "pale_garden", 1.0),
                   num(o, "dappled_forest", 1.0),
@@ -80,7 +78,16 @@ final class WorldLock {
                   // bridge 4.7.0 (format 7) filled lakes with at least 1 block of water; the setting came with 4.7.1 (format 8)
                   num(o, "lake_min_depth", 1.0),
                   // uplift smoothing came with bridge 4.8 (format 9)
-                  num(o, "uplift_smoothing", 0.0)
+                  num(o, "uplift_smoothing", 0.0),
+                  // bridge 4.x tied the wetland hillside guard to river_flank_max_cut (0 in 3.x / 4.0 worlds = no guard)
+                  num(o, "wetland_max_height", num(o, "river_flank_max_cut", format >= 10 ? d.wetlandMaxHeight() : 0.0)),
+                  // FTF up to 1.0.0025 kept every wetland biome; 5.0 keeps them by default
+                  bool(o, "keep_wetland_biomes", true),
+                  // sulfur rock came with bridge 4.3 for every world
+                  bool(o, "sulfur_rock", true),
+                  // beach limits came with bridge 5.0 (format 10)
+                  num(o, "beach_max_height", format >= 10 ? d.beachMaxHeight() : 0.0),
+                  num(o, "beach_shallows", format >= 10 ? d.beachShallows() : 0.0)
                );
             }
 
@@ -128,8 +135,6 @@ final class WorldLock {
          o.addProperty("river_headwaters", s.riverHeadwaters());
          o.addProperty("river_mountain_height", s.riverMountainHeight());
          o.addProperty("river_fade_in", s.riverFadeIn());
-         o.addProperty("river_flank_max_cut", s.riverFlankMaxCut());
-         o.addProperty("river_flank_slope", s.riverFlankSlope());
          if (lock.format >= 3) {
             o.addProperty("pale_garden", s.paleGarden());
             o.addProperty("dappled_forest", s.dappledForest());
@@ -159,6 +164,15 @@ final class WorldLock {
 
          if (lock.format >= 9) {
             o.addProperty("uplift_smoothing", s.upliftSmoothing());
+         }
+
+         // older worlds keep their 4.x value in river_flank_max_cut, which is read back as wetland_max_height
+         if (lock.format >= 10) {
+            o.addProperty("wetland_max_height", s.wetlandMaxHeight());
+            o.addProperty("keep_wetland_biomes", s.keepWetlandBiomes());
+            o.addProperty("sulfur_rock", s.sulfurRock());
+            o.addProperty("beach_max_height", s.beachMaxHeight());
+            o.addProperty("beach_shallows", s.beachShallows());
          }
       }
 

@@ -1,7 +1,7 @@
 # Notes on FreeTerraForged's terrain
 
-What measuring FreeTerraForged (FTF) 1.0.0025 on generated worlds showed, while tuning a preset and the bridge. Useful
-for anyone tuning an FTF preset. Heights are block Y in a 1024-block-tall world (sea level 63); FTF's internal height
+What measuring FreeTerraForged (FTF) 1.0.0025 on generated worlds showed, while tuning a preset and the bridge, with what
+changed in 1.0.0027 at the end. Useful for anyone tuning an FTF preset. Heights are block Y in a 1024-block-tall world (sea level 63); FTF's internal height
 scale is 256 blocks per 1.0 (`Levels.terrainScaleFactor = min(worldHeight, 256)`).
 
 ## Which preset values do what
@@ -27,8 +27,11 @@ mountains around the test spawn disappear entirely.
 **`rivers.lakes.minBankHeight` / `maxBankHeight` are unused** (`LakeConfig.bankMin/bankMax` are read by nothing); lakes use
 their river's bank heights.
 
-**`rivers.*.bankWidth`** sets the flat valley floor beside a river (up to that many blocks) and the width of the valley's
-fade-out to the land (`bankWidth x (4 + height above water / 100)`); wider = gentler valleys.
+**`rivers.*.bankWidth`** (1.0.0025) sets the flat valley floor beside a river (up to that many blocks) and the width of the
+valley's fade-out to the land (`bankWidth x (4 + height above water / 100)`); wider = gentler valleys. In 1.0.0027 it sets
+the flat lead-out beside eroded, flat or pinched stretches (up to 0.8 x `bankWidth`) and the *least* width of the fade-out
+(`bankWidth`, varied by noise); the fade-out is otherwise as wide as a ~24-degree slope needs (2.2 blocks out per block of
+height), up to 1100 blocks.
 
 ## How the land is built
 
@@ -76,3 +79,22 @@ FTF's defaults with rivers (4 main rivers, lakes chance 0.35, size 174-500%), `g
 | `mainRivers.bankWidth` / `branchRivers.bankWidth` | 8 / 10 | 16 / 16 | wider flat valley floors, gentler valley sides |
 
 Mountains unchanged.
+
+## What changed in 1.0.0027
+
+From FTF's source changes (git `40b2a1e9..a3b1142b`) and cell maps (FTF's raw terrain cells) of the test areas with the same preset:
+
+- **River valleys** have natural V-shaped sides of about 24 degrees (`UpliftRiverCarver.carveValleySlopeFadeout`) instead of
+  terraced steps, reaching as far out as the height needs. Rivers still cut straight through mountains (FTF's own
+  `MountainRiverCutTest` expects it), now as wide valleys.
+- **Lakes** still leave a dry shelf: the bed is still shaped for the river's plain width.
+- **Wetlands** still flatten everything within their radius; on a mountainside that is a pit up to ~380 blocks deep. Only the
+  bowl bottom is tagged wetland now; the flattened sides keep their terrain type.
+- **The coastal uplift cliff** is unchanged (the `customPeak < 0.05` cap in `UpliftContinentGenerator.apply`): steps of up
+  to 48 blocks between cells 4 blocks apart on the test coast.
+- **Climate numbers**: a vanilla-banded `continentalness` on each cell, coastal land kept out of the valley weirdness band,
+  and perlin instead of worley macro-biome noise. `Cell.continentEdge` is now `Cell.controlPoint`.
+- **Biome roles** (`TerrainBiomeRoleSelection.resolve`): only submerged river, lake and wetland cells are re-biomed. River and
+  lake water keeps a river biome, wetland water keeps a biome FTF recognises as a wetland (swamp/wetland tags or names), and
+  dry banks lose river biomes.
+- **Lakes as a terrain**: `TerrainType.LAKE` exists, but nothing assigns it yet; lakes are still river cells.

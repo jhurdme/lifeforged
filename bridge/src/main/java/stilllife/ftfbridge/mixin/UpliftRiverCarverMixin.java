@@ -14,12 +14,11 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import stilllife.ftfbridge.BridgeHooks;
 import stilllife.ftfbridge.RiverAccess;
 
-/** Rivers start below mountains instead of cutting through them, and their valley sides are limited to an even slope. */
+/** Rivers start below mountains instead of cutting through them, and FTF lakes are filled to their banks. */
 @Mixin(value = UpliftRiverCarver.class, remap = false)
 abstract class UpliftRiverCarverMixin implements RiverAccess {
    @Shadow
@@ -66,24 +65,6 @@ abstract class UpliftRiverCarverMixin implements RiverAccess {
       if (BridgeHooks.riverBefore(this, this.river, cell, currT)) {
          ci.cancel();
       }
-   }
-
-   /** FTF's chosen height for this cell, just before it is compared with the cell's current height and applied. */
-   @ModifyVariable(method = "carve", at = @At(value = "LOAD", ordinal = 0), name = "finalHeight")
-   private float stilllife$gentleFlank(
-      float finalHeight,
-      Cell cell,
-      float prevX,
-      float prevZ,
-      float prevT,
-      float currX,
-      float currZ,
-      float currT,
-      @Local(name = "currentLinearDist") float dist,
-      @Local(name = "zone2Radius") float bankRadius,
-      @Local(name = "actualValleyFloorHeight") float valleyFloor
-   ) {
-      return BridgeHooks.riverFlank(cell, finalHeight, dist, bankRadius, valleyFloor, this.levels);
    }
 
    /** Marks riverbed cells of FTF's lakes (the river widened to at least LAKE_WIDENING times its width) as lake water. */

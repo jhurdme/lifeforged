@@ -31,6 +31,14 @@ import net.minecraft.world.level.levelgen.XoroshiroRandomSource;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 public final class StillLifeClimateBridge {
+   /** Still Life's beach entries: weirdness magnitude 0.05-0.08 and continentalness up to 0.02. */
+   private static final double BEACH_W_MIN = 0.05;
+   private static final double BEACH_W_MAX = 0.08;
+   private static final float BEACH_C_MAX = 0.02F;
+   /** Inside Still Life's next weirdness band (0.08-0.267), clear of the beach band's edge. */
+   private static final double ABOVE_BEACH_W = 0.09;
+   /** The middle of the beach band. */
+   private static final double SHORE_W = 0.065;
    static final double[] Y_LITHO = new double[]{63.0, 66.0, 74.0, 84.0, 109.0, 142.0, 172.0, 201.0, 223.0, 256.0, 292.0, 349.0};
    private static final double[] LITHO_LAND_PERCENTILES = new double[]{0.0, 9.3, 26.3, 50.7, 75.3, 90.0, 95.0, 97.0, 98.0, 99.0, 99.5, 99.9};
    private static final double[] DEFAULT_HEIGHTS = new double[]{63.0, 67.0, 80.0, 106.0, 140.0, 166.0, 182.0, 194.0, 202.0, 218.0, 236.0, 275.0};
@@ -195,10 +203,23 @@ public final class StillLifeClimateBridge {
          boolean submerged = ocean || freshWater || cell.height <= levels.water;
          double y = cell.height * levels.terrainScaleFactor;
          long continentalness = !ocean && terrain != TerrainType.MUSHROOM_FIELDS
-            ? Climate.quantizeCoord((float)lerp(w.edge, CONT, cell.continentEdge))
+            ? Climate.quantizeCoord((float)lerp(w.edge, CONT, cell.controlPoint))
             : target.continentalness();
          double yL = y <= heights[heights.length - 1] ? lerp(heights, Y_LITHO, y) : Y_LITHO[Y_LITHO.length - 1] + (y - heights[heights.length - 1]);
          double magnitude = submerged ? 0.0 : ridgeMagnitude(yL);
+         // Beaches. Still Life's beach biomes are coastal points (continentalness up to 0.02) in the weirdness band 0.05-0.08. On
+         // Lithosphere that band is land within ~12 blocks of the sea plus the shallow sea in front of it, and Still Life's beach
+         // surface rule only lays sand or gravel below Y 65. The height mapping above squeezes FreeTerraForged's much taller
+         // coastal land into that band, so beach biomes climbed 30-50 blocks up grassy slopes, while the sea stayed ocean.
+         Settings bs = w.settings;
+         if (!ocean && bs.beachMaxHeight() > 0.0 && magnitude >= BEACH_W_MIN && magnitude <= BEACH_W_MAX
+            && Climate.unquantizeCoord(continentalness) < BEACH_C_MAX && (cell.height - levels.water) / levels.unit > bs.beachMaxHeight()) {
+            // coastal land too high above the sea for a beach: the band just above (the land's inland biome)
+            magnitude = ABOVE_BEACH_W;
+         } else if (ocean && bs.beachShallows() > 0.0 && !terrain.isDeepOcean() && (levels.water - cell.height) / levels.unit <= bs.beachShallows()) {
+            // shallow sea along the shore: beach biome, as in Still Life's own worlds (sand or gravel floor)
+            magnitude = SHORE_W;
+         }
          long weirdness = Climate.quantizeCoord((float)(w.variant.getValue(bx, 0.0, bz) >= 0.0 ? magnitude : -magnitude));
          double group = continentRoll(cell.continentId) < w.settings.americanShare() ? -0.5 : 0.5;
          double topo = (yL - 136.16) / 144.0;
@@ -208,7 +229,7 @@ public final class StillLifeClimateBridge {
          // FTF wetlands always get Still Life's wetland climate band. With humid_swamps, very humid low land does too,
          // so Still Life's swamps/marshes/fens also appear in moisture-rich lowland away from FTF's river wetlands.
          // inland only (about 110+ blocks from the sea), so coasts keep their beaches
-         double inland = lerp(w.edge, CONT, cell.continentEdge);
+         double inland = lerp(w.edge, CONT, cell.controlPoint);
          float humidity = Climate.unquantizeCoord(target.humidity());
          boolean humidSwamp = w.settings.humidSwamps()
             && !submerged
@@ -382,7 +403,7 @@ public final class StillLifeClimateBridge {
                ctx.lookup.applyCell(cell.reset(), x0 + i * step, z0 + j * step, false, false);
                int k = j * cells + i;
                sea[k] = isSea(cell, levels);
-               edge[k] = cell.continentEdge;
+               edge[k] = cell.controlPoint;
                anySea |= sea[k];
                anyLand |= !sea[k];
             }

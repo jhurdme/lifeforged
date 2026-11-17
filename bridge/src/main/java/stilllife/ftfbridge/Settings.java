@@ -15,10 +15,6 @@ package stilllife.ftfbridge;
  * @param riverHeadwaters     rivers start below mountains instead of cutting through them
  * @param riverMountainHeight blocks above a river's water level that count as a mountain on its course
  * @param riverFadeIn         blocks over which a shortened river fades in below the mountains
- * @param riverFlankMaxCut    most blocks a river valley may lower land away from the river (and how high above the water a
- *                            wetland may reach); 0 = unlimited (FTF default)
- * @param riverFlankSlope     beside the river the limit relaxes along this slope (blocks up per block out from the bank),
- *                            so valley sides become an even slope instead of a wall
  * @param paleGarden          VanillaBackport Pale Garden prevalence (1 = standard layout, 0 = none, up to 2)
  * @param dappledForest       VanillaBackport Dappled Forest prevalence
  * @param sulfurCaves         VanillaBackport Sulfur Caves prevalence
@@ -33,6 +29,12 @@ package stilllife.ftfbridge;
  *                            the foot of the bank instead of leaving a dry shelf at water level around it
  * @param lakeMinDepth        least water depth (blocks) over a filled lake's bed, right up to the bank (lake_fill only)
  * @param upliftSmoothing     blocks over which continental uplift climbs back from FTF's coastal band (instead of a cliff); 0 = FTF's cliff
+ * @param wetlandMaxHeight    FTF wetlands leave ground more than this many blocks above their water alone (and fade out above half
+ *                            of it), so they never dig pits into hillsides; 0 = FTF's own wetlands
+ * @param keepWetlandBiomes   wetland water keeps a Still Life wetland biome FTF 1.0.0027+ does not recognise as a wetland
+ * @param sulfurRock          sulfur and cinnabar rock in VanillaBackport's Sulfur Caves
+ * @param beachMaxHeight      coastal land more than this many blocks above the sea is never a beach biome; 0 = no limit
+ * @param beachShallows       sea up to this many blocks deep (not deep ocean) gets beach biomes; 0 = ocean biomes everywhere
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -46,8 +48,6 @@ record Settings(
    boolean riverHeadwaters,
    double riverMountainHeight,
    double riverFadeIn,
-   double riverFlankMaxCut,
-   double riverFlankSlope,
    double paleGarden,
    double dappledForest,
    double sulfurCaves,
@@ -57,13 +57,18 @@ record Settings(
    boolean wetlandPools,
    boolean lakeFill,
    double lakeMinDepth,
-   double upliftSmoothing
+   double upliftSmoothing,
+   double wetlandMaxHeight,
+   boolean keepWetlandBiomes,
+   boolean sulfurRock,
+   double beachMaxHeight,
+   double beachShallows
 ) {
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, true, 160.0, 192.0, 48.0, 1.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, true, true, 2.0, 1600.0);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, true, 160.0, 192.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, true, true, 2.0, 1600.0, 48.0, true, true, 8.0, 4.0);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, false, 160.0, 192.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, false, 1.0, 0.0);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, false, 160.0, 192.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, false, 1.0, 0.0, 0.0, true, true, 0.0, 0.0);
    }
 }

@@ -49,16 +49,20 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
   Still Life was tuned for ([climate translation](docs/bridge.md#1-climate-translation)).
 - Choice of Still Life's own latitude climate (one equator, colder towards the poles) or FTF's temperature bands.
 - Still Life's two biome sets (American / Afro-Eurasian) per FTF continent, at a chosen share.
+- Beaches like Still Life's own: a low band along the shore and the shallow water in front of it, instead of "beach" grassland
+  30-50 blocks up the coastal slopes.
 - Swamps, marshes and fens in very humid lowland, not only in FTF's river wetlands.
 - Still Life's dry wetlands: aspen swamps on cool, fairly dry flat land; salt flats on hot, dry flat land; and every FTF
   lake in a salt-lake climate becomes a white-shored salt lake, on both continent sets.
 - VanillaBackport's Pale Garden, Dappled Forest and Sulfur Caves inside Still Life's layout, each at an adjustable amount,
   with the Sulfur Caves' sulfur and cinnabar rock.
+- Still Life's own wetland and salt-lake biomes keep their water: FTF re-picks the biome of wetland and lake water, which
+  would turn muskegs, floodplains, flooded prairies and salt lakes into patches of bog, fen or river.
 
 **Terrain**
 - **No more coastal "plateau ridges"** (`uplift_smoothing`): FTF ends its continental uplift in a 40-100 block cliff that
   runs for kilometres parallel to the coast; the bridge turns it into gentle terraces.
-- Rivers start below mountains instead of slicing through them, and their valley sides are even slopes instead of walls.
+- Rivers start below mountains instead of slicing through them.
 - FTF's lakes filled to their banks (FTF leaves a dry shelf 20-40 blocks wide at water level around most of them).
 - Wetlands no longer dig pits into hill and mountain sides.
 
@@ -68,9 +72,6 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
 - Granite and diorite only where erosion cuts into rock, not whole pink or white mountains.
 - Salt lakes with a white calcite crust and clay beds at any height; muddy aspen swamps.
 
-**Fixes**
-- `/ftf locate biome` works again (it failed with "An unexpected error occurred", tooltip "spawnSearch").
-
 ## Supported versions and mods
 
 | | Version used | Notes |
@@ -78,11 +79,11 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
 | Minecraft | 1.21.1 | |
 | NeoForge | 21.1.265 | any 21.1.x should work |
 | Java | 21 or newer | the jars are compiled for Java 21 |
-| FreeTerraForged | 1.0.0025 (preclimateFixes2) | 1.0.0014 or newer; continent type UPLIFT for `uplift_smoothing` |
+| FreeTerraForged | 1.0.0027 (unstable) | 1.0.0027 or newer for bridge 5.x (bridge 4.x: 1.0.0025); continent type UPLIFT for `uplift_smoothing` |
 | Still Life FTF edition | 0.3.5-ftf | made from Still Life 0.3 with `still-life-patch/` |
 | VanillaBackport | 1.2.2 | required by Still Life's 1.21.4+ content (pale oak, bushes, leaf litter...) |
 | Platform | 1.4.2 | VanillaBackport's library |
-| Worldgen Accelerator, C2ME, Lithium, ModernFix, FerriteCore | tested alongside | all fine |
+| Worldgen Accelerator (0.63.4), C2ME, Lithium, ModernFix, FerriteCore | tested alongside | all fine |
 
 **Not together with** Lithosphere, MoreDensityFunctions or the normal Still Life jar: the FTF edition replaces Still Life,
 and FTF replaces Lithosphere's terrain.
@@ -95,7 +96,7 @@ and FTF replaces Lithosphere's terrain.
    python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar
    ```
    and put the resulting `still_life-0.3.5-ftf-1.21.1.jar` in `mods/` (remove the normal Still Life jar).
-3. Put `stilllife_ftf_bridge-4.8.1.jar` in `mods/` (client and server; on a server only the server needs it, but single
+3. Put `stilllife_ftf_bridge-5.0.0.jar` in `mods/` (client and server; on a server only the server needs it, but single
    player runs a server too).
 4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option and its explanation.
 5. Create a **new world** with the FreeTerraForged world type.
@@ -113,6 +114,8 @@ match old ones. The first time a world is opened, the bridge copies the current 
   (each bridge version records a `format` number; keys a world's file doesn't have load as "off").
 - To change an existing world's settings, edit its `stilllife_ftf_bridge.json` (or delete it to take the current config).
   Already generated chunks don't change, so the border between old and new chunks may show.
+- Bridge 5.x needs FreeTerraForged 1.0.0027, which carves rivers and wetlands differently from 1.0.0025: in a world started
+  with bridge 4.x and FTF 1.0.0025, new chunks will not match old ones along rivers whatever the settings say.
 
 ## Config
 
@@ -124,6 +127,8 @@ match old ones. The first time a world is opened, the bridge copies the current 
 | `latitude` | `still_life` | `still_life`: Still Life's latitude climate (one equator, colder toward the poles). `ftf`: FTF's temperature bands. |
 | `pole_distance` | `40000` | Blocks from the equator to the coldest band (`still_life` latitude only). |
 | `american_share` | `0.5` | Share of FTF continents that get Still Life's American biome set (the rest: Afro-Eurasian). |
+| `beach_max_height` | `8` | Coastal land more than this many blocks above the sea is never a beach biome; 0 = no limit. |
+| `beach_shallows` | `4` | Sea up to this many blocks deep gets beach biomes (sand or gravel floor), as in Still Life's own worlds; 0 = ocean biomes to the shore. |
 | `humid_swamps` | `true` | Very humid, low, flat land gets Still Life's swamp/marsh/fen climate, not only FTF's river wetlands. |
 | `swamp_humidity` | `0.7` | FTF humidity (-1..1) from which lowland counts as swamp land. |
 | `swamp_max_height` | `80` | Highest land that can become swamp, on Lithosphere's height scale (63 = sea, 84 = median land). |
@@ -131,19 +136,20 @@ match old ones. The first time a world is opened, the bridge copies the current 
 | `salt_lakes` | `1` | Salt flats on hot, dry, flat land far inland (American continents), same scale. |
 | `salt_lakes_on_lakes` | `true` | FTF lakes (and shores) in the salt-lake climate become salt lakes, on both continent sets. |
 | `wetland_pools` | `true` | Shallow pools of standing water in Still Life's wetlands at any height. |
+| `wetland_max_height` | `48` | FTF wetlands leave ground more than this many blocks above their water alone (and fade out above half of it), so they don't dig pits into hillsides; 0 = FTF's own wetlands. |
+| `keep_wetland_biomes` | `true` | Water in FTF's wetlands keeps the Still Life wetland biome chosen there (FTF 1.0.0027 replaces ones it doesn't recognise). |
 | `snow_caps` | `true` | Keep Still Life's snow on peaks at every altitude; only cliffs are bare. |
 | `snow_cliff_steepness` | `0` | Slope above which snow is cleared; 0 = FTF's rock steepness from the preset. |
 | `river_headwaters` | `true` | Rivers start below mountains instead of cutting through them. |
 | `river_mountain_height` | `160` | Ground this many blocks above a river's water counts as a mountain on its course. |
 | `river_fade_in` | `192` | Blocks over which a shortened river fades in. |
-| `river_flank_max_cut` | `48` | Most blocks a river valley may lower the land away from the river; 0 = unlimited (FTF). |
-| `river_flank_slope` | `1` | Valley sides rise along this slope from the bank (1 = 45 degrees, 0.5 = gentler). |
 | `lake_fill` | `true` | FTF lakes filled to their banks instead of leaving a dry shelf at water level. |
 | `lake_min_depth` | `2` | Least water depth over a filled lake's bed, right up to the bank. |
 | `uplift_smoothing` | `1600` | Blocks over which FTF's continental uplift climbs back from its coastal band (instead of a cliff); 0 = FTF's cliff. |
 | `pale_garden` | `0.18` | VanillaBackport Pale Garden amount (1 = standard, 0 = none, up to 2). |
 | `dappled_forest` | `0.5` | VanillaBackport Dappled Forest amount. |
 | `sulfur_caves` | `0.5` | VanillaBackport Sulfur Caves amount. |
+| `sulfur_rock` | `true` | Sulfur and cinnabar rock in the Sulfur Caves (FTF skips the surface rule that paints it). |
 
 ## How the bridge works
 
@@ -195,7 +201,7 @@ The Still Life FTF edition is not built here; see [installation](#installation) 
 
 ## Version history
 
-[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 4.8.1) and the Still Life FTF edition (0.3-ftf to
+[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.0.0) and the Still Life FTF edition (0.3-ftf to
 0.3.5-ftf), with what changed and why.
 
 ## Credits and licence

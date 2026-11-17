@@ -5,6 +5,9 @@
 the script edits your own download on your own computer. Its output was checked to be identical, file for file, to the
 0.3.5-ftf jar used in testing.
 
+The edition works unchanged with FreeTerraForged 1.0.0027 and bridge 5.0: nothing FTF changed in 1.0.0027 touches what it
+patches (checked by generating a salt lake, a wetland and a coast with it, with no datapack or tag errors).
+
 The edition has two layers.
 
 ## 1. The base edition (0.3-ftf): terrain shaping removed

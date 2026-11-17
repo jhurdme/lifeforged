@@ -59,8 +59,6 @@ final class BridgeConfig {
       boolean headwaters = bool(p, "river_headwaters", d.riverHeadwaters());
       double mountain = number(p, "river_mountain_height", d.riverMountainHeight(), 16.0, 2048.0);
       double fadeIn = number(p, "river_fade_in", d.riverFadeIn(), 0.0, 4096.0);
-      double flank = number(p, "river_flank_max_cut", d.riverFlankMaxCut(), 0.0, 2048.0);
-      double flankSlope = number(p, "river_flank_slope", d.riverFlankSlope(), 0.1, 10.0);
       double pale = number(p, "pale_garden", d.paleGarden(), 0.0, 2.0);
       double dappled = number(p, "dappled_forest", d.dappledForest(), 0.0, 2.0);
       double sulfur = number(p, "sulfur_caves", d.sulfurCaves(), 0.0, 2.0);
@@ -71,9 +69,14 @@ final class BridgeConfig {
       boolean lakeFill = bool(p, "lake_fill", d.lakeFill());
       double lakeMinDepth = number(p, "lake_min_depth", d.lakeMinDepth(), 1.0, 8.0);
       double upliftSmoothing = number(p, "uplift_smoothing", d.upliftSmoothing(), 0.0, 4000.0);
+      double wetlandMaxHeight = number(p, "wetland_max_height", d.wetlandMaxHeight(), 0.0, 2048.0);
+      boolean keepWetlandBiomes = bool(p, "keep_wetland_biomes", d.keepWetlandBiomes());
+      boolean sulfurRock = bool(p, "sulfur_rock", d.sulfurRock());
+      double beachMaxHeight = number(p, "beach_max_height", d.beachMaxHeight(), 0.0, 256.0);
+      double beachShallows = number(p, "beach_shallows", d.beachShallows(), 0.0, 32.0);
       settings = new Settings(
-         stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, headwaters, mountain, fadeIn, flank, flankSlope, pale, dappled, sulfur,
-         aspen, salt, saltOnLakes, pools, lakeFill, lakeMinDepth, upliftSmoothing
+         stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, headwaters, mountain, fadeIn, pale, dappled, sulfur,
+         aspen, salt, saltOnLakes, pools, lakeFill, lakeMinDepth, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows
       );
 
       String text = String.format(
@@ -97,6 +100,15 @@ final class BridgeConfig {
          # share of FreeTerraForged continents that get Still Life's American biomes (the rest get Afro-Eurasian ones), 0 to 1
          american_share=%s
 
+         # --- Beaches -------------------------------------------------------------------------------------------
+         # coastal land more than this many blocks above the sea never becomes a beach biome (Still Life only lays sand or gravel
+         # below Y 65, so higher "beaches" are grassland; in Still Life's own worlds 90%% of beach land is within 9 blocks of the
+         # sea). 0 = no limit (beach biomes up whole coastal slopes, as before bridge 5.0)
+         beach_max_height=%s
+         # shallow sea up to this many blocks deep gets beach biomes (sand or gravel floor), as in Still Life's own worlds, where
+         # most shallow coastal water is beach. 0 = ocean biomes right up to the shore (as before bridge 5.0)
+         beach_shallows=%s
+
          # --- Swamps -------------------------------------------------------------------------------------------
          # true = very humid, low land gets Still Life's swamp/marsh/fen biomes even outside FreeTerraForged wetlands
          humid_swamps=%s
@@ -118,6 +130,14 @@ final class BridgeConfig {
          #        height (Still Life only floods them at sea level, where Lithosphere's terrain puts them). Pools only form where
          #        the ground holds them, so water never spills down slopes.
          wetland_pools=%s
+         # FreeTerraForged flattens everything within a wetland's radius down to its water, which digs pits (up to hundreds of
+         # blocks deep) where a wetland touches a hill or mountain. Ground more than this many blocks above the wetland's water is
+         # left alone, ground up to half of it is flooded normally, and in between the wetland fades out. 0 = FreeTerraForged's own
+         wetland_max_height=%s
+         # true = water in FreeTerraForged's wetlands keeps the Still Life wetland biome chosen there (muskegs, floodplain, flooded
+         #        prairie, salt lake...). FreeTerraForged 1.0.0027+ replaces wetland-water biomes it does not recognise as wetlands,
+         #        which leaves patches of bog, fen or river inside them.
+         keep_wetland_biomes=%s
 
          # --- Snow ---------------------------------------------------------------------------------------------
          # true = Still Life's snow on peaks is kept at every altitude: FreeTerraForged's erosion no longer turns it
@@ -134,12 +154,6 @@ final class BridgeConfig {
          river_mountain_height=%s
          # blocks over which a shortened river fades in from a dry valley to a full river
          river_fade_in=%s
-         # most blocks a river valley may lower the land away from the river (keeps mountain sides from being sheared off).
-         # Wetlands also stay off ground more than half this height above their water. 0 = unlimited (FreeTerraForged's own behaviour)
-         river_flank_max_cut=%s
-         # next to the river the limit relaxes along this slope, so valley sides are an even slope, never a wall:
-         # blocks up per block out from the riverbank (1 = 45 degrees, 0.5 = gentler and wider, 2 = steeper)
-         river_flank_slope=%s
          # true = FreeTerraForged lakes are filled to their banks: the lake bed is shaped to the full width FreeTerraForged clears
          #        for the lake, so the water reaches the foot of the bank. false = FreeTerraForged's own lakes, which leave a
          #        dry shelf at water level (often 20-40 blocks wide) between the water and the bank.
@@ -162,12 +176,17 @@ final class BridgeConfig {
          pale_garden=%s
          dappled_forest=%s
          sulfur_caves=%s
+         # true = VanillaBackport's Sulfur Caves get their sulfur and cinnabar rock (FreeTerraForged skips the surface rule that
+         #        paints it, so without this they are plain stone)
+         sulfur_rock=%s
          """,
          WorldLock.FILE_NAME,
          enabled,
          stillLife ? "still_life" : "ftf",
          plain(pole),
          plain(share),
+         plain(beachMaxHeight),
+         plain(beachShallows),
          swamps,
          plain(swampHumidity),
          plain(swampMaxHeight),
@@ -175,19 +194,20 @@ final class BridgeConfig {
          plain(salt),
          saltOnLakes,
          pools,
+         plain(wetlandMaxHeight),
+         keepWetlandBiomes,
          snowCaps,
          plain(snowCliff),
          headwaters,
          plain(mountain),
          plain(fadeIn),
-         plain(flank),
-         plain(flankSlope),
          lakeFill,
          plain(lakeMinDepth),
          plain(upliftSmoothing),
          plain(pale),
          plain(dappled),
-         plain(sulfur)
+         plain(sulfur),
+         sulfurRock
       );
 
       try {
