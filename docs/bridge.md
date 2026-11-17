@@ -54,7 +54,8 @@ position (`CellSampler.getCachedOrLookup`):
 - **Erosion** = the biome-set half (-0.5 American / +0.5 Afro-Eurasian) plus Still Life's band offsets for lowland,
   highland (FTF's highland terrain category) and wetland.
 - **Weirdness** = a ridge magnitude from the mapped height (peaks, slopes, valleys as Still Life expects), with a
-  per-region sign so both of Still Life's variants appear.
+  per-region sign so both of Still Life's variants appear. Since 5.2 the height used for the mountain bands wanders (see
+  [section 7](#7-snow-on-peaks)).
 - **Depth** rescaled from FTF's to Lithosphere's (`LITHO_DEPTH`), so cave biomes sit at the depths Still Life meant.
 
 **Checked** on generated worlds: biome maps per height band and per distance from the coast, compared with the same seed
@@ -241,7 +242,8 @@ to 2,300 columns.
 
 ## 7. Snow on peaks
 
-*4.0. `snow_caps`, `snow_cliff_steepness`. `SnowCaps`, `mixin/ScreeFeatureMixin`, `mixin/DecorateSnowFeatureMixin`.*
+*4.0; snow line 5.2. `snow_caps`, `snow_cliff_steepness`, `peak_line_variation`, `snow_cap_fade`. `SnowCaps`,
+`mixin/ScreeFeatureMixin`, `mixin/DecorateSnowFeatureMixin`.*
 
 **Problem.** Still Life puts snow blocks on its snowy peaks with surface rules. FTF's erosion decorator erodes snow, powder
 snow and gravel (its `erodible` tag): above its rock line it turned that snow into stone, on slopes into tuff, in its dirt
@@ -253,6 +255,50 @@ height made for 256-block worlds), so in tall worlds almost no snow survived on 
 
 ![snow caps](images/snow-caps.png)
 *256 x 256 blocks of peaks near the test spawn, top blocks. Left: `snow_caps=false` (FTF turns snow into moss, tuff and stone); right: bridge on. Snow above Y 450: 34% vs 49% of columns.*
+
+### A natural snow line (5.2)
+
+*`peak_line_variation`, `snow_cap_fade`. `StillLifeClimateBridge.peakShift` and `capSnowShare`, `SnowCaps.fadeBare`.*
+
+**Problem.** Still Life picks its mountain biomes by height: the climate translation gives each column the weirdness band
+of its height (section 1), and snowy peaks start at band 0.567 (Still Life height 242, about Y 380 in the tester's world).
+On Lithosphere that height is read from its smooth large-scale terrain, so the cap's edge wanders over the real slopes. The
+bridge reads FTF's actual height, so the edge was an exact contour line: on a mountainside in the tester's world, no snowy
+peaks below Y 362 and 99% above Y 384, and snow on the ground went from 2% to 79% within 8 blocks of height. Still Life's
+snowy peaks surface rule is plain snow on every floor (no noise, unlike its arctic desert), so the cap also began with a
+solid white edge. `snow_caps=false` doesn't help: the edge stays at the same height, and above it FTF turns half the snow
+into moss, tuff and gravel.
+
+**Change.**
+- **`peak_line_variation`** (default 40 blocks): for the mountain bands, the bridge counts the ground as higher or lower by
+  a shift per biome cell: a slow wander across a range (two noises with 1 km and 256-block features, scaled so 90% of the
+  shift lies within +-40), plus the terrain (the mean height 24 blocks north, south, east and west minus the column's own,
+  clamped to +-40: gullies count higher, so snow and alpine biomes reach further down them, while ridges and spurs count
+  lower), plus a jitter of up to +-8 blocks per biome cell that dithers the edge like FTF's other biome edges. The shift
+  fades in between Still Life heights 140 and 175, so lowland bands, beaches and wetlands never move; the alpine bands and
+  the treeline wander with the cap.
+- **`snow_cap_fade`** (default 24 blocks, with `snow_caps`): in FTF's erosion pass, a snowy peaks column less than 24
+  blocks above the cap's local edge keeps its snow with a chance that rises from about 10% at the edge to 100% (lower on
+  steep ground near the edge), in the pattern of Still Life's own `surface_dithered` noise, the one its arctic desert uses
+  for patchy snow. A bare column's snow blocks, and the dirt Still Life puts under them, become the rock or gravel below,
+  and FTF's snow pass clears the snow layer the game lays on it. Polar caps (temperature below -0.56, where Still Life
+  starts snowy peaks at the alpine band) are left alone.
+
+A Still Life surface rule could fade the cap too, but it only knows absolute Y: the cap's edge is at a different height in
+every world (heights are calibrated per world) and wanders with `peak_line_variation`. The bridge knows the edge at every
+spot, so the fade is done there and Still Life is unchanged.
+
+**Checked** with the tester's preset and world settings on 1024 x 1024 blocks of a mountainside. Snow on the ground by
+height, 5.1: 2% at Y 368-376, 47% at 376-384, 79% at 384-392; 5.2: 3% at Y 320, 22% at 336, 43% at 352, 53% at 368, 68%
+at 384. Measured inward from the cap's edge, snow covers 20% of the first 4 blocks, 41% at 8-16 blocks and 64% at 16-32
+(5.1: 54%, 72%, 74%). The edge now crosses two or three 20-block contours every 500 blocks. Generation time about the same
+(4,225 chunks: 3:46 with 5.1, 4:01 with 5.2).
+
+![snow line](images/snow-line.png)
+*A 1 x 1 km mountainside seen from the south (generated chunks drawn in perspective; ground blocks, trees dark green). Left: bridge 5.1, the cap starts at about Y 380 along a level edge; right: bridge 5.2 defaults.*
+
+![snow line map](images/snow-line-map.png)
+*The edge of the same cap from above (512 x 512 blocks, contours every 20 blocks, red at Y 300 and 400). Left: 5.1, the edge follows a contour; right: 5.2.*
 
 ## 8. Wetlands stay off hillsides
 
@@ -405,10 +451,12 @@ All on a headless NeoForge 21.1.265 server with Worldgen Accelerator 0.63.4, Van
 (8982759974645396284), with the settings of the tested world; each pair changes one option. Images up to bridge 5.0: FTF
 1.0.0027, Still Life 0.3.5-ftf and the test preset. Images new in 5.1 (biome-set border, salt lakes, wetland pools, river
 beds): FTF 1.0.0030 or 1.0.0032 and Still Life 0.3.6-ftf, with the test preset (salt flats map, bayou) or the in-game
-tester's preset (the rest); the "5.0 rule" and "0.3.5-ftf" panels were read from the tester's own world.
+tester's preset (the rest); the "5.0 rule" and "0.3.5-ftf" panels were read from the tester's own world. Images new in 5.2
+(snow line): FTF 1.0.0032, Still Life 0.3.6-ftf, the tester's preset and world settings.
 - **Raw terrain** (hillshaded heights, blue = water): a debug build of the bridge dumps FreeTerraForged's terrain cells over
   an area in seconds, without generating chunks.
 - **Biome maps**: the same debug build asks the game's biome source for the biome at the surface (or a given Y) of every
   sample point, so these are the biomes chunks would get. Highlighted biomes are coloured, the rest faded.
 - **Block images** (snow, sulfur, climate, pools, salt lakes, river beds): chunks generated with Chunky and read back from
-  the region files; pool and bed images show the block under trees, plants and water.
+  the region files; pool and bed images show the block under trees, plants and water. The snow line in perspective is the
+  same data drawn column by column from the back to the front.

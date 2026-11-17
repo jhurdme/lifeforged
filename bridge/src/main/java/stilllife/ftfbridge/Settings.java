@@ -34,6 +34,10 @@ package stilllife.ftfbridge;
  *                            wide sheets (which would only lie in bands along each 1-block step)
  * @param biomeSetBlend       blocks over which the Still Life biome set (American / Afro-Eurasian) blends across a border between
  *                            two FTF continents, so the switch is an irregular, dithered edge; 0 = a sharp switch on the border
+ * @param peakLineVariation   blocks by which the height where the high-mountain biome bands start (alpine, then snowy peaks)
+ *                            wanders: up and down across a range, lower in gullies, higher on ridges; 0 = a level line
+ * @param snowCapFade         lowest this many blocks of a snowy peaks cap get snow only in patches that thin out downwards,
+ *                            bare rock between (snow_caps only); 0 = solid snow down to the cap's edge
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -59,13 +63,15 @@ record Settings(
    double saltLakeWater,
    double saltLakeMaxRelief,
    boolean saltLakeSlopePools,
-   double biomeSetBlend
+   double biomeSetBlend,
+   double peakLineVariation,
+   double snowCapFade
 ) {
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0);
    }
 }

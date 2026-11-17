@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import stilllife.ftfbridge.BridgeHooks;
 
-/** Keeps Still Life's snow on peaks out of FreeTerraForged's erosion decorator, except on cliffs. */
+/** Keeps Still Life's snow on peaks out of FreeTerraForged's erosion decorator, except on cliffs (and fades the cap's base). */
 @Mixin(value = ScreeFeature.class, remap = false)
 abstract class ScreeFeatureMixin {
    @Inject(method = "erodeColumn", at = @At("HEAD"), cancellable = true)
@@ -31,7 +31,7 @@ abstract class ScreeFeatureMixin {
       int surfaceY,
       CallbackInfo ci
    ) {
-      if (BridgeHooks.keepSnow(config, chunk.getBlockState(pos), cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier())) {
+      if (BridgeHooks.keepSnow(config, chunk, pos.getX(), surfaceY, pos.getZ(), cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier())) {
          ci.cancel();
       }
    }

@@ -83,6 +83,17 @@ public final class StillLifeClimateBridge {
    private static final double[] MASK_THRESHOLD = new double[]{
       1.1767, 0.4938, 0.389, 0.3166, 0.2567, 0.2069, 0.1609, 0.1181, 0.0773, 0.0371, -0.0019, -0.0409, -0.081
    };
+   // Still Life heights (Lithosphere's scale) where its alpine bands (weirdness 0.4) and its snowy peaks cap (0.5667) start
+   static final double YL_ALPINE = bandStart(0.4);
+   static final double YL_PEAKS = bandStart(0.56666666);
+   // peak_line_variation acts from here up (full from PEAK_SHIFT_FULL), so lowland bands, beaches and wetlands never move
+   private static final double PEAK_SHIFT_FROM = 140.0;
+   private static final double PEAK_SHIFT_FULL = 175.0;
+   // 5-95% range of 0.7 * big + 0.3 * mid (measured)
+   private static final double PEAK_NOISE_RANGE = 0.375;
+   // standard deviation of the dither noise (Still Life's surface_dithered settings; measured)
+   private static final double CAP_DITHER_STD = 0.365;
+   private static volatile Sampler lastSampler;
    private static final Map<GeneratorContext, StillLifeClimateBridge.World> WORLDS = new WeakHashMap<>();
    private static volatile StillLifeClimateBridge.World last;
    private static final Map<String, CompletableFuture<StillLifeClimateBridge.Survey>> SURVEYS = new ConcurrentHashMap<>();
@@ -141,9 +152,15 @@ public final class StillLifeClimateBridge {
       NormalNoise dryWetlands = NormalNoise.create(new XoroshiroRandomSource(seed ^ 7640891576956012809L), -9, new double[]{1.0, 1.0, 0.5});
       NormalNoise setWarpX = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x2545F4914F6CDD1DL), -8, new double[]{1.0, 0.6, 0.35});
       NormalNoise setWarpZ = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x9E3779B97F4A7C15L), -8, new double[]{1.0, 0.6, 0.35});
+      NormalNoise peakBig = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x5DEECE66DL), -10, new double[]{1.0, 1.0});
+      NormalNoise peakMid = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x632BE59BD9B4E019L), -8, new double[]{1.0, 0.5});
+      NormalNoise capDither = NormalNoise.create(
+         new XoroshiroRandomSource(seed ^ 0x2F7A3C5B1D9E4F61L), -6, new double[]{1.0, 1.25, 1.5, 1.5, 1.5, 1.75, 1.75, 1.75, 2.0, 1.75, 1.5}
+      );
       return new StillLifeClimateBridge.World(
          ctx, seed, lock, settings, variant, temperature, equatorZ, s.heights, s.edge, dryWetlands,
-         maskThreshold(settings.aspenSwamps()), maskThreshold(settings.saltLakes()), setWarpX, setWarpZ
+         maskThreshold(settings.aspenSwamps()), maskThreshold(settings.saltLakes()), setWarpX, setWarpZ,
+         peakBig, peakMid, capDither, fromLitho(s.heights, YL_PEAKS), fromLitho(s.heights, YL_ALPINE)
       );
    }
 
@@ -197,6 +214,9 @@ public final class StillLifeClimateBridge {
          int bx = QuartPos.toBlock(qx);
          int bz = QuartPos.toBlock(qz);
          Cell cell = CellSampler.getCachedOrLookup(ctx.lookup, bx, bz, false);
+         if (lastSampler != sampler) {
+            lastSampler = sampler;
+         }
          Levels levels = ctx.levels;
          double[] heights = w.heights;
          Terrain terrain = cell.terrain;
@@ -207,23 +227,33 @@ public final class StillLifeClimateBridge {
          long continentalness = !ocean && terrain != TerrainType.MUSHROOM_FIELDS
             ? Climate.quantizeCoord((float)lerp(w.edge, CONT, cell.controlPoint))
             : target.continentalness();
-         double yL = y <= heights[heights.length - 1] ? lerp(heights, Y_LITHO, y) : Y_LITHO[Y_LITHO.length - 1] + (y - heights[heights.length - 1]);
-         double magnitude = submerged ? 0.0 : ridgeMagnitude(yL);
+         double yL = toLitho(heights, y);
+         // the cell's values are read before the neighbour lookups below, which may reuse it
+         final float cellHeight = cell.height;
+         final float cellContinent = cell.continentId;
+         final float cellControl = cell.controlPoint;
+         // peak_line_variation: the high-mountain bands start at a wandering height instead of a level line
+         double yBand = yL;
+         if (!submerged && w.settings.peakLineVariation() > 0.0 && yL > PEAK_SHIFT_FROM) {
+            double ramp = clamp((yL - PEAK_SHIFT_FROM) / (PEAK_SHIFT_FULL - PEAK_SHIFT_FROM), 0.0, 1.0);
+            yBand = toLitho(heights, y + ramp * peakShift(w, ctx, qx, qz));
+         }
+         double magnitude = submerged ? 0.0 : ridgeMagnitude(yBand);
          // Beaches. Still Life's beach biomes are coastal points (continentalness up to 0.02) in the weirdness band 0.05-0.08. On
          // Lithosphere that band is land within ~12 blocks of the sea plus the shallow sea in front of it, and Still Life's beach
          // surface rule only lays sand or gravel below Y 65. The height mapping above squeezes FreeTerraForged's much taller
          // coastal land into that band, so beach biomes climbed 30-50 blocks up grassy slopes, while the sea stayed ocean.
          Settings bs = w.settings;
          if (!ocean && bs.beachMaxHeight() > 0.0 && magnitude >= BEACH_W_MIN && magnitude <= BEACH_W_MAX
-            && Climate.unquantizeCoord(continentalness) < BEACH_C_MAX && (cell.height - levels.water) / levels.unit > bs.beachMaxHeight()) {
+            && Climate.unquantizeCoord(continentalness) < BEACH_C_MAX && (cellHeight - levels.water) / levels.unit > bs.beachMaxHeight()) {
             // coastal land too high above the sea for a beach: the band just above (the land's inland biome)
             magnitude = ABOVE_BEACH_W;
-         } else if (ocean && bs.beachShallows() > 0.0 && !terrain.isDeepOcean() && (levels.water - cell.height) / levels.unit <= bs.beachShallows()) {
+         } else if (ocean && bs.beachShallows() > 0.0 && !terrain.isDeepOcean() && (levels.water - cellHeight) / levels.unit <= bs.beachShallows()) {
             // shallow sea along the shore: beach biome, as in Still Life's own worlds (sand or gravel floor)
             magnitude = SHORE_W;
          }
          long weirdness = Climate.quantizeCoord((float)(w.variant.getValue(bx, 0.0, bz) >= 0.0 ? magnitude : -magnitude));
-         double group = continentRoll(setContinent(w, ctx, cell.continentId, bx, bz)) < w.settings.americanShare() ? -0.5 : 0.5;
+         double group = continentRoll(setContinent(w, ctx, cellContinent, bx, bz)) < w.settings.americanShare() ? -0.5 : 0.5;
          double topo = (yL - 136.16) / 144.0;
          double aboveLowland = topo > -0.3 ? 1.0 : 0.0;
          boolean highland = terrain.getDelegate() == TerrainCategory.HIGHLAND;
@@ -231,7 +261,7 @@ public final class StillLifeClimateBridge {
          // FTF wetlands always get Still Life's wetland climate band. With humid_swamps, very humid low land does too,
          // so Still Life's swamps/marshes/fens also appear in moisture-rich lowland away from FTF's river wetlands.
          // inland only (about 110+ blocks from the sea), so coasts keep their beaches
-         double inland = lerp(w.edge, CONT, cell.controlPoint);
+         double inland = lerp(w.edge, CONT, cellControl);
          float humidity = Climate.unquantizeCoord(target.humidity());
          boolean humidSwamp = w.settings.humidSwamps()
             && !submerged
@@ -624,6 +654,128 @@ public final class StillLifeClimateBridge {
 
    private static final ThreadLocal<Cell> SET_SCRATCH = ThreadLocal.withInitial(Cell::new);
 
+   /** FTF height (blocks) to Still Life's height scale, by the world's measured height table. */
+   static double toLitho(double[] heights, double y) {
+      return y <= heights[heights.length - 1] ? lerp(heights, Y_LITHO, y) : Y_LITHO[Y_LITHO.length - 1] + (y - heights[heights.length - 1]);
+   }
+
+   /** Still Life height scale back to FTF blocks. */
+   static double fromLitho(double[] heights, double yl) {
+      return yl <= Y_LITHO[Y_LITHO.length - 1] ? lerp(Y_LITHO, heights, yl) : heights[heights.length - 1] + (yl - Y_LITHO[Y_LITHO.length - 1]);
+   }
+
+   /** Lowest Still Life height whose band value reaches m. */
+   private static double bandStart(double m) {
+      double lo = 63.0, hi = 349.0;
+      for (int i = 0; i < 60; i++) {
+         double mid = 0.5 * (lo + hi);
+         if (ridgeMagnitude(mid) >= m) {
+            hi = mid;
+         } else {
+            lo = mid;
+         }
+      }
+      return hi;
+   }
+
+   /**
+    * peak_line_variation: blocks by which the ground counts as higher (+) or lower (-) for the high-mountain bands, per biome
+    * cell. A slow wander across ranges (about +-variation), plus the terrain: gullies (ground below its surroundings 24 blocks
+    * away) count as higher, so snow and alpine biomes reach further down them, while ridges and spurs count as lower; plus a
+    * small per-cell jitter, so the edge is dithered like FTF's other biome edges.
+    */
+   static double peakShift(StillLifeClimateBridge.World w, GeneratorContext ctx, int qx, int qz) {
+      double v = w.settings.peakLineVariation();
+      if (v <= 0.0) {
+         return 0.0;
+      }
+
+      ShiftCache c = SHIFT_CACHE.get();
+      int slot = (qx * 31 + qz) & (ShiftCache.SIZE - 1);
+      if (c.world[slot] == w && c.qx[slot] == qx && c.qz[slot] == qz) {
+         return c.value[slot];
+      }
+
+      int bx = QuartPos.toBlock(qx);
+      int bz = QuartPos.toBlock(qz);
+      double n = (0.7 * w.peakBig.getValue(bx, 0.0, bz) + 0.3 * w.peakMid.getValue(bx, 0.0, bz)) / PEAK_NOISE_RANGE;
+      double shift = v * clamp(n, -1.3, 1.3);
+      float scale = ctx.levels.terrainScaleFactor;
+      double h0 = CellSampler.getCachedOrLookup(ctx.lookup, bx, bz, false).height * scale;
+      double around = 0.0;
+      for (int k = 0; k < 4; k++) {
+         around += CellSampler.getCachedOrLookup(ctx.lookup, bx + RELIEF_DX[k], bz + RELIEF_DZ[k], false).height * scale;
+      }
+      shift += clamp(around / 4.0 - h0, -v, v);
+      long h = qx * 0x9E3779B97F4A7C15L ^ qz * 0xC2B2AE3D27D4EB4FL ^ w.seed ^ 0x7F4A7C15L;
+      h ^= h >>> 29;
+      h *= 0xBF58476D1CE4E5B9L;
+      h ^= h >>> 32;
+      shift += ((h & 0xFFFF) / 65535.0 * 2.0 - 1.0) * Math.min(8.0, v / 4.0);
+      c.world[slot] = w;
+      c.qx[slot] = qx;
+      c.qz[slot] = qz;
+      c.value[slot] = shift;
+      return shift;
+   }
+
+   private static final int[] RELIEF_DX = {24, -24, 0, 0};
+   private static final int[] RELIEF_DZ = {0, 0, 24, -24};
+   private static final ThreadLocal<ShiftCache> SHIFT_CACHE = ThreadLocal.withInitial(ShiftCache::new);
+
+   private static final class ShiftCache {
+      static final int SIZE = 256;
+      final Object[] world = new Object[SIZE];
+      final int[] qx = new int[SIZE];
+      final int[] qz = new int[SIZE];
+      final double[] value = new double[SIZE];
+   }
+
+   /**
+    * snow_cap_fade: share of the ground (0..1) that keeps its snow at block (x, y, z) of a snowy peaks cap, or 1 where the
+    * fade does not apply (more than snow_cap_fade blocks above the cap's local edge, or a polar cap, which starts lower).
+    */
+   static double capSnowShare(int x, int y, int z, float slope) {
+      StillLifeClimateBridge.World w = last;
+      if (w == null) {
+         return 1.0;
+      }
+      Settings s = w.settings;
+      double fade = s.snowCapFade();
+      if (fade <= 0.0) {
+         return 1.0;
+      }
+      int qx = QuartPos.fromBlock(x);
+      int qz = QuartPos.fromBlock(z);
+      double d = y - (w.peaksHeight - peakShift(w, w.ctx, qx, qz));
+      if (d >= fade) {
+         return 1.0;
+      }
+      // polar caps (Still Life temperature below -0.56) start at the alpine band, well below this edge
+      Sampler sampler = lastSampler;
+      if (sampler != null && Climate.unquantizeCoord(sampler.sample(qx, QuartPos.fromBlock(y), qz).temperature()) < -0.56F) {
+         return 1.0;
+      }
+      double t = clamp(d / fade, 0.0, 1.0);
+      double share = 0.1 + 0.9 * t * t * (3.0 - 2.0 * t);
+      // snow lies on gentle ground first: steep spots go bare first
+      share -= 0.3 * (1.0 - t) * (clamp(slope, 0.0, 1.0) - 0.4);
+      return share;
+   }
+
+   /** Roughly uniform 0..1 dither value for the cap fade (Still Life's arctic-desert noise, through its normal distribution). */
+   static double capDither(int x, int z) {
+      StillLifeClimateBridge.World w = last;
+      return w == null ? 0.5 : phi(w.capDither.getValue(x, 0.0, z) / CAP_DITHER_STD);
+   }
+
+   private static double phi(double v) {
+      double t = 1.0 / (1.0 + 0.2316419 * Math.abs(v));
+      double d = 0.3989422804014327 * Math.exp(-v * v / 2.0);
+      double p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+      return v >= 0.0 ? 1.0 - p : p;
+   }
+
    static double continentRoll(float continentId) {
       long h = Float.floatToIntBits(continentId) * -7046029254386353131L;
       h ^= h >>> 31;
@@ -674,7 +826,12 @@ public final class StillLifeClimateBridge {
       double aspenThreshold,
       double saltThreshold,
       NormalNoise setWarpX,
-      NormalNoise setWarpZ
+      NormalNoise setWarpZ,
+      NormalNoise peakBig,
+      NormalNoise peakMid,
+      NormalNoise capDither,
+      double peaksHeight,
+      double alpineHeight
    ) {
    }
 }
