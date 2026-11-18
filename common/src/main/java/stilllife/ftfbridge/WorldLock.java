@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 12;
+   private static final int FORMAT = 13;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -87,11 +87,14 @@ final class WorldLock {
                   // blended biome-set borders came with format 11; older worlds keep the sharp switch
                   num(o, "biome_set_blend", format >= 11 ? d.biomeSetBlend() : 0.0),
                   num(o, "peak_line_variation", format >= 12 ? d.peakLineVariation() : 0.0),
-                  num(o, "snow_cap_fade", format >= 12 ? d.snowCapFade() : 0.0)
+                  num(o, "snow_cap_fade", format >= 12 ? d.snowCapFade() : 0.0),
+                  Settings.biomeSetsMode(format >= 13 && o.has("biome_sets") ? o.get("biome_sets").getAsString() : null),
+                  num(o, "biome_set_region_size", d.biomeSetRegionSize())
                );
             }
 
             lock = new WorldLock.Lock(file, s, doubles(o, "heights"), doubles(o, "coast_edge"), o.has("terrain") ? o.get("terrain").getAsString() : null, format);
+            lock.landArea = num(o, "continent_land_area", 0.0);
             StillLifeFtfBridge.LOG.info("[{}] using this world's saved settings: {}", StillLifeFtfBridge.MOD_ID, s);
          } catch (Exception e) {
             throw new IllegalStateException(
@@ -110,6 +113,12 @@ final class WorldLock {
 
    static void close() {
       current = null;
+   }
+
+   /** The measured land area of an average FTF continent (blocks squared), kept so regions keep their size in this world. */
+   static synchronized void storeLandArea(WorldLock.Lock lock, double area) {
+      lock.landArea = area;
+      save(lock);
    }
 
    static synchronized void storeSurvey(WorldLock.Lock lock, StillLifeClimateBridge.Survey s, String terrain) {
@@ -171,6 +180,11 @@ final class WorldLock {
             o.addProperty("peak_line_variation", s.peakLineVariation());
             o.addProperty("snow_cap_fade", s.snowCapFade());
          }
+
+         if (lock.format >= 13) {
+            o.addProperty("biome_sets", s.biomeSets());
+            o.addProperty("biome_set_region_size", s.biomeSetRegionSize());
+         }
       }
 
       if (lock.heights != null) {
@@ -179,6 +193,10 @@ final class WorldLock {
 
       if (lock.edge != null) {
          o.add("coast_edge", array(lock.edge));
+      }
+
+      if (lock.landArea > 0.0) {
+         o.addProperty("continent_land_area", lock.landArea);
       }
 
       if (lock.terrain != null) {
@@ -232,6 +250,7 @@ final class WorldLock {
       volatile double[] heights;
       volatile double[] edge;
       volatile String terrain;
+      volatile double landArea;
 
       Lock(Path file, Settings settings, double[] heights, double[] edge, String terrain, int format) {
          this.file = file;

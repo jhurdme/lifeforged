@@ -152,6 +152,30 @@ public final class StillLifeClimateBridge {
       NormalNoise dryWetlands = NormalNoise.create(new XoroshiroRandomSource(seed ^ 7640891576956012809L), -9, new double[]{1.0, 1.0, 0.5});
       NormalNoise setWarpX = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x2545F4914F6CDD1DL), -8, new double[]{1.0, 0.6, 0.35});
       NormalNoise setWarpZ = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x9E3779B97F4A7C15L), -8, new double[]{1.0, 0.6, 0.35});
+      // biome_sets=regions/halves: the size of an average continent's land, measured once and kept in the world's settings
+      double landArea = 0.0;
+      double continentSpacing = 0.0;
+      float landControlPoint = 1.0F;
+      try {
+         continentSpacing = 4.0 * ctx.preset.world().continent.continentScale;
+         landControlPoint = ctx.preset.world().controlPoints.beach;
+      } catch (Throwable t) {
+         StillLifeFtfBridge.LOG.warn("[{}] could not read FreeTerraForged's continent settings; biome sets by regions/halves use averages", StillLifeFtfBridge.MOD_ID);
+      }
+      if (!settings.biomeSets().equals(Settings.SETS_CONTINENTS)) {
+         landArea = lock != null && lock.landArea > 0.0 ? lock.landArea : measureLandArea(ctx);
+         if (lock != null && !(lock.landArea > 0.0)) {
+            WorldLock.storeLandArea(lock, landArea);
+         }
+         StillLifeFtfBridge.LOG.info(
+            "[{}] biome sets by {}: average continent land {} km2{}", StillLifeFtfBridge.MOD_ID, settings.biomeSets(),
+            Math.round(landArea / 1.0E6), settings.biomeSets().equals(Settings.SETS_REGIONS)
+               ? ", regions about " + Math.round(Math.sqrt(settings.biomeSetRegionSize() / 100.0 * landArea)) + " blocks across (" + BridgeConfig.plain(settings.biomeSetRegionSize()) + "% each)"
+               : ""
+         );
+      } else {
+         landArea = 1.0;
+      }
       NormalNoise peakBig = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x5DEECE66DL), -10, new double[]{1.0, 1.0});
       NormalNoise peakMid = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x632BE59BD9B4E019L), -8, new double[]{1.0, 0.5});
       NormalNoise capDither = NormalNoise.create(
@@ -160,7 +184,10 @@ public final class StillLifeClimateBridge {
       return new StillLifeClimateBridge.World(
          ctx, seed, lock, settings, variant, temperature, equatorZ, s.heights, s.edge, dryWetlands,
          maskThreshold(settings.aspenSwamps()), maskThreshold(settings.saltLakes()), setWarpX, setWarpZ,
-         peakBig, peakMid, capDither, fromLitho(s.heights, YL_PEAKS), fromLitho(s.heights, YL_ALPINE)
+         peakBig, peakMid, capDither, fromLitho(s.heights, YL_PEAKS), fromLitho(s.heights, YL_ALPINE),
+         Math.sqrt(settings.biomeSetRegionSize() / 100.0 * landArea), Math.sqrt(landArea), continentSpacing, landControlPoint,
+         NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x3C6EF372FE94F82BL), -10, new double[]{1.0, 0.5}),
+         new ConcurrentHashMap<>()
       );
    }
 
@@ -253,7 +280,7 @@ public final class StillLifeClimateBridge {
             magnitude = SHORE_W;
          }
          long weirdness = Climate.quantizeCoord((float)(w.variant.getValue(bx, 0.0, bz) >= 0.0 ? magnitude : -magnitude));
-         double group = continentRoll(setContinent(w, ctx, cellContinent, bx, bz)) < w.settings.americanShare() ? -0.5 : 0.5;
+         double group = biomeSetGroup(w, ctx, cellContinent, bx, bz);
          double topo = (yL - 136.16) / 144.0;
          double aboveLowland = topo > -0.3 ? 1.0 : 0.0;
          boolean highland = terrain.getDelegate() == TerrainCategory.HIGHLAND;
@@ -626,30 +653,198 @@ public final class StillLifeClimateBridge {
    }
 
    /**
-    * The FTF continent whose biome set a point takes. Each continent rolls one set, so where two continents share land the
-    * biomes used to switch along their (straight) border. With biome_set_blend the set is read at a point displaced by a smooth
-    * warp (up to about biome_set_blend blocks) plus a small per-cell jitter, so the switch becomes an irregular, dithered edge
-    * spread over a few hundred blocks, like FTF's other biome edges. Far from a border the warped point is on the same
-    * continent, so nothing changes there.
+    * Still Life's biome set at a point: -0.5 = American, 0.5 = Afro-Eurasian (the sign of Still Life's erosion number).
+    * <ul>
+    * <li>continents: each FTF continent rolls one set. Where two continents share land the biomes used to switch along
+    * their (straight) border; with biome_set_blend the set is read at a point displaced by a smooth warp (up to about
+    * biome_set_blend blocks) plus a small per-cell jitter, so the switch becomes an irregular, dithered edge spread over a
+    * few hundred blocks, like FTF's other biome edges. Far from a border the warped point is on the same continent.</li>
+    * <li>regions: irregular regions (a jittered grid of cells biome_set_region_size percent of an average continent's land
+    * in area) each roll a set, read at the same warped point, so their borders fray the same way. Both sets on one
+    * continent, as in Still Life's own worlds (Lithosphere picks the set by region).</li>
+    * <li>halves: west of a line through the continent's centre is American, east Afro-Eurasian; american_share moves the
+    * line (0.5 = the centre, 1 = all American).</li>
+    * </ul>
     */
-   private static float setContinent(StillLifeClimateBridge.World w, GeneratorContext ctx, float own, int bx, int bz) {
-      double blend = w.settings.biomeSetBlend();
-      if (blend <= 0.0) {
-         return own;
+   private static double biomeSetGroup(StillLifeClimateBridge.World w, GeneratorContext ctx, float own, int bx, int bz) {
+      Settings s = w.settings;
+      double blend = s.biomeSetBlend();
+      double wx = bx;
+      double wz = bz;
+      if (blend > 0.0) {
+         long h = (bx >> 2) * 0x9E3779B97F4A7C15L ^ (bz >> 2) * 0xC2B2AE3D27D4EB4FL ^ w.seed;
+         h ^= h >>> 29;
+         h *= 0xBF58476D1CE4E5B9L;
+         h ^= h >>> 32;
+         double jitter = Math.min(32.0, blend / 8.0);
+         double jx = ((h & 0xFFFF) / 65535.0 * 2.0 - 1.0) * jitter;
+         double jz = (((h >>> 16) & 0xFFFF) / 65535.0 * 2.0 - 1.0) * jitter;
+         wx = bx + blend * w.setWarpX.getValue(bx, 0.0, bz) + jx;
+         wz = bz + blend * w.setWarpZ.getValue(bx, 0.0, bz) + jz;
       }
 
-      long h = (bx >> 2) * 0x9E3779B97F4A7C15L ^ (bz >> 2) * 0xC2B2AE3D27D4EB4FL ^ w.seed;
+      switch (s.biomeSets()) {
+         case Settings.SETS_REGIONS: {
+            Cell scratch = SET_SCRATCH.get();
+            ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
+            LandSets land = landSets(w, ctx, scratch);
+            return regionRoll(w, wx, wz) < (land != null ? land.threshold() : s.americanShare()) ? -0.5 : 0.5;
+         }
+         case Settings.SETS_HALVES: {
+            Cell scratch = SET_SCRATCH.get();
+            ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
+            LandSets land = landSets(w, ctx, scratch);
+            double line = land != null ? land.line() : scratch.continentX + (s.americanShare() - 0.5) * w.landWidth;
+            double width = land != null ? land.width() : w.landWidth;
+            // the line wanders by up to about a sixth of the continent's width, so it is not a straight north-south cut
+            line += 0.25 * width * w.halfWander.getValue(0.0, 0.0, wz / Math.max(1.0, width) * 1024.0);
+            return wx < line ? -0.5 : 0.5;
+         }
+         default: {
+            float id = own;
+            if (blend > 0.0) {
+               Cell scratch = SET_SCRATCH.get();
+               ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
+               id = scratch.continentId;
+            }
+            return continentRoll(id) < s.americanShare() ? -0.5 : 0.5;
+         }
+      }
+   }
+
+   /**
+    * Per FTF continent (regions and halves): the region-roll threshold below which a region is American, and the x where
+    * the halves split, both chosen so that american_share of that continent's own land is American; and its land width.
+    */
+   record LandSets(double threshold, double line, double width) {
+   }
+
+   private static LandSets landSets(StillLifeClimateBridge.World w, GeneratorContext ctx, Cell at) {
+      if (at.continentId == 0.0F || w.continentSpacing <= 0.0) {
+         return null;
+      }
+      final int cx = at.continentX;
+      final int cz = at.continentZ;
+      return w.landSets.computeIfAbsent(at.continentId, id -> measureLandSets(w, ctx, id, cx, cz));
+   }
+
+   /** Samples one continent's cell (96 x 96 points, 1.5 continent cells each way from its centre) for that continent's land. */
+   private static LandSets measureLandSets(StillLifeClimateBridge.World w, GeneratorContext ctx, float id, int cx, int cz) {
+      double share = w.settings.americanShare();
+      double spacing = w.continentSpacing;
+      int n = 96;
+      double step = 3.0 * spacing / n;
+      double[] rolls = new double[n * n];
+      double[] xs = new double[n * n];
+      int count = 0;
+      Cell c = new Cell();
+      for (int i = 0; i < n; i++) {
+         for (int j = 0; j < n; j++) {
+            double x = cx - 1.5 * spacing + (i + 0.5) * step;
+            double z = cz - 1.5 * spacing + (j + 0.5) * step;
+            ctx.heightmap.continent().apply(c.reset(), (float)x, (float)z);
+            if (c.continentId == id && c.controlPoint >= w.landControlPoint) {
+               rolls[count] = regionRoll(w, x, z);
+               xs[count] = x;
+               count++;
+            }
+         }
+      }
+      if (count == 0) {
+         return new LandSets(share, cx + (share - 0.5) * w.landWidth, w.landWidth);
+      }
+      double[] r = java.util.Arrays.copyOf(rolls, count);
+      double[] x = java.util.Arrays.copyOf(xs, count);
+      java.util.Arrays.sort(r);
+      java.util.Arrays.sort(x);
+      int k = (int)Math.round(share * count);
+      double line = k <= 0 ? Double.NEGATIVE_INFINITY : k >= count ? Double.POSITIVE_INFINITY : x[k];
+      // regions are whole: cut between two regions' rolls where the American part of the land comes closest to the share
+      double threshold = -1.0;
+      double bestError = share;
+      for (int i = 1; i <= count; i++) {
+         if (i < count && r[i] == r[i - 1]) {
+            continue;
+         }
+         double error = Math.abs((double)i / count - share);
+         if (error < bestError) {
+            bestError = error;
+            threshold = i < count ? r[i] : 2.0;
+         }
+      }
+      return new LandSets(threshold, line, Math.sqrt(count * step * step));
+   }
+
+   /** A roll in [0, 1) per biome-set region: the region is the nearest of the jittered points of a grid of regionSize cells. */
+   static double regionRoll(StillLifeClimateBridge.World w, double x, double z) {
+      double gx = x / w.regionSize;
+      double gz = z / w.regionSize;
+      int ix = (int)Math.floor(gx);
+      int iz = (int)Math.floor(gz);
+      double best = Double.MAX_VALUE;
+      long bestHash = 0L;
+      for (int dx = -1; dx <= 1; dx++) {
+         for (int dz = -1; dz <= 1; dz++) {
+            long h = mix((ix + dx) * 0x9E3779B97F4A7C15L ^ (iz + dz) * 0xC2B2AE3D27D4EB4FL ^ w.seed ^ 0x51ED270B27E1F2A3L);
+            double px = ix + dx + 0.15 + 0.7 * ((h & 0xFFFF) / 65536.0);
+            double pz = iz + dz + 0.15 + 0.7 * (((h >>> 16) & 0xFFFF) / 65536.0);
+            double d = (gx - px) * (gx - px) + (gz - pz) * (gz - pz);
+            if (d < best) {
+               best = d;
+               bestHash = h;
+            }
+         }
+      }
+      return (bestHash >>> 40) / (double)(1L << 24);
+   }
+
+   private static long mix(long h) {
       h ^= h >>> 29;
       h *= 0xBF58476D1CE4E5B9L;
       h ^= h >>> 32;
-      double jitter = Math.min(32.0, blend / 8.0);
-      double jx = ((h & 0xFFFF) / 65535.0 * 2.0 - 1.0) * jitter;
-      double jz = (((h >>> 16) & 0xFFFF) / 65535.0 * 2.0 - 1.0) * jitter;
-      double wx = bx + blend * w.setWarpX.getValue(bx, 0.0, bz) + jx;
-      double wz = bz + blend * w.setWarpZ.getValue(bx, 0.0, bz) + jz;
-      Cell scratch = SET_SCRATCH.get();
-      ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
-      return scratch.continentId;
+      h *= 0x94D049BB133111EBL;
+      return h ^ h >>> 29;
+   }
+
+   /**
+    * The land area (blocks squared) of an average FTF continent: FTF's continent map is sampled on a grid over five continent
+    * cells each way around the origin, and the land (control point at or above the preset's beach value) of every continent
+    * whose centre lies in the middle three is counted. With continent type SINGLE that is the one continent.
+    */
+   static double measureLandArea(GeneratorContext ctx) {
+      double spacing = 4.0 * ctx.preset.world().continent.continentScale;
+      float beach = ctx.preset.world().controlPoints.beach;
+      int n = 100;
+      double half = 2.5 * spacing;
+      double step = 2.0 * half / n;
+      java.util.Map<Float, long[]> found = new java.util.HashMap<>();
+      Cell c = new Cell();
+      for (int i = 0; i < n; i++) {
+         for (int j = 0; j < n; j++) {
+            ctx.heightmap.continent().apply(c.reset(), (float)(-half + (i + 0.5) * step), (float)(-half + (j + 0.5) * step));
+            if (c.continentId != 0.0F && c.controlPoint >= beach) {
+               long[] e = found.computeIfAbsent(c.continentId, k -> new long[3]);
+               e[0]++;
+               e[1] = c.continentX;
+               e[2] = c.continentZ;
+            }
+         }
+      }
+      double sum = 0.0;
+      int count = 0;
+      for (long[] e : found.values()) {
+         if (Math.abs(e[1]) <= 1.5 * spacing && Math.abs(e[2]) <= 1.5 * spacing) {
+            sum += e[0] * step * step;
+            count++;
+         }
+      }
+      if (count == 0) {
+         for (long[] e : found.values()) {
+            sum += e[0] * step * step;
+            count++;
+         }
+      }
+      return count > 0 ? sum / count : 0.25 * spacing * spacing;
    }
 
    private static final ThreadLocal<Cell> SET_SCRATCH = ThreadLocal.withInitial(Cell::new);
@@ -831,7 +1026,13 @@ public final class StillLifeClimateBridge {
       NormalNoise peakMid,
       NormalNoise capDither,
       double peaksHeight,
-      double alpineHeight
+      double alpineHeight,
+      double regionSize,
+      double landWidth,
+      double continentSpacing,
+      float landControlPoint,
+      NormalNoise halfWander,
+      Map<Float, LandSets> landSets
    ) {
    }
 }

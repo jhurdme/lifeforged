@@ -38,6 +38,10 @@ package stilllife.ftfbridge;
  *                            wanders: up and down across a range, lower in gullies, higher on ridges; 0 = a level line
  * @param snowCapFade         lowest this many blocks of a snowy peaks cap get snow only in patches that thin out downwards,
  *                            bare rock between (snow_caps only); 0 = solid snow down to the cap's edge
+ * @param biomeSets           how Still Life's two biome sets are laid out: "continents" (one per FTF continent),
+ *                            "regions" (regions of biomeSetRegionSize, several per continent) or "halves" (each continent
+ *                            American in the west, Afro-Eurasian in the east)
+ * @param biomeSetRegionSize  regions mode: size of one region, in percent of the land of an average FTF continent
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -65,13 +69,28 @@ record Settings(
    boolean saltLakeSlopePools,
    double biomeSetBlend,
    double peakLineVariation,
-   double snowCapFade
+   double snowCapFade,
+   String biomeSets,
+   double biomeSetRegionSize
 ) {
+   static final String SETS_CONTINENTS = "continents";
+   static final String SETS_REGIONS = "regions";
+   static final String SETS_HALVES = "halves";
+
+   /** A biome_sets value as written in a file: continents, regions or halves (anything else: continents). */
+   static String biomeSetsMode(String value) {
+      if (value == null) {
+         return SETS_CONTINENTS;
+      }
+      String v = value.trim().toLowerCase(java.util.Locale.ROOT);
+      return v.equals(SETS_REGIONS) || v.equals(SETS_HALVES) ? v : SETS_CONTINENTS;
+   }
+
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0);
    }
 }

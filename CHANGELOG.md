@@ -6,6 +6,17 @@ earlier version keep them off.
 
 ## Still Life x FreeTerraForged Bridge
 
+### 5.4.0
+**Both biome sets on one continent.** New setting `biome_sets` (saved per world, format 13):
+- `continents` (default): one Still Life biome set per FreeTerraForged continent, as before.
+- `regions`: every continent divided into irregular regions, each American or Afro-Eurasian, like Still Life's own worlds.
+  `biome_set_region_size` (default 25) is the size of one region in percent of an average continent's land (measured
+  once per world): 25 = about four regions per continent.
+- `halves`: every continent American in the west, Afro-Eurasian in the east, along a wandering line.
+- In `regions` and `halves`, `american_share` is the share of each continent's own land (0.5 = every continent half and
+  half); in `continents` it stays the share of continents. Works with FTF's single-continent worlds (continent type
+  SINGLE). Older worlds keep one set per continent.
+
 ### 5.3.0
 **Fabric.** The bridge now comes for NeoForge and Fabric: `stilllife_ftf_bridge-5.3.0-neoforge.jar` and
 `stilllife_ftf_bridge-5.3.0-fabric.jar`. Same features, same config and world settings (format 12, unchanged), the same

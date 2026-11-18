@@ -71,12 +71,18 @@ final class BridgeConfig {
       double saltLakeMaxRelief = number(p, "salt_lake_max_relief", d.saltLakeMaxRelief(), 1.0, 16.0);
       boolean saltLakeSlopePools = bool(p, "salt_lake_slope_pools", d.saltLakeSlopePools());
       double biomeSetBlend = number(p, "biome_set_blend", d.biomeSetBlend(), 0.0, 2048.0);
+      String biomeSetsRaw = p.getProperty("biome_sets", d.biomeSets());
+      String biomeSets = Settings.biomeSetsMode(biomeSetsRaw);
+      if (!biomeSets.equals(biomeSetsRaw.trim().toLowerCase(Locale.ROOT))) {
+         invalid("biome_sets", biomeSetsRaw, "continents, regions or halves");
+      }
+      double biomeSetRegionSize = number(p, "biome_set_region_size", d.biomeSetRegionSize(), 1.0, 100.0);
       double peakLineVariation = number(p, "peak_line_variation", d.peakLineVariation(), 0.0, 160.0);
       double snowCapFade = number(p, "snow_cap_fade", d.snowCapFade(), 0.0, 64.0);
       settings = new Settings(
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, pale, dappled, sulfur,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows, saltLakeWater,
-         saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade
+         saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize
       );
 
       String text = String.format(
@@ -97,10 +103,20 @@ final class BridgeConfig {
          # blocks from the equator to the coldest band (latitude=still_life only). Still Life uses 40000.
          pole_distance=%s
 
-         # share of FreeTerraForged continents that get Still Life's American biomes (the rest get Afro-Eurasian ones), 0 to 1
+         # how Still Life's two biome sets (American and Afro-Eurasian) are laid out:
+         # continents = one set per FreeTerraForged continent
+         # regions    = irregular regions of biome_set_region_size, several per continent, each American or Afro-Eurasian
+         #              (like Still Life's own worlds; both sets on one continent, also with continent type SINGLE)
+         # halves     = every continent American in the west and Afro-Eurasian in the east
+         biome_sets=%s
+         # biome_sets=regions: size of one region, in percent of the land of an average FreeTerraForged continent (measured
+         # once per world): 25 = about four regions per continent, 50 = about two, 10 = about ten (1 to 100)
+         biome_set_region_size=%s
+         # share that is American, 0 to 1: of the continents (continents), of the regions (regions), or of each continent's
+         # width from the west (halves)
          american_share=%s
-         # where two continents with different biome sets share land, the switch is spread over about this many blocks as an
-         # irregular, dithered edge (like other biome edges) instead of a straight line along the continent border. 0 = sharp
+         # where the two sets meet, the switch is spread over about this many blocks as an irregular, dithered edge (like
+         # other biome edges) instead of a straight line. 0 = sharp
          biome_set_blend=%s
 
          # --- Beaches -------------------------------------------------------------------------------------------
@@ -190,6 +206,8 @@ final class BridgeConfig {
          enabled,
          stillLife ? "still_life" : "ftf",
          plain(pole),
+         biomeSets,
+         plain(biomeSetRegionSize),
          plain(share),
          plain(biomeSetBlend),
          plain(beachMaxHeight),
