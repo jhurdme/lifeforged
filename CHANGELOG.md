@@ -6,6 +6,22 @@ earlier version keep them off.
 
 ## Still Life x FreeTerraForged Bridge
 
+### 5.3.0
+**Fabric.** The bridge now comes for NeoForge and Fabric: `stilllife_ftf_bridge-5.3.0-neoforge.jar` and
+`stilllife_ftf_bridge-5.3.0-fabric.jar`. Same features, same config and world settings (format 12, unchanged), the same
+terrain and biomes on both loaders. Tested with FreeTerraForged 1.0.0032 (its `-neoforge` and `-fabric` jars), Fabric
+Loader 0.20.1 and Fabric API 0.116.18.
+- The Fabric jar needs Fabric API (biome modifications and server events). It adds the wetland pools and sulfur rock with
+  Fabric API's biome modifications, as the biome modifier files do on NeoForge.
+- **VanillaBackport is required**, 1.2.2 or newer, on both loaders. Still Life's FTF edition already needed it (any 1.2+
+  on NeoForge, any version on Fabric): without it the game stops at start-up with a message saying so.
+- **VanillaBackport's own biome switches are followed**: `pale_garden`, `has_dappled_forest` or `has_sulfur_caves` set to
+  false in `config/vanillabackport-common.toml` leaves that biome out of FTF worlds, the same as setting its amount to 0 in
+  the bridge's config. Before, the bridge placed them anyway. All other Still Life and bridge features are unaffected.
+- Repository: the code moved from `bridge/` to `common/` (shared, about 95%), `neoforge/` and `fabric/` (entry points and
+  metadata). Gradle builds both jars (ModDevGradle and Fabric Loom); `tools/build-javac.sh` builds both without Gradle and
+  remaps the Fabric jar with `tools/RemapJar.java`.
+
 ### 5.2.0
 A natural snow line. Tested with FreeTerraForged 1.0.0032 and Still Life 0.3.6-ftf.
 - **The snow line wanders** (`peak_line_variation`, default 40 blocks): Still Life's mountain biomes (alpine bands, then

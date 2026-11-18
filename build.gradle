@@ -1,44 +1,46 @@
-// The bridge is built with NeoForge's ModDevGradle against NeoForge for Minecraft 1.21.1, Java 21.
-// It also compiles against FreeTerraForged, which is not on a public Maven: put its jar in libs/ (see libs/README.md).
+// Still Life x FreeTerraForged Bridge (mod id stilllife_ftf_bridge) for NeoForge and Fabric, Minecraft 1.21.1, Java 21.
+//   neoforge/  NeoForge's ModDevGradle  -> neoforge/build/libs/stilllife_ftf_bridge-<version>-neoforge.jar
+//   fabric/    Fabric Loom              -> fabric/build/libs/stilllife_ftf_bridge-<version>-fabric.jar
+// Both compile common/ in. FreeTerraForged is not on a public Maven: put its jars in libs/ (see libs/README.md).
 plugins {
     id 'net.neoforged.moddev' apply false
+    id 'fabric-loom' apply false
 }
 
 subprojects {
     apply plugin: 'java-library'
-    apply plugin: 'net.neoforged.moddev'
 
     group = 'io.github.lifeforged'
+    base { archivesName = 'stilllife_ftf_bridge' }
+    version = "${project.mod_version}-${project.name}"
 
     repositories {
         mavenCentral()
-        flatDir { dirs rootProject.file('libs') }
     }
 
     java {
         toolchain.languageVersion = JavaLanguageVersion.of(21)
-        withSourcesJar()
     }
 
-    neoForge {
-        version = project.neo_version
-    }
-
-    dependencies {
-        // FreeTerraForged: the mixins hook into its classes (compile only; players install FTF themselves)
-        compileOnly files(rootProject.file("libs/${project.ftf_jar}"))
-        // MixinExtras ships inside NeoForge; this only makes its annotations visible to the compiler
-        compileOnly "io.github.llamalad7:mixinextras-common:${project.mixinextras_version}"
-    }
+    // the shared code and data, compiled into each loader's jar
+    sourceSets.main.java.srcDir rootProject.file('common/src/main/java')
+    sourceSets.main.resources.srcDir rootProject.file('common/src/main/resources')
 
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
         options.release = 21
     }
 
+    tasks.named('processResources', ProcessResources) {
+        inputs.property 'version', project.mod_version
+        filesMatching(['META-INF/neoforge.mods.toml', 'fabric.mod.json']) {
+            expand version: project.mod_version
+        }
+    }
+
     tasks.named('jar') {
         manifest {
-            attributes('Implementation-Title': base.archivesName.get(), 'Implementation-Version': project.version)
+            attributes('Implementation-Title': 'stilllife_ftf_bridge', 'Implementation-Version': project.mod_version)
         }
     }
 }

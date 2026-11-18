@@ -1,0 +1,26 @@
+// NeoForge jar: common/ + the NeoForge entry point and biome modifiers in this folder.
+plugins {
+    id 'net.neoforged.moddev'
+}
+
+neoForge {
+    version = project.neo_version
+    mods {
+        stilllife_ftf_bridge { sourceSet sourceSets.main }
+    }
+    runs {
+        // ./gradlew :neoforge:runServer starts a dev server with only NeoForge and this mod; FreeTerraForged, Still Life,
+        // VanillaBackport and Platform must be added to neoforge/run/mods for anything to happen
+        server {
+            server()
+            gameDirectory = project.file('run')
+        }
+    }
+}
+
+dependencies {
+    // FreeTerraForged: the mixins hook into its classes (compile only; players install FTF themselves)
+    compileOnly files(rootProject.file("libs/${project.ftf_neoforge_jar}"))
+    // MixinExtras ships inside NeoForge; this only makes its annotations visible to the compiler
+    compileOnly "io.github.llamalad7:mixinextras-common:${project.mixinextras_version}"
+}

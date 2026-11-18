@@ -4,6 +4,7 @@ import com.mojang.datafixers.util.Pair;
 import etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 import net.minecraft.core.Holder;
@@ -87,11 +88,14 @@ final class VanillaBackportBiomes {
          }
 
          Settings s = WorldLock.activeSettings();
+         Map<String, Boolean> vbSwitches = VanillaBackportConfig.read(StillLifeFtfBridge.configDir());
          HolderLookup.RegistryLookup<Biome> biomes = lookups.lookupOrThrow(Registries.BIOME);
          List<Pair<ParameterPoint, Holder<Biome>>> out = new ArrayList<>(entries);
          StringBuilder report = new StringBuilder();
          for (String biome : List.of(PALE_GARDEN, DAPPLED_FOREST, SULFUR_CAVES)) {
-            double p = prevalence(s, biome);
+            // off in either config (amount 0 in the bridge's, or switched off in VanillaBackport's): left out
+            boolean vbOn = VanillaBackportConfig.biomeEnabled(vbSwitches, biome);
+            double p = vbOn ? prevalence(s, biome) : 0.0;
             Optional<Holder.Reference<Biome>> holder = biomes.get(ResourceKey.create(Registries.BIOME, ResourceLocation.withDefaultNamespace(biome)));
             int carved = 0;
             if (p > 0.0 && holder.isPresent()) {
@@ -103,7 +107,9 @@ final class VanillaBackportBiomes {
             }
 
             report.append(report.length() == 0 ? "" : ", ").append(biome).append(' ').append(BridgeConfig.plain(p))
-               .append(holder.isPresent() ? " (" + carved + " climate cells)" : " (not installed)");
+               .append(!holder.isPresent() ? " (not installed)"
+                  : !vbOn ? " (off in VanillaBackport's config: " + VanillaBackportConfig.key(biome) + " = false)"
+                  : " (" + carved + " climate cells)");
          }
 
          log("VanillaBackport biomes in Still Life's layout: " + report);

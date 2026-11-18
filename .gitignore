@@ -5,8 +5,9 @@ run/
 out/
 *.class
 
-# third-party jars (see libs/README.md)
+# third-party jars and Mojang's mappings (see libs/README.md)
 libs/*.jar
+libs/*.txt
 
 # IDE
 .idea/

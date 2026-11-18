@@ -5,7 +5,8 @@ Turns **your own** Still Life 0.3 jar into the Still Life FTF edition 0.3.6-ftf,
 Still Life is All Rights Reserved: this folder contains no Still Life files, only scripts that edit the jar you downloaded,
 on your computer. Please don't share the resulting jar.
 
-1. Download **Still Life 0.3 for NeoForge 1.21.1** from [Modrinth](https://modrinth.com/datapack/still-life).
+1. Download **Still Life 0.3 for 1.21.1** (the mod jar) from [Modrinth](https://modrinth.com/datapack/still-life). The
+   same jar, and the FTF edition made from it, works on NeoForge and Fabric.
 2. With Python 3.8 or newer:
    ```
    python3 make_ftf_edition.py path/to/still_life-0.3-1.21.1.jar

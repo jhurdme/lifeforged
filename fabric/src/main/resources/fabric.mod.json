@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "stilllife_ftf_bridge",
+  "version": "${version}",
+  "name": "Still Life x FreeTerraForged Bridge",
+  "description": "Places Still Life's biomes properly on FreeTerraForged terrain: oceans, coasts, mountains and continents get the biomes Still Life meant for them. Also (each in config/stilllife_ftf_bridge.properties, saved per world): beaches like Still Life's own; Still Life's snow on peaks at every altitude, with a snow line that wanders and fades in patchily instead of a level edge; wetlands kept off hillsides; humid lowland swamps; aspen swamps and salt lakes on dry flat land; standing water in Still Life's wetlands and salt lakes at any height; irregular, blended borders where two continents with different Still Life biome sets meet; adjustable VanillaBackport biomes; and the coastal \"uplift cliff\" turned into gentle terraces. Needs FreeTerraForged 1.0.0027 or later.",
+  "authors": [
+    "Sondre"
+  ],
+  "contact": {
+    "sources": "https://github.com/jhurdme/lifeforged",
+    "issues": "https://github.com/jhurdme/lifeforged/issues"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "stilllife.ftfbridge.fabric.StillLifeFtfBridgeFabric"
+    ]
+  },
+  "mixins": [
+    "stilllife_ftf_bridge.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-biome-api-v1": "*",
+    "fabric-lifecycle-events-v1": "*",
+    "freeterraforged": "*",
+    "mr_still_life": "*",
+    "vanillabackport": ">=1.2.2"
+  }
+}

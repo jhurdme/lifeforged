@@ -1,6 +1,6 @@
 # Lifeforged
 
-Still Life's biomes on FreeTerraForged's terrain, for Minecraft 1.21.1 (NeoForge 21.1).
+Still Life's biomes on FreeTerraForged's terrain, for Minecraft 1.21.1 on NeoForge 21.1 and Fabric.
 
 [Still Life](https://modrinth.com/datapack/still-life) is a realistic overworld built for
 [Lithosphere](https://modrinth.com/datapack/lithosphere)'s terrain. [FreeTerraForged](https://modrinth.com/mod/freeterraforged)
@@ -10,7 +10,7 @@ mountain sides. This repository holds what makes them work together, worked out 
 
 | Part | What it is |
 |---|---|
-| [`bridge/`](bridge) | **Still Life x FreeTerraForged Bridge** (`stilllife_ftf_bridge`), a NeoForge mod. Translates FTF's terrain into the climate Still Life expects, and fixes a long list of places where the two disagree (beaches, snow, wetlands, salt lakes, the coastal uplift cliff). Server side (also needed in single player). |
+| [`common/`](common), [`neoforge/`](neoforge), [`fabric/`](fabric) | **Still Life x FreeTerraForged Bridge** (`stilllife_ftf_bridge`), a mod for NeoForge and Fabric: all its code is in `common/`, the two loader folders only hold the start-up code and the mod's metadata. Translates FTF's terrain into the climate Still Life expects, and fixes a long list of places where the two disagree (beaches, snow, wetlands, salt lakes, the coastal uplift cliff). Server side (also needed in single player). |
 | [`still-life-patch/`](still-life-patch) | A script that turns **your own copy** of Still Life 0.3 into the **Still Life FTF edition 0.3.6-ftf**. Still Life is All Rights Reserved, so it is not included here. |
 | [`docs/`](docs) | What every change does and **why** it was made, and what was learned about FTF's terrain on the way. |
 
@@ -21,8 +21,8 @@ mountain sides. This repository holds what makes them work together, worked out 
 > (`logs/latest.log`).
 
 > [!IMPORTANT]
-> **Still Life is not in this repository.** Its licence is All Rights Reserved. Download Still Life 0.3 (NeoForge) from
-> Modrinth yourself and run [`still-life-patch/make_ftf_edition.py`](still-life-patch) on it. Please don't upload the
+> **Still Life is not in this repository.** Its licence is All Rights Reserved. Download Still Life 0.3 (the mod jar works on
+> both NeoForge and Fabric) from Modrinth yourself and run [`still-life-patch/make_ftf_edition.py`](still-life-patch) on it. Please don't upload the
 > resulting jar anywhere.
 
 ## Contents
@@ -83,13 +83,14 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
 | | Version used | Notes |
 |---|---|---|
 | Minecraft | 1.21.1 | |
-| NeoForge | 21.1.265 | any 21.1.x should work |
+| NeoForge | 21.1.265 | any 21.1.x should work; jar `stilllife_ftf_bridge-<version>-neoforge.jar` |
+| Fabric Loader / Fabric API | 0.20.1 / 0.116.18+1.21.1 | jar `stilllife_ftf_bridge-<version>-fabric.jar`; needs Fabric API (VanillaBackport needs Loader 0.16.12+) |
 | Java | 21 or newer | the jars are compiled for Java 21 |
-| FreeTerraForged | 1.0.0027-1.0.0032 (unstable) | 1.0.0027 or newer for bridge 5.x (bridge 4.x: 1.0.0025); 5.1 tested on 1.0.0027, 1.0.0030 and 1.0.0032, 5.2 on 1.0.0032; continent type UPLIFT for `uplift_smoothing` |
+| FreeTerraForged | 1.0.0027-1.0.0032 (unstable) | 1.0.0027 or newer for bridge 5.x (bridge 4.x: 1.0.0025); 5.1 tested on 1.0.0027, 1.0.0030 and 1.0.0032, 5.2 and 5.3 on 1.0.0032 (5.3 on both loaders: FTF's `-neoforge` and `-fabric` jars); continent type UPLIFT for `uplift_smoothing` |
 | Still Life FTF edition | 0.3.6-ftf | made from Still Life 0.3 with `still-life-patch/` (0.3.5-ftf also works, without the river beds) |
-| VanillaBackport | 1.2.2 | required by Still Life's 1.21.4+ content (pale oak, bushes, leaf litter...) |
+| VanillaBackport | 1.2.2 | **required** (1.2.2 or newer, both loaders): Still Life uses its 1.21.4+ content (pale oak, bushes, leaf litter...), and the bridge places its biomes. Without it the game doesn't start and says so. |
 | Platform | 1.4.2 | VanillaBackport's library |
-| Worldgen Accelerator (0.63.4), C2ME, Lithium, ModernFix, FerriteCore | tested alongside | all fine |
+| Worldgen Accelerator (0.63.4), C2ME, Lithium, ModernFix, FerriteCore | tested alongside | all fine, on both loaders |
 | Streams Reflowing (2.17.5) | tested alongside | set `allWaterBanks=0` in `config/streamsreflowing.properties`: with its default 1 it restyles other mods' water as its banks, which removes the bridge's salt lake and wetland pools and leaves mud rings |
 
 **Not together with** Lithosphere, MoreDensityFunctions or the normal Still Life jar: the FTF edition replaces Still Life,
@@ -97,14 +98,14 @@ and FTF replaces Lithosphere's terrain.
 
 ## Installation
 
-1. Install FreeTerraForged, VanillaBackport and Platform.
+1. Install FreeTerraForged, VanillaBackport and Platform for your loader (on Fabric also Fabric API).
 2. Make the Still Life FTF edition from your own Still Life download:
    ```
    python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar
    ```
    and put the resulting `still_life-0.3.6-ftf-1.21.1.jar` in `mods/` (remove the normal Still Life jar).
-3. Put `stilllife_ftf_bridge-5.2.0.jar` in `mods/` (client and server; on a server only the server needs it, but single
-   player runs a server too).
+3. Put `stilllife_ftf_bridge-5.3.0-neoforge.jar` or `stilllife_ftf_bridge-5.3.0-fabric.jar` in `mods/` (client and
+   server; on a server only the server needs it, but single player runs a server too).
 4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option and its explanation.
 5. Create a **new world** with the FreeTerraForged world type.
 
@@ -157,7 +158,7 @@ match old ones. The first time a world is opened, the bridge copies the current 
 | `uplift_smoothing` | `1600` | Blocks over which FTF's continental uplift climbs back from its coastal band (instead of a cliff); 0 = FTF's cliff. |
 | `pale_garden` | `0.18` | VanillaBackport Pale Garden amount (1 = standard, 0 = none, up to 2). |
 | `dappled_forest` | `0.5` | VanillaBackport Dappled Forest amount. |
-| `sulfur_caves` | `0.5` | VanillaBackport Sulfur Caves amount. |
+| `sulfur_caves` | `0.5` | VanillaBackport Sulfur Caves amount. Switching a biome off in VanillaBackport's own config (`pale_garden`, `has_dappled_forest`, `has_sulfur_caves` in `config/vanillabackport-common.toml`) does the same as 0 here. |
 | `sulfur_rock` | `true` | Sulfur and cinnabar rock in the Sulfur Caves (FTF skips the surface rule that paints it). |
 
 ## How the bridge works
@@ -184,8 +185,8 @@ Everything else is a targeted fix, each in its own mixin, each documented in the
 
 ## How the changes were tested
 
-Every terrain change was checked on real generated terrain, not by eye alone: a headless NeoForge server with the full mod
-set generates an area with Chunky, and Python scripts read the region files directly to measure heights, flatness, water
+Every terrain change was checked on real generated terrain, not by eye alone: a headless NeoForge server (and since 5.3 a
+Fabric one) with the full mod set generates an area with Chunky, and Python scripts read the region files directly to measure heights, flatness, water
 and biomes and to render shaded relief maps and cross-sections. A debug build of the bridge can also dump FreeTerraForged's
 raw terrain cells for 32 x 32 km in seconds, which is how the coastal-cliff fix was found and tuned.
 [`docs/ftf-terrain-notes.md`](docs/ftf-terrain-notes.md) collects what these measurements showed about FTF's terrain and
@@ -193,24 +194,27 @@ which preset values actually do what.
 
 ## Building from source
 
-Needs a JDK 21 or newer. Copy the FreeTerraForged jar into `libs/` as described in [`libs/README.md`](libs/README.md)
-(it is not on a public Maven), then:
+Needs a JDK 21 or newer. Copy FreeTerraForged's jars into `libs/` as described in [`libs/README.md`](libs/README.md) (they
+are not on a public Maven), then:
 
 ```
 ./gradlew build
 ```
 
-The jar lands in `bridge/build/libs/`. Gradle uses NeoForge's ModDevGradle and downloads NeoForge 21.1.265 on the first
-run.
+The jars land in `neoforge/build/libs/` and `fabric/build/libs/`. `neoforge/` uses NeoForge's ModDevGradle, `fabric/` Fabric
+Loom; both compile the shared code in `common/` into their jar. The first run downloads NeoForge, Minecraft and Fabric.
 
-No Gradle? [`tools/build-javac.sh`](tools/build-javac.sh) builds the jar with plain `javac` and `jar` (this is how the
-released jars were made); it also needs the game's own jars in `libs/` (listed in `libs/README.md`).
+The released jars are made by [`tools/build-javac.sh`](tools/build-javac.sh) instead, with plain `javac` and `jar` and the
+jars listed in `libs/README.md`: it compiles `common/` against plain Minecraft first (so the shared code can't use anything
+only one loader has), then each loader's code, and remaps the Fabric jar from Mojang's names to Fabric's with
+[`tools/RemapJar.java`](tools/RemapJar.java), which uses the remapper inside the Fabric loader. The Gradle build has not been
+run by the author (the development machine had no access to Maven); if it needs fixing, the javac script is the reference.
 
 The Still Life FTF edition is not built here; see [installation](#installation) step 2.
 
 ## Version history
 
-[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.2.0) and the Still Life FTF edition (0.3-ftf to
+[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.3.0) and the Still Life FTF edition (0.3-ftf to
 0.3.6-ftf), with what changed and why.
 
 ## Credits and licence

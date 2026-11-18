@@ -1,6 +1,6 @@
 # The Still Life FTF edition
 
-`still-life-patch/make_ftf_edition.py` turns the Still Life 0.3 jar (NeoForge, from Modrinth) into
+`still-life-patch/make_ftf_edition.py` turns the Still Life 0.3 jar (from Modrinth; one jar for NeoForge and Fabric) into
 `still_life-0.3.6-ftf`. Still Life is All Rights Reserved, so neither the original nor the result is in this repository;
 the script edits your own download on your own computer. Its output was checked to be identical, file for file, to the
 0.3.6-ftf jar used in testing.

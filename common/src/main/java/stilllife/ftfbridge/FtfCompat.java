@@ -3,7 +3,6 @@ package stilllife.ftfbridge;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.world.level.biome.Climate.Sampler;
-import net.neoforged.fml.ModList;
 
 /** Fails early, with a readable message, when FreeTerraForged no longer has what the bridge hooks into. */
 final class FtfCompat {
@@ -79,10 +78,7 @@ final class FtfCompat {
       }
 
       if (!missing.isEmpty()) {
-         String version = ModList.get()
-            .getModContainerById("freeterraforged")
-            .map(m -> String.valueOf((Object)m.getModInfo().getVersion()))
-            .orElse("?");
+         String version = StillLifeFtfBridge.modVersion("freeterraforged");
          throw new IllegalStateException(
             "Still Life x FreeTerraForged Bridge does not support FreeTerraForged "
                + version
