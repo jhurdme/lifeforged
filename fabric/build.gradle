@@ -1,0 +1,28 @@
+// Fabric jar: common/ + the Fabric entry point in this folder. Written with Mojang's names; Loom remaps the jar to Fabric's
+// intermediary names (tools/build-javac.sh does the same with tools/RemapJar.java).
+plugins {
+    id 'fabric-loom'
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    // FreeTerraForged's Fabric jar (compile only; players install FTF themselves). Loom remaps it to Mojang's names.
+    modCompileOnly files(rootProject.file("libs/${project.ftf_fabric_jar}"))
+}
+
+loom {
+    runs {
+        // ./gradlew :fabric:runServer: add FreeTerraForged, Still Life, VanillaBackport and Platform to fabric/run/mods
+        server {
+            server()
+            runDir 'run'
+        }
+    }
+}

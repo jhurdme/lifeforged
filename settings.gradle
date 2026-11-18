@@ -2,10 +2,12 @@ pluginManagement {
     repositories {
         gradlePluginPortal()
         maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://maven.fabricmc.net/' }
     }
     plugins {
-        // version from gradle.properties
+        // versions from gradle.properties
         id 'net.neoforged.moddev' version "${moddev_version}"
+        id 'fabric-loom' version "${loom_version}"
     }
 }
 
@@ -16,6 +18,8 @@ plugins {
 
 rootProject.name = 'lifeforged'
 
-// The bridge mod. Still Life's FTF edition is not built here: Still Life is All Rights Reserved, so this repository only
-// holds the script that turns your own copy of Still Life into the FTF edition (still-life-patch/).
-include 'bridge'
+// The bridge mod, for two loaders. common/ holds the shared code and data (all features and mixins); it has no Gradle
+// project of its own: each loader project compiles it into its own jar. Still Life's FTF edition is not built here: Still
+// Life is All Rights Reserved, so this repository only holds the script that turns your own copy of Still Life into the
+// FTF edition (still-life-patch/).
+include 'neoforge', 'fabric'

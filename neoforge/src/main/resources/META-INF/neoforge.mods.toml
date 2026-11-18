@@ -4,7 +4,7 @@ license = "MIT"
 
 [[mods]]
 modId = "stilllife_ftf_bridge"
-version = "5.2.0"
+version = "${version}"
 displayName = "Still Life x FreeTerraForged Bridge"
 authors = "Sondre"
 credits = "Still Life by Jayzet; FreeTerraForged by the FreeTerraForged team; Lithosphere, whose climate layout Still Life's table follows. 4.0: snow caps, river headwaters, valley-side limits and humid swamps. 4.1: valley sides as even slopes. 4.2: VanillaBackport biome prevalence. 4.3: Sulfur Caves rock."
@@ -39,5 +39,12 @@ side = "BOTH"
 modId = "mr_still_life"
 type = "required"
 versionRange = "[0.3-ftf,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.stilllife_ftf_bridge]]
+modId = "vanillabackport"
+type = "required"
+versionRange = "[1.2.2,)"
 ordering = "NONE"
 side = "BOTH"

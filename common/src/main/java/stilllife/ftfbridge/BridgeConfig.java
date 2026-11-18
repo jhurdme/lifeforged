@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Properties;
-import net.neoforged.fml.loading.FMLPaths;
 
 final class BridgeConfig {
    static final String FILE_NAME = "stilllife_ftf_bridge.properties";
@@ -24,8 +23,8 @@ final class BridgeConfig {
       return settings;
    }
 
-   static void load() {
-      Path file = FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
+   static void load(Path configDir) {
+      Path file = configDir.resolve(FILE_NAME);
       Properties p = new Properties();
 
       try {
@@ -176,6 +175,8 @@ final class BridgeConfig {
 
          # --- VanillaBackport biomes -----------------------------------------------------------------------------
          # How common each one is in Still Life's layout: 1 = the standard amount, 0 = none, up to 2 = about double.
+         # Switching a biome off in VanillaBackport's own config (pale_garden, has_dappled_forest, has_sulfur_caves in
+         # vanillabackport-common.toml) does the same as 0 here; everything else the bridge and Still Life do is unchanged.
          # (Pale Garden replaces the most humid temperate old-growth / mixed-wood forest, Dappled Forest the drier cool
          # temperate forests, Sulfur Caves part of Still Life's barren caves.) Needs Still Life 0.3.2-ftf or later.
          pale_garden=%s

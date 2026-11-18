@@ -3,11 +3,23 @@
 Each section says what was wrong, why, what the bridge changes (with the FreeTerraForged code it hooks into) and how it was
 checked, with a bridge-on / bridge-off image (same seed, preset and settings, only the one option changed; see "How the
 images were made" at the end). FreeTerraForged (FTF) class names are from FTF 1.0.0027-1.0.0032 (bridge 5.x; bridge 4.x
-was built on 1.0.0025); the bridge's own classes are in `bridge/src/main/java/stilllife/ftfbridge`. Version numbers say
+was built on 1.0.0025); the bridge's own classes are in `common/src/main/java/stilllife/ftfbridge`. Version numbers say
 when a feature came in (see `CHANGELOG.md`).
 
 Bridge 5.1 keeps out of FTF's lakes and rivers (section 12): of the 11 hooks into FTF code in 5.0, 7 are left, so that the
 bridge keeps working as FTF changes and FTF's own terrain stays as its developer means it.
+
+**NeoForge and Fabric (5.3).** Everything in this document is shared code (`common/`) and works the same on both loaders.
+FTF's code is the same on both, and every mixin hooks FTF's own classes by name, so the mixins need no changes. Only the
+start-up differs: `neoforge/` and `fabric/` each hold one entry point that hands the shared code the loader's config folder
+(`Platform`), registers the two features (wetland pools, sulfur rock) and adds them to their biomes (NeoForge: the biome
+modifier files in `neoforge/.../biome_modifier`; Fabric: Fabric API's `BiomeModifications`), and opens and closes the
+world's settings when a world starts and stops. Fabric runs Minecraft with its own names for classes and methods
+(`class_2791` for `ChunkAccess`), so the Fabric jar is remapped to them when it is built (Fabric Loom in the Gradle build,
+`tools/RemapJar.java` in `tools/build-javac.sh`). Checked by generating the same areas on a NeoForge and a Fabric server
+with the same seed, preset and world settings: a snowy mountainside (biomes 99.9% identical, snow in the caps 55.7% on
+both) and a salt lake (99.5% of surface blocks identical, water 26.0% on both); the differences are in single columns at
+biome edges and in trees, about as large as between two runs on the same loader.
 
 Every option that changes terrain or biomes is **saved per world** (`WorldLock`, `<world>/stilllife_ftf_bridge.json`),
 because a world whose settings change halfway would generate chunks that don't match. Worlds made before an option existed
@@ -358,6 +370,18 @@ the Dappled Forest the drier cool part of temperate forest, wooded prairie, aspe
 Sulfur Caves thin bands of Still Life's barren caves. Each setting scales its band (1 = standard, 0 = none, 2 = about
 double). Before 4.2 the Still Life patch wrote these into Still Life's table; now the amounts can be changed per world.
 
+VanillaBackport's own switches for these biomes (`pale_garden`, `has_dappled_forest` and `has_sulfur_caves` in
+`config/vanillabackport-common.toml`) only stop VanillaBackport from placing them itself; the biomes stay registered, so up to
+5.2 the bridge still placed them in an FTF world. Since 5.3 the bridge reads those switches too (`VanillaBackportConfig`):
+a biome switched off there is left out exactly as with an amount of 0 here, and the log says which switch did it. With one,
+two or all three biomes off either way, the rest of Still Life and the bridge is unchanged (the donor biomes keep their whole
+climate range; the sulfur rock feature only runs in the Sulfur Caves, so it does nothing). Switching a biome off in
+VanillaBackport affects new chunks of existing worlds too, as it would without the bridge; the amounts here are saved per
+world.
+
+VanillaBackport is required (1.2.2 or newer, 5.3): Still Life's FTF edition already needed it for its 1.21.4+ blocks, and
+without it neither loader starts.
+
 ![vb pale garden](images/vb-pale-garden.png)
 *6 x 6 km. Left: bridge on (`pale_garden` 0.18); right: amounts 0.*
 
@@ -447,7 +471,8 @@ nothing left to do.
 
 ## How the images were made
 
-All on a headless NeoForge 21.1.265 server with Worldgen Accelerator 0.63.4, VanillaBackport 1.2.2 and the same seed
+All on a headless NeoForge 21.1.265 server (the loader comparison in the introduction also on Fabric Loader 0.20.1 with
+Fabric API 0.116.18 and the Fabric jars of the same mods) with Worldgen Accelerator 0.63.4, VanillaBackport 1.2.2 and the same seed
 (8982759974645396284), with the settings of the tested world; each pair changes one option. Images up to bridge 5.0: FTF
 1.0.0027, Still Life 0.3.5-ftf and the test preset. Images new in 5.1 (biome-set border, salt lakes, wetland pools, river
 beds): FTF 1.0.0030 or 1.0.0032 and Still Life 0.3.6-ftf, with the test preset (salt flats map, bayou) or the in-game
