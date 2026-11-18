@@ -49,7 +49,8 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
   Still Life was tuned for ([climate translation](docs/bridge.md#1-climate-translation)).
 - Choice of Still Life's own latitude climate (one equator, colder towards the poles) or FTF's temperature bands.
 - Still Life's two biome sets (American / Afro-Eurasian) per FTF continent, at a chosen share, blended into an irregular
-  edge where two continents' land meets.
+  edge where two continents' land meets. Or both sets on every continent (`biome_sets`): in regions of a chosen share of
+  the continent's size, or as a west and an east half, which also works with FTF's single-continent worlds.
 - Beaches like Still Life's own: a low band along the shore and the shallow water in front of it, instead of "beach" grassland
   30-50 blocks up the coastal slopes.
 - Swamps, marshes and fens in very humid lowland, not only in FTF's river wetlands.
@@ -104,7 +105,7 @@ and FTF replaces Lithosphere's terrain.
    python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar
    ```
    and put the resulting `still_life-0.3.6-ftf-1.21.1.jar` in `mods/` (remove the normal Still Life jar).
-3. Put `stilllife_ftf_bridge-5.3.0-neoforge.jar` or `stilllife_ftf_bridge-5.3.0-fabric.jar` in `mods/` (client and
+3. Put `stilllife_ftf_bridge-5.4.0-neoforge.jar` or `stilllife_ftf_bridge-5.4.0-fabric.jar` in `mods/` (client and
    server; on a server only the server needs it, but single player runs a server too).
 4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option and its explanation.
 5. Create a **new world** with the FreeTerraForged world type.
@@ -136,8 +137,10 @@ match old ones. The first time a world is opened, the bridge copies the current 
 | `enabled` | `true` | Turn the whole bridge off (Still Life's biomes then land in the wrong places). |
 | `latitude` | `still_life` | `still_life`: Still Life's latitude climate (one equator, colder toward the poles). `ftf`: FTF's temperature bands. |
 | `pole_distance` | `40000` | Blocks from the equator to the coldest band (`still_life` latitude only). |
-| `american_share` | `0.5` | Share of FTF continents that get Still Life's American biome set (the rest: Afro-Eurasian). |
-| `biome_set_blend` | `384` | Where two continents with different biome sets share land, the switch is spread over about this many blocks as an irregular, dithered edge; 0 = a straight switch on the continent border. |
+| `biome_sets` | `continents` | How Still Life's two biome sets are laid out. `continents`: one set per FTF continent. `regions`: irregular regions on every continent, each American or Afro-Eurasian (like Still Life's own worlds). `halves`: every continent American in the west, Afro-Eurasian in the east. |
+| `biome_set_region_size` | `25` | `regions` only: size of one region in percent of the land of an average continent (measured per world): 25 = about four regions per continent, 50 = about two. |
+| `american_share` | `0.5` | Share that is American: of the continents (`continents`), or of each continent's own land (`regions`, `halves`). |
+| `biome_set_blend` | `384` | Where the two sets meet, the switch is spread over about this many blocks as an irregular, dithered edge; 0 = a straight switch. |
 | `beach_max_height` | `8` | Coastal land more than this many blocks above the sea is never a beach biome; 0 = no limit. |
 | `beach_shallows` | `4` | Sea up to this many blocks deep gets beach biomes (sand or gravel floor), as in Still Life's own worlds; 0 = ocean biomes to the shore. |
 | `humid_swamps` | `true` | Very humid, low, flat land gets Still Life's swamp/marsh/fen climate, not only FTF's river wetlands. |
@@ -214,7 +217,7 @@ The Still Life FTF edition is not built here; see [installation](#installation) 
 
 ## Version history
 
-[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.3.0) and the Still Life FTF edition (0.3-ftf to
+[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.4.0) and the Still Life FTF edition (0.3-ftf to
 0.3.6-ftf), with what changed and why.
 
 ## Credits and licence

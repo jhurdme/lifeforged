@@ -117,7 +117,8 @@ gravel); middle: the bridge before this fix at the same FTF spot (all of it "bea
 
 ## 2. Latitude, continents and biome sets
 
-*3.x; blended borders 5.1. `latitude`, `pole_distance`, `american_share`, `biome_set_blend`.*
+*3.x; blended borders 5.1; regions and halves 5.4. `latitude`, `pole_distance`, `american_share`, `biome_set_blend`,
+`biome_sets`, `biome_set_region_size`.*
 
 - `latitude=still_life` gives Still Life's own climate: one equator and colder bands toward the poles, `pole_distance`
   blocks away. `ftf` keeps FTF's repeating temperature bands (with altitude cooling).
@@ -136,6 +137,36 @@ random jitter per 4-block cell. Near a border the switch wanders back and forth 
 other biome edges; away from borders the moved point is on the same continent and nothing changes. The continent at the
 moved point comes from FTF's continent generator (`Heightmap.continent().apply`, a Voronoi lookup, not a full terrain cell).
 0 gives the sharp border.
+
+**Both sets on one continent (5.4).** With one set per continent, a world with a single FTF continent (continent type
+SINGLE, or a preset with very large continents) only ever gets one of Still Life's two sets. `biome_sets` chooses the layout:
+
+- `continents` (default, as before): one set per continent; `american_share` is the share of continents.
+- `regions`: every continent is divided into irregular regions, each American or Afro-Eurasian, as Lithosphere does for
+  Still Life's own worlds. Regions are the cells of a jittered grid (each point belongs to the nearest of nine jittered
+  grid points), `biome_set_region_size` percent of an average continent's land in area: 25 gives about four regions per
+  continent. The land of an average continent is measured once per world from FTF's continent map (the land of every
+  continent whose centre lies within 1.5 continent cells of the origin) and kept in the world's settings
+  (`continent_land_area`), so the regions never change size in that world.
+- `halves`: every continent is American west of a line and Afro-Eurasian east of it. The line wanders by up to about a
+  sixth of the continent's width, so it is not a straight north-south cut.
+
+In `regions` and `halves`, `american_share` is the share of **each continent's own land**: the first time a continent is
+needed, the bridge samples its land (96 x 96 points over 1.5 continent cells each way from its centre) and sets the region
+threshold, or the line, so that this share of that continent is American. Regions stay whole, so the share is met to the
+nearest region. At 0.5 every continent is half and half, not just the world on average.
+`biome_set_blend` frays the borders between regions and halves the same way it frays continent borders.
+
+**Checked** on the tester's preset switched to continent type SINGLE (one continent of about 306 km² of land) and on the
+tester's own world (UPLIFT, many continents, 341 km² of land on average), with biome maps of the game's biome source
+(counting land whose biome belongs to one set only). The single continent: `continents` 0% American (one roll),
+`regions` at `american_share` 0.5 50% in three regions about 8.7 km across, at 0.3 27%, `halves` about 50%. The eleven
+continents wholly inside a 98 x 98 km map of the tester's world: `continents` 100% or 0% each, `regions` 44-59% on all but
+a small one (32%), `halves` 36-67% (the wandering line moves some land across). With `continents`, biomes match 5.3 (99.96% of a test area). On generated chunks,
+`regions` gives the same biomes on NeoForge and Fabric (99.96%).
+
+![biome set modes](images/biome-set-modes.png)
+*The single continent (48 x 48 km, land coloured by the Still Life set of its biome: orange American, green Afro-Eurasian, grey biomes in both sets such as peaks and rivers). Left to right: `biome_sets` continents, regions (25%), halves; `american_share` 0.5.*
 
 ![biome set border](images/biome-set-border.png)
 *6 x 6 km around a border between an American and an Afro-Eurasian continent (red dots: the border), one colour per biome. Left: `biome_set_blend=0`; right: 384.*
