@@ -18,6 +18,8 @@ dependencies {
 }
 
 loom {
+    // SurfaceRules.Context fields the cave floor guard reads (compile only; FreeTerraForged opens them at run time)
+    accessWidenerPath = file('stilllife_ftf_bridge.accesswidener')
     runs {
         // ./gradlew :fabric:runServer: add FreeTerraForged, Still Life, VanillaBackport and Platform to fabric/run/mods
         server {

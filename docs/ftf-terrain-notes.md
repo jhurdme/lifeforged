@@ -113,6 +113,37 @@ From FTF's source changes (git `40b2a1e9..a3b1142b`) and cell maps (FTF's raw te
   alone, with or without Worldgen Accelerator. Still Life's steep-slope rule paints the face bare stone, so it shows as a
   grey strip. (Up to bridge 5.0, its "rivers start below mountains" setting kept rivers out of such ranges, which hid it.)
 
+## Cave biomes and surface biomes underground
+
+FTF lays out cave biomes itself (`UndergroundBiomeBanding`, since its August 2026 redesign of underground biome selection),
+with four preset settings on the Underground page: `undergroundBiomeCoverage` (default 0.25), `undergroundBiomeSize`
+(default 225 blocks), `undergroundBiomeVerticalSize` and `undergroundBiomeClimateInfluence`.
+- The world is cut into square cells of `undergroundBiomeSize`. Each cell rolls once against the coverage: cells that
+  miss get no cave biome anywhere; their caves keep the biome of the ground above them from the surface to bedrock. The
+  cells show as squares in cave-biome maps.
+- Near the surface no cell gets cave biomes, so they never show through the ground: the chance ramps from 0 to the full
+  coverage over a shell under the surface. Two limits apply, and the smaller wins: none within ~29 blocks of the lowest
+  of four surface samples around the spot, full from ~53; and FTF's depth value (`ClimateDepthFunction`: 1.5 x
+  (surface - y) / (surface + world depth), a share of the column rather than blocks) must reach (4 + 24) / 128. The
+  second limit is (surface + world depth) x 0.146 blocks: ~45 blocks under a surface at Y 250, ~90 under Y 550. So the
+  shell is thicker under high ground.
+- Each cell's single roll is compared with coverage x the ramp, so within the shell the depth where cave biomes begin
+  differs from cell to cell. Measured at coverage 1.0 (tester's preset, 9 cells around a snowy peak, ground Y 407-611):
+  FTF alone 32-80 blocks below the ground (80 in a cell at Y 574).
+- Which cells get cave biomes doesn't depend on the bridge: the same regions of two worlds with the same seed and preset,
+  one with FTF alone and one with the bridge and Still Life, have exactly the same cave-biome and surface-biome columns.
+  But bridge 5.0-5.4 read FTF's depth as 1/128 per block when it rescaled it for Still Life, which made depths look
+  smaller, so with those the same cells started their cave biomes 0-48 blocks deeper (32-128 blocks). 5.5 reads it as the
+  share of the column it is (`column_depth`): 32-64 blocks ([details](bridge.md#cave-biome-depth-55)).
+- At the tester's coverage 0.35, 90% of cave floors at least 8 blocks down were in a surface biome around a snowy peak
+  and a desert; at coverage 1.0, 3%.
+
+Minecraft's own surface rules check `above_preliminary_surface`, so such caves stay plain rock with Minecraft's biomes.
+Still Life's didn't (its own worlds never put a surface biome deep underground), so it laid snow blocks, sand and other
+ground blocks on those cave floors. Bridge 5.5 keeps them off (`cave_floor_guard`,
+[details](bridge.md#12-cave-floors)); Minecraft's check alone would still let small pockets near the surface through, because
+on FTF's terrain the estimated surface it uses can sit 20-25 blocks below the real ground.
+
 ## Other mods
 
 - **Streams Reflowing** (2.17.5) adds its own streams and lakes and, with its default `allWaterBanks=1`, restyles other

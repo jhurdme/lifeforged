@@ -6,7 +6,27 @@ earlier version keep them off.
 
 ## Still Life x FreeTerraForged Bridge
 
-### 5.4.0
+### 5.5.0
+**No snow or sand on cave floors.** FreeTerraForged leaves many caves in the biome of the ground above them (every cave
+outside the cells its `undergroundBiomeCoverage` gives cave biomes, and near the surface everywhere), and Still Life laid
+that biome's ground on their floors: snow blocks in caves under snowy peaks, sand under deserts. New setting
+`cave_floor_guard` (saved per world, format 14; older worlds `off`):
+- `exact` (default): Still Life's ground blocks go only on ground open to the sky or under standing water, never on the
+  floor of a cave, pocket or overhang. Uses a new surface rule condition, `stilllife_ftf_bridge:surface_layer`, which
+  datapacks can use too.
+- `vanilla`: Minecraft's own check (`above_preliminary_surface`), as Minecraft's biomes have; on FTF's terrain it still lets
+  small pockets 8-25 blocks under the ground through.
+- `off`: as before.
+**Cave biome depth** (`column_depth`, saved per world; older worlds false): FreeTerraForged's depth number is the share of
+the column below the surface; 5.0-5.4 read it as blocks, so under high ground cave biomes started up to 48 blocks deeper
+than with FTF alone and Still Life's deepest cave biomes (Haunted Depths, deep Deep Dark) never appeared. Now each column
+is mapped onto the Lithosphere column of the same Still Life height: cave biomes start no deeper than FTF's own, and the
+deepest ones sit near bedrock under high ground.
+**Config file**: every setting now shows its default and the values it accepts (`# Default: 40. Allowed: 0 to 160.`).
+Works with Still Life 0.3.6-ftf as it is; no new Still Life edition needed. No measurable cost: on the test server, with the
+tester's 1024-high preset, surface rules took 24.0 ms per chunk without the guard and 23.5 ms with `exact`.
+
+
 **Both biome sets on one continent.** New setting `biome_sets` (saved per world, format 13):
 - `continents` (default): one Still Life biome set per FreeTerraForged continent, as before.
 - `regions`: every continent divided into irregular regions, each American or Afro-Eurasian, like Still Life's own worlds.

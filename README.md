@@ -58,6 +58,8 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
   sheets of shallow water over white calcite like Still Life's own.
 - VanillaBackport's Pale Garden, Dappled Forest and Sulfur Caves inside Still Life's layout, each at an adjustable amount,
   with the Sulfur Caves' sulfur and cinnabar rock.
+- Cave biomes in Still Life's order from the surface down to bedrock in every column, its deepest ones (Haunted Depths)
+  included, however tall the world (`column_depth`).
 - Still Life's own wetland biomes keep their water: FTF re-picks the biome of wetland water, which would turn muskegs,
   floodplains, flooded prairies and salt lakes into patches of bog or fen.
 
@@ -78,6 +80,9 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
 - Salt lakes with a white calcite crust and clay beds at any height; muddy aspen swamps.
 - River beds that follow the water depth (mud in the shallows, gravel in the channel) instead of one material for hundreds
   of blocks.
+- **No snow or sand on cave floors** (`cave_floor_guard`): FTF leaves many caves in the biome of the ground above them,
+  and Still Life laid that biome's ground (snow blocks under snowy peaks, sand under deserts) on their floors. Now its
+  ground goes only on ground open to the sky or under standing water ([cave floors](docs/bridge.md#12-cave-floors)).
 
 ## Supported versions and mods
 
@@ -87,7 +92,7 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
 | NeoForge | 21.1.265 | any 21.1.x should work; jar `stilllife_ftf_bridge-<version>-neoforge.jar` |
 | Fabric Loader / Fabric API | 0.20.1 / 0.116.18+1.21.1 | jar `stilllife_ftf_bridge-<version>-fabric.jar`; needs Fabric API (VanillaBackport needs Loader 0.16.12+) |
 | Java | 21 or newer | the jars are compiled for Java 21 |
-| FreeTerraForged | 1.0.0027-1.0.0032 (unstable) | 1.0.0027 or newer for bridge 5.x (bridge 4.x: 1.0.0025); 5.1 tested on 1.0.0027, 1.0.0030 and 1.0.0032, 5.2 and 5.3 on 1.0.0032 (5.3 on both loaders: FTF's `-neoforge` and `-fabric` jars); continent type UPLIFT for `uplift_smoothing` |
+| FreeTerraForged | 1.0.0027-1.0.0032 (unstable) | 1.0.0027 or newer for bridge 5.x (bridge 4.x: 1.0.0025); 5.1 tested on 1.0.0027, 1.0.0030 and 1.0.0032, 5.2-5.5 on 1.0.0032 (5.3 on both loaders: FTF's `-neoforge` and `-fabric` jars); continent type UPLIFT for `uplift_smoothing` |
 | Still Life FTF edition | 0.3.6-ftf | made from Still Life 0.3 with `still-life-patch/` (0.3.5-ftf also works, without the river beds) |
 | VanillaBackport | 1.2.2 | **required** (1.2.2 or newer, both loaders): Still Life uses its 1.21.4+ content (pale oak, bushes, leaf litter...), and the bridge places its biomes. Without it the game doesn't start and says so. |
 | Platform | 1.4.2 | VanillaBackport's library |
@@ -105,9 +110,10 @@ and FTF replaces Lithosphere's terrain.
    python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar
    ```
    and put the resulting `still_life-0.3.6-ftf-1.21.1.jar` in `mods/` (remove the normal Still Life jar).
-3. Put `stilllife_ftf_bridge-5.4.0-neoforge.jar` or `stilllife_ftf_bridge-5.4.0-fabric.jar` in `mods/` (client and
+3. Put `stilllife_ftf_bridge-5.5.0-neoforge.jar` or `stilllife_ftf_bridge-5.5.0-fabric.jar` in `mods/` (client and
    server; on a server only the server needs it, but single player runs a server too).
-4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option and its explanation.
+4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option, its explanation, its
+   default and the values it accepts.
 5. Create a **new world** with the FreeTerraForged world type.
 
 Only one bridge jar and one Still Life jar may be in `mods/` at a time.
@@ -130,7 +136,8 @@ match old ones. The first time a world is opened, the bridge copies the current 
 
 ## Config
 
-`config/stilllife_ftf_bridge.properties` (defaults shown). Every key is also explained in the file itself.
+`config/stilllife_ftf_bridge.properties` (defaults shown). Every key is also explained in the file itself, with its default
+and the values it accepts (a value outside them is logged and the default used).
 
 | Key | Default | What it does |
 |---|---|---|
@@ -158,6 +165,8 @@ match old ones. The first time a world is opened, the bridge copies the current 
 | `snow_cliff_steepness` | `0` | Slope above which snow is cleared; 0 = FTF's rock steepness from the preset. |
 | `peak_line_variation` | `40` | Blocks by which the height where the mountain biome bands start (alpine, then snowy peaks) wanders: up and down across a range, lower in gullies, higher on ridges; 0 = a level line. |
 | `snow_cap_fade` | `24` | The lowest this many blocks of a snowy peaks cap keep snow only in patches that thin out downwards, with bare rock between; 0 = solid snow down to the cap's edge. Needs `snow_caps`. |
+| `cave_floor_guard` | `exact` | Where Still Life's ground blocks (snow blocks, sand, mud ...) may go, for the caves FTF leaves in a surface biome. `exact` = only on ground open to the sky or under standing water; `vanilla` = Minecraft's own `above_preliminary_surface` check (small pockets near the surface keep them); `off` = Still Life's own rules (cave floors get them too). |
+| `column_depth` | `true` | Cave biome depth as the share of the column below the surface (FTF's own measure), mapped onto Still Life's Lithosphere scale. `false` = bridge 5.0-5.4: cave biomes start deeper under high ground and Still Life's deepest cave biomes never appear. |
 | `uplift_smoothing` | `1600` | Blocks over which FTF's continental uplift climbs back from its coastal band (instead of a cliff); 0 = FTF's cliff. |
 | `pale_garden` | `0.18` | VanillaBackport Pale Garden amount (1 = standard, 0 = none, up to 2). |
 | `dappled_forest` | `0.5` | VanillaBackport Dappled Forest amount. |
@@ -217,7 +226,7 @@ The Still Life FTF edition is not built here; see [installation](#installation) 
 
 ## Version history
 
-[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.4.0) and the Still Life FTF edition (0.3-ftf to
+[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.5.0) and the Still Life FTF edition (0.3-ftf to
 0.3.6-ftf), with what changed and why.
 
 ## Credits and licence

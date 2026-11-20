@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 13;
+   private static final int FORMAT = 14;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -89,7 +89,12 @@ final class WorldLock {
                   num(o, "peak_line_variation", format >= 12 ? d.peakLineVariation() : 0.0),
                   num(o, "snow_cap_fade", format >= 12 ? d.snowCapFade() : 0.0),
                   Settings.biomeSetsMode(format >= 13 && o.has("biome_sets") ? o.get("biome_sets").getAsString() : null),
-                  num(o, "biome_set_region_size", d.biomeSetRegionSize())
+                  num(o, "biome_set_region_size", d.biomeSetRegionSize()),
+                  // the cave floor guard came with bridge 5.5 (format 14); older worlds keep Still Life's ground on cave floors
+                  format >= 14 ? Settings.caveFloorGuardMode(o.has("cave_floor_guard") ? o.get("cave_floor_guard").getAsString() : d.caveFloorGuard())
+                     : Settings.GUARD_OFF,
+                  // depth as a share of the column came with bridge 5.5 too; older worlds keep 1/128 per block
+                  bool(o, "column_depth", format >= 14 && d.columnDepth())
                );
             }
 
@@ -184,6 +189,11 @@ final class WorldLock {
          if (lock.format >= 13) {
             o.addProperty("biome_sets", s.biomeSets());
             o.addProperty("biome_set_region_size", s.biomeSetRegionSize());
+         }
+
+         if (lock.format >= 14) {
+            o.addProperty("cave_floor_guard", s.caveFloorGuard());
+            o.addProperty("column_depth", s.columnDepth());
          }
       }
 

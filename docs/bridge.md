@@ -6,7 +6,7 @@ images were made" at the end). FreeTerraForged (FTF) class names are from FTF 1.
 was built on 1.0.0025); the bridge's own classes are in `common/src/main/java/stilllife/ftfbridge`. Version numbers say
 when a feature came in (see `CHANGELOG.md`).
 
-Bridge 5.1 keeps out of FTF's lakes and rivers (section 12): of the 11 hooks into FTF code in 5.0, 7 are left, so that the
+Bridge 5.1 keeps out of FTF's lakes and rivers (section 13): of the 11 hooks into FTF code in 5.0, 7 are left, so that the
 bridge keeps working as FTF changes and FTF's own terrain stays as its developer means it.
 
 **NeoForge and Fabric (5.3).** Everything in this document is shared code (`common/`) and works the same on both loaders.
@@ -38,8 +38,9 @@ a readable message.
 - [9. The coastal uplift cliff](#9-the-coastal-uplift-cliff)
 - [10. VanillaBackport biomes](#10-vanillabackport-biomes)
 - [11. Sulfur Caves rock](#11-sulfur-caves-rock)
-- [12. Removed in 5.1: FTF's lakes and rivers left to FTF](#12-removed-in-51-ftfs-lakes-and-rivers-left-to-ftf)
-- [13. Removed in 5.0: no longer needed with FTF 1.0.0027](#13-removed-in-50-no-longer-needed-with-ftf-100027)
+- [12. Cave floors](#12-cave-floors)
+- [13. Removed in 5.1: FTF's lakes and rivers left to FTF](#13-removed-in-51-ftfs-lakes-and-rivers-left-to-ftf)
+- [14. Removed in 5.0: no longer needed with FTF 1.0.0027](#14-removed-in-50-no-longer-needed-with-ftf-100027)
 
 ## 1. Climate translation
 
@@ -68,7 +69,8 @@ position (`CellSampler.getCachedOrLookup`):
 - **Weirdness** = a ridge magnitude from the mapped height (peaks, slopes, valleys as Still Life expects), with a
   per-region sign so both of Still Life's variants appear. Since 5.2 the height used for the mountain bands wanders (see
   [section 7](#7-snow-on-peaks)).
-- **Depth** rescaled from FTF's to Lithosphere's (`LITHO_DEPTH`), so cave biomes sit at the depths Still Life meant.
+- **Depth** rescaled from FTF's to Lithosphere's (`LITHO_DEPTH`), so cave biomes sit at the depths Still Life meant. Since
+  5.5 as a share of the column (see [Cave biome depth](#cave-biome-depth-55)).
 
 **Checked** on generated worlds: biome maps per height band and per distance from the coast, compared with the same seed
 on Lithosphere + Still Life.
@@ -84,6 +86,31 @@ Lithosphere's numbers, not vanilla's.
 
 ![climate inland](images/climate-inland.png)
 *Inland at the test wetland: with the bridge off, salt lake covers 12% of dry land and FTF's wetland water turns into river biome.*
+
+### Cave biome depth (5.5)
+
+*`column_depth`. `StillLifeClimateBridge`.*
+
+**Problem.** Since 1.0.0023 FTF's depth number is not blocks but the share of the column below the surface:
+1.5 x (surface - y) / (surface + world depth), so 1.5 at the world's bottom whatever the surface height. Bridge 5.0-5.4 read
+it as 1/128 per block (vanilla's scale) and looked that up in `LITHO_DEPTH` (Lithosphere's depth every 16 blocks). Under
+high ground that made every point look much shallower than it is (under a surface at Y 540, 64 blocks down read as 20), so:
+- FTF, which fades cave biomes in over the first 28 blocks' worth of depth, started them later: with the bridge the
+  same cells began 0-48 blocks deeper than with FTF alone (coverage 1.0, 9 cells at ground Y 407-611: 32-128 blocks instead
+  of 32-80);
+- the depth never reached Still Life's deepest band (1.0-1.1), so its deepest cave biome, Haunted Depths, and the deep
+  entries of Deep Dark never appeared.
+
+**Change.** The share of the column is mapped onto the Lithosphere column under the same Still Life height: a point a
+third of the way from the surface to the world's bottom gets the depth a point a third of the way down a Lithosphere column
+of that height (down to Y -64) would have. Every column then has Still Life's cave bands in order from the surface to
+bedrock, with the deepest ones near the bottom under high ground, as in Lithosphere.
+
+**Checked** (tester's preset, coverage 1.0, 1,681 chunks around a snowy peak, ground around Y 514): cave biomes start at
+32-64 blocks below the ground (7 of 8 cells; one with few caves at 224 in every setup), never deeper than with FTF alone.
+Share of cave biome by depth below the ground, 5.4 / 5.5 / FTF alone with Minecraft's biomes: 32-63 blocks 23% / 62% /
+47%, 64-95 blocks 54% / 100% / 94%. Below about 400 blocks 5.5 has Deep Dark (12-44%) and Haunted Depths (3-21%, most at
+the bottom); 5.4 had neither. Worlds made before 5.5 keep the old depth (`column_depth` false), so their new chunks match.
 
 ### Beaches
 
@@ -434,7 +461,75 @@ as the first feature step, before VanillaBackport's sulfur pools and spikes: bas
 ![sulfur rock](images/sulfur-rock.png)
 *A horizontal slice at Y -20 through a Sulfur Cave (128 x 128 blocks). Left: `sulfur_rock=false` (plain deepslate); right: bridge on (sulfur yellow, cinnabar red).*
 
-## 12. Removed in 5.1: FTF's lakes and rivers left to FTF
+## 12. Cave floors
+
+*5.5. `cave_floor_guard`. `CaveFloorGuard`, `SurfaceLayer`, `mixin/FastStrataSequenceRuleMixin`.*
+
+**Problem.** FTF lays out cave biomes itself, and only part of the underground gets one: the preset's
+`undergroundBiomeCoverage` (default 0.25) is the share of square cells (`undergroundBiomeSize`, default 225 blocks) that get
+cave biomes, and near the surface no cell does (see [FTF notes](ftf-terrain-notes.md#cave-biomes-and-surface-biomes-underground)).
+Everywhere else a cave keeps the biome of the ground above it, all the way down. Minecraft wraps its biome surface rules in
+`above_preliminary_surface`, so with Minecraft's biomes such caves stay plain rock. Still Life doesn't (in its own worlds
+every cave more than about 25 blocks down is a cave biome), so on FTF the floors of those caves got the ground of the biome
+above: snow blocks in caves under snowy peaks, sand under deserts. In the tester's world 92-97% of cave floors were in a
+surface biome, and 89% of them were snow blocks under a snowy peak, 70% sand under a desert. Not the bridge's doing: the
+same regions of a world with FTF alone have exactly the same cave-biome and surface-biome columns (there they are plain
+rock).
+
+Minecraft's own check is not enough on FTF either. `above_preliminary_surface` compares with an estimated surface,
+interpolated between chunk corners from the terrain noise without its detail, and on FTF's terrain that estimate can sit
+20-25 blocks below the real ground. Tried as a Still Life patch: snow and sand stayed on 0.3-2% of those floors, all in small
+pockets 8-25 blocks under the ground (a one-block gap 26 blocks under a snowy peak, a one-block sand shelf 19 blocks under
+a desert).
+
+**Change.** Once per world, just before FTF optimises it (`FastStrataSequenceRule.optimize`), the bridge rewrites the
+surface rule FTF builds from Still Life's:
+- every rule that names only surface biomes (the big block of biome ground materials, beaches and shallow seas, marshes,
+  the Dappled Forest) only applies in the column's **surface layer**;
+- in rules that already check `above_preliminary_surface` (grass, dirt, gravel and mud for every surface biome), the ground
+  parts need the surface layer too. Still Life's rock layers there (granite, diorite, basalt and terracotta from 20 blocks
+  under a floor) keep the plain check, so they stay continuous under small pockets near the surface.
+
+The surface layer is a new surface rule condition, `stilllife_ftf_bridge:surface_layer` (also usable by datapacks): the run
+of solid blocks that reaches up to open air, or to water standing on it (sea, lake and river beds). It is read from the real
+column: its highest solid block (the chunk's height map, past any water) and how many solid blocks lie between the current
+block and the air above it (FTF's `ISurfaceContext`). One look-up per column, one comparison per block. Cave-biome rules
+and rules with no biome (bedrock, deepslate, stone, FTF's strata) are unchanged. Surface and cave biomes come from the
+climate layout FTF places biomes from (cave = any entry deeper than the surface).
+
+`cave_floor_guard` (saved per world; worlds made before 5.5 keep `off`):
+- `exact` (default): ground blocks only on ground open to the sky or under standing water. Never on the floor of a cave,
+  pocket or overhang; the bottom of an open ravine or sinkhole does get them.
+- `vanilla`: Still Life's surface-biome rules get Minecraft's own `above_preliminary_surface` check, as Minecraft's biomes
+  have; small pockets 8-25 blocks under FTF's ground keep their ground blocks.
+- `off`: Still Life's own rules, as before 5.5.
+
+Optional hook (`require = 0`): if FTF changes `optimize`, or no longer opens the surface system fields the condition reads,
+the guard switches itself off and says so in the log.
+
+**Checked** on the tester's seed, preset and settings (FTF 1.0.0032, Still Life 0.3.6-ftf, harness chunks identical block
+for block to the tester's own), around a snowy peak, a desert and the tester's two screenshot spots:
+- floors under a rock roof in surface biomes that carry ground blocks: bridge 5.4 68,108 of 78,306 (87%); 5.5 `exact` 2 of
+  247,715, both inside a desert village house (a structure, placed later); `vanilla` 7 of 224,416, 16-31 blocks down. The tester's two spots: plain rock.
+- open ground unchanged: ground blocks differ between 5.4 and 5.5 in about 2.5% of columns, as much as between two runs of
+  the same build (features such as boulders and patches land differently between runs).
+- same on Fabric. And with Still Life 0.3.7-ftf (a test build that wrapped the rules in `above_preliminary_surface` itself):
+  the tightening covers those wraps, same result.
+- not covered: caves that Minecraft's carvers cut after the surface is laid. Where the ground layer over such a cave is thin
+  it shows from below, as under some deep sea floors (mud and Still Life's terracotta rock layers on the floor of a cave
+  just under a 3-block sea floor). Minecraft's own biomes do the same.
+- cost: none measurable. Tester's preset (1024 blocks high), the same area around a snowy peak generated 3 times each
+  with no guard (5.4), with Minecraft's check added to Still Life's rules (the 0.3.7-ftf test build) and with `exact`,
+  alternating. With 2 worker threads on the 2-core test server, 441 chunks: surface rules 24.0, 23.4 and 23.5 ms per chunk
+  (runs of one setup spread by about 2 ms), the whole chunk 170, 162 and 162 ms of CPU. With 28 worker threads, 1,089
+  chunks: 134, 121 and 122 s. Surface rules are about 14% of generation time; FTF skips them for about 84% of blocks
+  (rock far from air), and for the rest the guard adds one comparison per block and one height look-up per column.
+
+![cave floors](images/cave-floors.png)
+*Cross-sections through a snowy peak (Z -12636) and an arid desert (Z -23240) on the tester's seed, preset and settings
+(dark = cave air). Left of each pair: bridge 5.4, snow blocks and sand on the cave floors; right: 5.5 (`exact`).*
+
+## 13. Removed in 5.1: FTF's lakes and rivers left to FTF
 
 Bridge 5.0 also reshaped FTF's lakes and rivers. 5.1 removes those changes, so the bridge depends on less of FTF's code
 (4 of its 11 hooks went: the river carver, the river network, the heightmap and FTF's `Cell`) and FTF's own lakes and rivers
@@ -471,7 +566,7 @@ checks that rivers do). One FTF effect shows again where a river crosses a coast
 high can run from the river mouth up the slope along the edge of FTF's valley carving (seen in a test world with FTF
 1.0.0030, also without the bridge and without Worldgen Accelerator): that is FTF's own valley carving.
 
-## 13. Removed in 5.0: no longer needed with FTF 1.0.0027
+## 14. Removed in 5.0: no longer needed with FTF 1.0.0027
 
 ### Even valley sides (`river_flank_max_cut`, `river_flank_slope`, 4.0-4.8)
 
@@ -508,7 +603,8 @@ Fabric API 0.116.18 and the Fabric jars of the same mods) with Worldgen Accelera
 1.0.0027, Still Life 0.3.5-ftf and the test preset. Images new in 5.1 (biome-set border, salt lakes, wetland pools, river
 beds): FTF 1.0.0030 or 1.0.0032 and Still Life 0.3.6-ftf, with the test preset (salt flats map, bayou) or the in-game
 tester's preset (the rest); the "5.0 rule" and "0.3.5-ftf" panels were read from the tester's own world. Images new in 5.2
-(snow line): FTF 1.0.0032, Still Life 0.3.6-ftf, the tester's preset and world settings.
+(snow line): FTF 1.0.0032, Still Life 0.3.6-ftf, the tester's preset and world settings. Images new in 5.5 (cave floors): the
+same with the tester's newer seed (-4620324235953065567), preset and settings.
 - **Raw terrain** (hillshaded heights, blue = water): a debug build of the bridge dumps FreeTerraForged's terrain cells over
   an area in seconds, without generating chunks.
 - **Biome maps**: the same debug build asks the game's biome source for the biome at the surface (or a given Y) of every
