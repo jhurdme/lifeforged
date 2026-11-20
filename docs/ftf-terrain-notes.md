@@ -132,8 +132,9 @@ with four preset settings on the Underground page: `undergroundBiomeCoverage` (d
   FTF alone 32-80 blocks below the ground (80 in a cell at Y 574).
 - Which cells get cave biomes doesn't depend on the bridge: the same regions of two worlds with the same seed and preset,
   one with FTF alone and one with the bridge and Still Life, have exactly the same cave-biome and surface-biome columns.
-  But the bridge (5.0-5.5) reads FTF's depth as 1/128 per block when it rescales it for Still Life, which makes depths
-  look smaller, so with the bridge the same cells start their cave biomes 0-48 blocks deeper (32-128 blocks).
+  But bridge 5.0-5.4 read FTF's depth as 1/128 per block when it rescaled it for Still Life, which made depths look
+  smaller, so with those the same cells started their cave biomes 0-48 blocks deeper (32-128 blocks). 5.5 reads it as the
+  share of the column it is (`column_depth`): 32-64 blocks ([details](bridge.md#cave-biome-depth-55)).
 - At the tester's coverage 0.35, 90% of cave floors at least 8 blocks down were in a surface biome around a snowy peak
   and a desert; at coverage 1.0, 3%.
 

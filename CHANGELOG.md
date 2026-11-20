@@ -17,6 +17,12 @@ that biome's ground on their floors: snow blocks in caves under snowy peaks, san
 - `vanilla`: Minecraft's own check (`above_preliminary_surface`), as Minecraft's biomes have; on FTF's terrain it still lets
   small pockets 8-25 blocks under the ground through.
 - `off`: as before.
+**Cave biome depth** (`column_depth`, saved per world; older worlds false): FreeTerraForged's depth number is the share of
+the column below the surface; 5.0-5.4 read it as blocks, so under high ground cave biomes started up to 48 blocks deeper
+than with FTF alone and Still Life's deepest cave biomes (Haunted Depths, deep Deep Dark) never appeared. Now each column
+is mapped onto the Lithosphere column of the same Still Life height: cave biomes start no deeper than FTF's own, and the
+deepest ones sit near bedrock under high ground.
+**Config file**: every setting now shows its default and the values it accepts (`# Default: 40. Allowed: 0 to 160.`).
 Works with Still Life 0.3.6-ftf as it is; no new Still Life edition needed. No measurable cost: on the test server, with the
 tester's 1024-high preset, surface rules took 24.0 ms per chunk without the guard and 23.5 ms with `exact`.
 

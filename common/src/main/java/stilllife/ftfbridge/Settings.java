@@ -46,6 +46,8 @@ package stilllife.ftfbridge;
  *                            leaves in a surface biome: "exact" (only ground open to the sky or under standing water),
  *                            "vanilla" (Minecraft's above_preliminary_surface check: misses pockets near the surface) or
  *                            "off" (Still Life's own rules: cave floors get them too)
+ * @param columnDepth         cave biome depth as the share of the column below the surface (mapped onto the Lithosphere
+ *                            column of the same Still Life height); false = FTF's depth read as 1/128 per block (5.0-5.4)
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -76,7 +78,8 @@ record Settings(
    double snowCapFade,
    String biomeSets,
    double biomeSetRegionSize,
-   String caveFloorGuard
+   String caveFloorGuard,
+   boolean columnDepth
 ) {
    static final String SETS_CONTINENTS = "continents";
    static final String SETS_REGIONS = "regions";
@@ -104,10 +107,10 @@ record Settings(
    }
 
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF, false);
    }
 }

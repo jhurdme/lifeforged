@@ -38,7 +38,9 @@ final class BridgeConfig {
       }
 
       Settings d = Settings.DEFAULT;
+      LIMITS.clear();
       enabled = bool(p, "enabled", true);
+      LIMITS.put("latitude", "Default: " + (d.stillLifeLatitude() ? "still_life" : "ftf") + ". Allowed: still_life or ftf.");
       String latitude = p.getProperty("latitude", p.getProperty("temperature_mode", d.stillLifeLatitude() ? "still_life" : "ftf"));
       boolean stillLife = switch (latitude.trim().toLowerCase(Locale.ROOT)) {
          case "still_life" -> true;
@@ -71,6 +73,7 @@ final class BridgeConfig {
       double saltLakeMaxRelief = number(p, "salt_lake_max_relief", d.saltLakeMaxRelief(), 1.0, 16.0);
       boolean saltLakeSlopePools = bool(p, "salt_lake_slope_pools", d.saltLakeSlopePools());
       double biomeSetBlend = number(p, "biome_set_blend", d.biomeSetBlend(), 0.0, 2048.0);
+      LIMITS.put("biome_sets", "Default: " + d.biomeSets() + ". Allowed: continents, regions or halves.");
       String biomeSetsRaw = p.getProperty("biome_sets", d.biomeSets());
       String biomeSets = Settings.biomeSetsMode(biomeSetsRaw);
       if (!biomeSets.equals(biomeSetsRaw.trim().toLowerCase(Locale.ROOT))) {
@@ -79,6 +82,8 @@ final class BridgeConfig {
       double biomeSetRegionSize = number(p, "biome_set_region_size", d.biomeSetRegionSize(), 1.0, 100.0);
       double peakLineVariation = number(p, "peak_line_variation", d.peakLineVariation(), 0.0, 160.0);
       double snowCapFade = number(p, "snow_cap_fade", d.snowCapFade(), 0.0, 64.0);
+      boolean columnDepth = bool(p, "column_depth", d.columnDepth());
+      LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
       String caveFloorGuard = Settings.caveFloorGuardMode(caveFloorGuardRaw);
       String guardWritten = caveFloorGuardRaw.trim().toLowerCase(Locale.ROOT);
@@ -89,7 +94,7 @@ final class BridgeConfig {
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, pale, dappled, sulfur,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
-         caveFloorGuard
+         caveFloorGuard, columnDepth
       );
 
       String text = String.format(
@@ -199,6 +204,12 @@ final class BridgeConfig {
          #           deeper caves, but FreeTerraForged's terrain lets small pockets 8-25 blocks under the ground through
          # off     = Still Life's own rules: snowy peaks caves get snow-block floors, desert caves sand
          cave_floor_guard=%s
+         # Where Still Life's cave biomes sit. FreeTerraForged gives the depth below the surface as a share of the column down
+         # to the world's bottom. true = the bridge maps that share onto the Lithosphere column of the same Still Life height,
+         # so the cave biomes keep Still Life's order from the surface down to bedrock in every column, its deepest ones
+         # (Haunted Depths) included. false = bridge 5.0-5.4: the depth read as blocks, so cave biomes started deeper under
+         # high ground and the deepest band was never reached.
+         column_depth=%s
 
          # --- Terrain ------------------------------------------------------------------------------------------
          # On UPLIFT continents FreeTerraForged lifts the land towards plate borders but drops that lift to almost nothing in a band
@@ -246,6 +257,7 @@ final class BridgeConfig {
          plain(peakLineVariation),
          plain(snowCapFade),
          caveFloorGuard,
+         columnDepth,
          plain(upliftSmoothing),
          plain(pale),
          plain(dappled),
@@ -253,6 +265,7 @@ final class BridgeConfig {
          sulfurRock
       );
 
+      text = withLimits(text);
       try {
          String old = Files.exists(file) ? Files.readString(file, StandardCharsets.UTF_8) : "";
          if (!old.equals(text)) {
@@ -264,7 +277,26 @@ final class BridgeConfig {
       }
    }
 
+   /** Each setting's default (for new worlds) and allowed values, written above it in the file. */
+   private static final java.util.Map<String, String> LIMITS = new java.util.LinkedHashMap<>();
+
+   /** The file's text with a "Default ... Allowed ..." line above every setting. */
+   private static String withLimits(String text) {
+      StringBuilder out = new StringBuilder(text.length() + LIMITS.size() * 48);
+      for (String line : text.split("\n", -1)) {
+         int eq = line.indexOf('=');
+         String note = !line.startsWith("#") && eq > 0 ? LIMITS.get(line.substring(0, eq)) : null;
+         if (note != null) {
+            out.append("# ").append(note).append('\n');
+         }
+         out.append(line).append('\n');
+      }
+      out.setLength(out.length() - 1);
+      return out.toString();
+   }
+
    static boolean bool(Properties p, String key, boolean def) {
+      LIMITS.put(key, "Default: " + def + ". Allowed: true or false.");
       String v = p.getProperty(key);
       if (v == null) {
          return def;
@@ -283,6 +315,7 @@ final class BridgeConfig {
    }
 
    static double number(Properties p, String key, double def, double min, double max) {
+      LIMITS.put(key, "Default: " + plain(def) + ". Allowed: " + plain(min) + " to " + plain(max) + ".");
       String v = p.getProperty(key);
       if (v == null) {
          return def;

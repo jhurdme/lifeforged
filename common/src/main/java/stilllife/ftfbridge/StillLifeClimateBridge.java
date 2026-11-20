@@ -46,6 +46,7 @@ public final class StillLifeClimateBridge {
    private static final double[] CONT = new double[]{-0.15, -0.109, 0.02, 0.141, 0.158, 0.167, 0.189, 0.364, 0.418};
    private static final double[] DEFAULT_EDGE = new double[]{0.2, 0.235, 0.255, 0.269, 0.299, 0.367, 0.525, 0.708, 0.793};
    private static final float FTF_DEPTH_PER_BLOCK = 0.0078125F;
+   private static final double LITHO_BOTTOM = -64.0;
    private static final double[] LITHO_DEPTH = new double[]{
       0.0, 0.08, 0.153, 0.226, 0.296, 0.363, 0.426, 0.488, 0.546, 0.606, 0.665, 0.724, 0.78, 0.842, 0.903, 0.959, 1.035, 1.09, 1.174
    };
@@ -335,7 +336,13 @@ public final class StillLifeClimateBridge {
          long depth = target.depth();
          float ftfDepth = Climate.unquantizeCoord(depth);
          if (ftfDepth > 0.0F) {
-            double blocks = ftfDepth / 0.0078125F;
+            // FTF's depth (1.0.0023+) is the share of the column below the surface, 1.5 x (surface - y) / (surface + world
+            // depth). column_depth: the same share of the Lithosphere column (down to Y -64) under this column's Still Life
+            // height, so cave biomes keep Still Life's order from the surface to bedrock in every column. Bridge 5.0-5.4 read
+            // it as 1/128 per block, which is far too little under high ground and never reached Still Life's deepest band.
+            double blocks = w.settings.columnDepth()
+               ? Math.min(ftfDepth / 1.5, 1.0) * Math.max(yL - LITHO_BOTTOM, 1.0)
+               : ftfDepth / FTF_DEPTH_PER_BLOCK;
             double i = blocks / 16.0;
             int lo = (int)Math.floor(i);
             double lithoDepth = lo >= LITHO_DEPTH.length - 1

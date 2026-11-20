@@ -69,7 +69,8 @@ position (`CellSampler.getCachedOrLookup`):
 - **Weirdness** = a ridge magnitude from the mapped height (peaks, slopes, valleys as Still Life expects), with a
   per-region sign so both of Still Life's variants appear. Since 5.2 the height used for the mountain bands wanders (see
   [section 7](#7-snow-on-peaks)).
-- **Depth** rescaled from FTF's to Lithosphere's (`LITHO_DEPTH`), so cave biomes sit at the depths Still Life meant.
+- **Depth** rescaled from FTF's to Lithosphere's (`LITHO_DEPTH`), so cave biomes sit at the depths Still Life meant. Since
+  5.5 as a share of the column (see [Cave biome depth](#cave-biome-depth-55)).
 
 **Checked** on generated worlds: biome maps per height band and per distance from the coast, compared with the same seed
 on Lithosphere + Still Life.
@@ -85,6 +86,31 @@ Lithosphere's numbers, not vanilla's.
 
 ![climate inland](images/climate-inland.png)
 *Inland at the test wetland: with the bridge off, salt lake covers 12% of dry land and FTF's wetland water turns into river biome.*
+
+### Cave biome depth (5.5)
+
+*`column_depth`. `StillLifeClimateBridge`.*
+
+**Problem.** Since 1.0.0023 FTF's depth number is not blocks but the share of the column below the surface:
+1.5 x (surface - y) / (surface + world depth), so 1.5 at the world's bottom whatever the surface height. Bridge 5.0-5.4 read
+it as 1/128 per block (vanilla's scale) and looked that up in `LITHO_DEPTH` (Lithosphere's depth every 16 blocks). Under
+high ground that made every point look much shallower than it is (under a surface at Y 540, 64 blocks down read as 20), so:
+- FTF, which fades cave biomes in over the first 28 blocks' worth of depth, started them later: with the bridge the
+  same cells began 0-48 blocks deeper than with FTF alone (coverage 1.0, 9 cells at ground Y 407-611: 32-128 blocks instead
+  of 32-80);
+- the depth never reached Still Life's deepest band (1.0-1.1), so its deepest cave biome, Haunted Depths, and the deep
+  entries of Deep Dark never appeared.
+
+**Change.** The share of the column is mapped onto the Lithosphere column under the same Still Life height: a point a
+third of the way from the surface to the world's bottom gets the depth a point a third of the way down a Lithosphere column
+of that height (down to Y -64) would have. Every column then has Still Life's cave bands in order from the surface to
+bedrock, with the deepest ones near the bottom under high ground, as in Lithosphere.
+
+**Checked** (tester's preset, coverage 1.0, 1,681 chunks around a snowy peak, ground around Y 514): cave biomes start at
+32-64 blocks below the ground (7 of 8 cells; one with few caves at 224 in every setup), never deeper than with FTF alone.
+Share of cave biome by depth below the ground, 5.4 / 5.5 / FTF alone with Minecraft's biomes: 32-63 blocks 23% / 62% /
+47%, 64-95 blocks 54% / 100% / 94%. Below about 400 blocks 5.5 has Deep Dark (12-44%) and Haunted Depths (3-21%, most at
+the bottom); 5.4 had neither. Worlds made before 5.5 keep the old depth (`column_depth` false), so their new chunks match.
 
 ### Beaches
 

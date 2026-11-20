@@ -58,6 +58,8 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
   sheets of shallow water over white calcite like Still Life's own.
 - VanillaBackport's Pale Garden, Dappled Forest and Sulfur Caves inside Still Life's layout, each at an adjustable amount,
   with the Sulfur Caves' sulfur and cinnabar rock.
+- Cave biomes in Still Life's order from the surface down to bedrock in every column, its deepest ones (Haunted Depths)
+  included, however tall the world (`column_depth`).
 - Still Life's own wetland biomes keep their water: FTF re-picks the biome of wetland water, which would turn muskegs,
   floodplains, flooded prairies and salt lakes into patches of bog or fen.
 
@@ -110,7 +112,8 @@ and FTF replaces Lithosphere's terrain.
    and put the resulting `still_life-0.3.6-ftf-1.21.1.jar` in `mods/` (remove the normal Still Life jar).
 3. Put `stilllife_ftf_bridge-5.5.0-neoforge.jar` or `stilllife_ftf_bridge-5.5.0-fabric.jar` in `mods/` (client and
    server; on a server only the server needs it, but single player runs a server too).
-4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option and its explanation.
+4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option, its explanation, its
+   default and the values it accepts.
 5. Create a **new world** with the FreeTerraForged world type.
 
 Only one bridge jar and one Still Life jar may be in `mods/` at a time.
@@ -133,7 +136,8 @@ match old ones. The first time a world is opened, the bridge copies the current 
 
 ## Config
 
-`config/stilllife_ftf_bridge.properties` (defaults shown). Every key is also explained in the file itself.
+`config/stilllife_ftf_bridge.properties` (defaults shown). Every key is also explained in the file itself, with its default
+and the values it accepts (a value outside them is logged and the default used).
 
 | Key | Default | What it does |
 |---|---|---|
@@ -162,6 +166,7 @@ match old ones. The first time a world is opened, the bridge copies the current 
 | `peak_line_variation` | `40` | Blocks by which the height where the mountain biome bands start (alpine, then snowy peaks) wanders: up and down across a range, lower in gullies, higher on ridges; 0 = a level line. |
 | `snow_cap_fade` | `24` | The lowest this many blocks of a snowy peaks cap keep snow only in patches that thin out downwards, with bare rock between; 0 = solid snow down to the cap's edge. Needs `snow_caps`. |
 | `cave_floor_guard` | `exact` | Where Still Life's ground blocks (snow blocks, sand, mud ...) may go, for the caves FTF leaves in a surface biome. `exact` = only on ground open to the sky or under standing water; `vanilla` = Minecraft's own `above_preliminary_surface` check (small pockets near the surface keep them); `off` = Still Life's own rules (cave floors get them too). |
+| `column_depth` | `true` | Cave biome depth as the share of the column below the surface (FTF's own measure), mapped onto Still Life's Lithosphere scale. `false` = bridge 5.0-5.4: cave biomes start deeper under high ground and Still Life's deepest cave biomes never appear. |
 | `uplift_smoothing` | `1600` | Blocks over which FTF's continental uplift climbs back from its coastal band (instead of a cliff); 0 = FTF's cliff. |
 | `pale_garden` | `0.18` | VanillaBackport Pale Garden amount (1 = standard, 0 = none, up to 2). |
 | `dappled_forest` | `0.5` | VanillaBackport Dappled Forest amount. |
