@@ -38,6 +38,7 @@ public final class StillLifeFtfBridgeFabric implements ModInitializer {
       });
       Registry.register(BuiltInRegistries.FEATURE, StillLifeFtfBridge.SULFUR_ROCK, StillLifeFtfBridge.sulfurRockFeature());
       Registry.register(BuiltInRegistries.FEATURE, StillLifeFtfBridge.WETLAND_POOLS, StillLifeFtfBridge.wetlandPoolsFeature());
+      Registry.register(BuiltInRegistries.MATERIAL_CONDITION, StillLifeFtfBridge.SURFACE_LAYER, StillLifeFtfBridge.surfaceLayerCodec());
       BiomeModifications.addFeature(
          BiomeSelectors.tag(StillLifeFtfBridge.HAS_SULFUR_ROCK),
          GenerationStep.Decoration.RAW_GENERATION,

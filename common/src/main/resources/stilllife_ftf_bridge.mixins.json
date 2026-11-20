@@ -10,7 +10,8 @@
     "WetlandMixin",
     "MinecraftBiomeSourceGraphsMixin",
     "TerrainBiomeRoleSelectionMixin",
-    "UpliftContinentGeneratorMixin"
+    "UpliftContinentGeneratorMixin",
+    "FastStrataSequenceRuleMixin"
   ],
   "injectors": {
     "defaultRequire": 1

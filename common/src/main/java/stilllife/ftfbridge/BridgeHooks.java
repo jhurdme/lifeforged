@@ -46,7 +46,23 @@ public final class BridgeHooks {
    public static etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot vanillaBackportBiomes(
       etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot root, net.minecraft.core.HolderLookup.Provider lookups
    ) {
-      return VanillaBackportBiomes.apply(root, lookups);
+      etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot out = VanillaBackportBiomes.apply(root, lookups);
+      if (out != null && BridgeConfig.enabled()) {
+         try {
+            CaveFloorGuard.layout(out.entries());
+         } catch (Throwable t) {
+            StillLifeFtfBridge.LOG.error("[{}] could not read the biome layout for the cave floor guard", StillLifeFtfBridge.MOD_ID, t);
+         }
+      }
+
+      return out;
+   }
+
+   // ---------------------------------------------------------------- cave floors
+
+   /** FreeTerraForged's surface rule, with Still Life's ground kept off cave floors when the world has cave_floor_guard on. */
+   public static net.minecraft.world.level.levelgen.SurfaceRules.RuleSource caveFloorGuard(net.minecraft.world.level.levelgen.SurfaceRules.RuleSource root) {
+      return CaveFloorGuard.apply(root);
    }
 
    // ---------------------------------------------------------------- wetland biomes

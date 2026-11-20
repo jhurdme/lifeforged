@@ -42,6 +42,10 @@ package stilllife.ftfbridge;
  *                            "regions" (regions of biomeSetRegionSize, several per continent) or "halves" (each continent
  *                            American in the west, Afro-Eurasian in the east)
  * @param biomeSetRegionSize  regions mode: size of one region, in percent of the land of an average FTF continent
+ * @param caveFloorGuard      where Still Life's ground blocks (snow blocks, sand, mud ...) may go, for caves FreeTerraForged
+ *                            leaves in a surface biome: "exact" (only ground open to the sky or under standing water),
+ *                            "vanilla" (Minecraft's above_preliminary_surface check: misses pockets near the surface) or
+ *                            "off" (Still Life's own rules: cave floors get them too)
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -71,11 +75,24 @@ record Settings(
    double peakLineVariation,
    double snowCapFade,
    String biomeSets,
-   double biomeSetRegionSize
+   double biomeSetRegionSize,
+   String caveFloorGuard
 ) {
    static final String SETS_CONTINENTS = "continents";
    static final String SETS_REGIONS = "regions";
    static final String SETS_HALVES = "halves";
+   static final String GUARD_EXACT = "exact";
+   static final String GUARD_VANILLA = "vanilla";
+   static final String GUARD_OFF = "off";
+
+   /** A cave_floor_guard value as written in a file: exact, vanilla or off (true = exact, false = off; anything else: exact). */
+   static String caveFloorGuardMode(String value) {
+      if (value == null) {
+         return GUARD_EXACT;
+      }
+      String v = value.trim().toLowerCase(java.util.Locale.ROOT);
+      return v.equals(GUARD_VANILLA) ? GUARD_VANILLA : v.equals(GUARD_OFF) || v.equals("false") ? GUARD_OFF : GUARD_EXACT;
+   }
 
    /** A biome_sets value as written in a file: continents, regions or halves (anything else: continents). */
    static String biomeSetsMode(String value) {
@@ -87,10 +104,10 @@ record Settings(
    }
 
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF);
    }
 }

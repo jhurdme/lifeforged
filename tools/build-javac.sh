@@ -39,8 +39,12 @@ stage() { # <stage dir> <module>... : classes and resources of the modules, with
    printf "Manifest-Version: 1.0\nImplementation-Title: stilllife_ftf_bridge\nImplementation-Version: %s\n" "$VERSION" > "$dir.MF"
 }
 
+# SurfaceRules.Context fields and SurfaceRules.Condition, which FreeTerraForged opens at run time: public for javac only
+ASM="$(one 'asm-[0-9]*.jar')"
+mkdir -p $OUT && java -cp "$ASM" tools/Widen.java "$MC" $OUT/widened.jar
+
 rm -rf $OUT/common && mkdir -p $OUT/common/classes
-$JAVAC -cp "$BASE" -d $OUT/common/classes $(find common/src/main/java -name "*.java")
+$JAVAC -cp "$OUT/widened.jar:$BASE" -d $OUT/common/classes $(find common/src/main/java -name "*.java")
 
 if [ "${1:-neoforge}" = neoforge ] || [ -z "$1" ]; then
    NEO="$BASE:$OUT/common/classes:$(one 'neoforge-*-universal.jar'):$(one 'loader-*.jar'):$(one 'bus-*.jar'):$(one 'maven-artifact-*.jar')"

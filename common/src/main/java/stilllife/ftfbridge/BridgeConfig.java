@@ -79,10 +79,17 @@ final class BridgeConfig {
       double biomeSetRegionSize = number(p, "biome_set_region_size", d.biomeSetRegionSize(), 1.0, 100.0);
       double peakLineVariation = number(p, "peak_line_variation", d.peakLineVariation(), 0.0, 160.0);
       double snowCapFade = number(p, "snow_cap_fade", d.snowCapFade(), 0.0, 64.0);
+      String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
+      String caveFloorGuard = Settings.caveFloorGuardMode(caveFloorGuardRaw);
+      String guardWritten = caveFloorGuardRaw.trim().toLowerCase(Locale.ROOT);
+      if (!guardWritten.equals(caveFloorGuard) && !guardWritten.equals("true") && !guardWritten.equals("false")) {
+         invalid("cave_floor_guard", caveFloorGuardRaw, "exact, vanilla or off");
+      }
       settings = new Settings(
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, pale, dappled, sulfur,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows, saltLakeWater,
-         saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize
+         saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
+         caveFloorGuard
       );
 
       String text = String.format(
@@ -182,6 +189,17 @@ final class BridgeConfig {
          # rock between, so the cap fades in instead of starting with a solid edge (needs snow_caps). 0 = solid snow
          snow_cap_fade=%s
 
+         # --- Caves --------------------------------------------------------------------------------------------
+         # FreeTerraForged leaves many caves in the biome of the ground above them (all caves outside the cells its
+         # undergroundBiomeCoverage gives cave biomes, and near the surface everywhere). Still Life's own rules then put
+         # that biome's ground blocks (snow blocks, sand, mud ...) on their floors.
+         # exact   = ground blocks only on ground open to the sky or under standing water: never on the floor of a cave,
+         #           pocket or overhang
+         # vanilla = Minecraft's own check (above_preliminary_surface), as Minecraft's biomes use it: keeps them out of
+         #           deeper caves, but FreeTerraForged's terrain lets small pockets 8-25 blocks under the ground through
+         # off     = Still Life's own rules: snowy peaks caves get snow-block floors, desert caves sand
+         cave_floor_guard=%s
+
          # --- Terrain ------------------------------------------------------------------------------------------
          # On UPLIFT continents FreeTerraForged lifts the land towards plate borders but drops that lift to almost nothing in a band
          # along every coast, so raised land ends in a long cliff (often 40-100 blocks) running parallel to the coast. This makes the
@@ -227,6 +245,7 @@ final class BridgeConfig {
          plain(snowCliff),
          plain(peakLineVariation),
          plain(snowCapFade),
+         caveFloorGuard,
          plain(upliftSmoothing),
          plain(pale),
          plain(dappled),
