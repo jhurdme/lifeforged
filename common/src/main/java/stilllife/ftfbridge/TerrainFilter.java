@@ -30,7 +30,10 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *   "prefer_facing": "north", "facing_bias": 0.4,   // on slopes facing the other way, skipped this share of the time
  *   "ridge_thinning": 0.5,                    // skipped up to this share of the time on ground that stands out above the
  *                                             // land within 32 blocks (from 16 blocks up, fully at 48)
- *   "avoid_chutes": true }                    // not in steep gullies (avalanche chutes: open strips down mountain forests)
+ *   "avoid_chutes": true,                     // not in steep gullies (avalanche chutes: open strips down mountain forests)
+ *   "skip_with_natural_snow": true }          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
+ *                                             // features that set snow layers themselves, which would cut through the
+ *                                             // bridge's snow along chunk borders
  * </pre>
  */
 public final class TerrainFilter extends PlacementFilter {
@@ -54,7 +57,8 @@ public final class TerrainFilter extends PlacementFilter {
          Codec.STRING.optionalFieldOf("prefer_facing").forGetter(f -> f.preferFacing),
          Codec.FLOAT.optionalFieldOf("facing_bias", 0.4F).forGetter(f -> f.facingBias),
          Codec.FLOAT.optionalFieldOf("ridge_thinning", 0.0F).forGetter(f -> f.ridgeThinning),
-         Codec.BOOL.optionalFieldOf("avoid_chutes", false).forGetter(f -> f.avoidChutes)
+         Codec.BOOL.optionalFieldOf("avoid_chutes", false).forGetter(f -> f.avoidChutes),
+         Codec.BOOL.optionalFieldOf("skip_with_natural_snow", false).forGetter(f -> f.skipWithNaturalSnow)
       ).apply(i, TerrainFilter::new));
    public static final PlacementModifierType<TerrainFilter> TYPE = () -> CODEC;
 
@@ -64,9 +68,11 @@ public final class TerrainFilter extends PlacementFilter {
    private final float facingBias;
    private final float ridgeThinning;
    private final boolean avoidChutes;
+   private final boolean skipWithNaturalSnow;
 
    private TerrainFilter(Ranges ranges, List<String> riverZones, Optional<String> preferFacing, float facingBias, float ridgeThinning,
-                         boolean avoidChutes) {
+                         boolean avoidChutes, boolean skipWithNaturalSnow) {
+      this.skipWithNaturalSnow = skipWithNaturalSnow;
       this.ranges = ranges;
       this.riverZones = riverZones.stream().map(s -> s.toLowerCase(Locale.ROOT)).toList();
       this.preferFacing = preferFacing.map(s -> s.toLowerCase(Locale.ROOT));
@@ -81,6 +87,9 @@ public final class TerrainFilter extends PlacementFilter {
       GeneratorContext ctx = FtfTerrain.context(level);
       if (ctx == null) {
          return true;
+      }
+      if (this.skipWithNaturalSnow && NaturalSnow.active(WorldLock.activeSettings())) {
+         return false;
       }
       int x = pos.getX();
       int z = pos.getZ();

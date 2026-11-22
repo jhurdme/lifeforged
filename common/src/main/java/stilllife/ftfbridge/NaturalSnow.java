@@ -104,7 +104,16 @@ final class NaturalSnow {
                continue;
             }
 
-            int layers = layers(ground, lx + R, lz + R, top, slope, cliff, temperature(biome, top));
+            pos.setY(top);
+            boolean rock = ROCK.contains(chunk.getBlockState(pos).getBlock());
+            pos.setY(top + 1);
+            int layers = layers(ground, lx + R, lz + R, top, slope, cliff, temperature(biome, top), rock);
+            if (layers == 0) {
+               if (hasSnow) {
+                  clear(chunk, pos);
+               }
+               continue;
+            }
             if (plant && layers < 2) {
                continue;
             }
@@ -122,8 +131,17 @@ final class NaturalSnow {
       }
    }
 
-   /** Snow layers (1-7) for the column at (cx, cz) of the ground array, whose real top block is at y top. */
-   static int layers(int[] ground, int cx, int cz, int top, float slope, float cliff, float temperature) {
+   /**
+    * Bare rock and gravel: Still Life keeps snow off them (its snow_layers features, which the bridge switches off in its
+    * place); here snow on them stays only where it collects, in hollows and against steps.
+    */
+   private static final java.util.Set<net.minecraft.world.level.block.Block> ROCK = java.util.Set.of(
+      Blocks.GRAVEL, Blocks.STONE, Blocks.ANDESITE, Blocks.DIORITE, Blocks.GRANITE, Blocks.TUFF, Blocks.CALCITE, Blocks.DEEPSLATE,
+      Blocks.BLACKSTONE, Blocks.BASALT, Blocks.SMOOTH_BASALT, Blocks.COBBLESTONE, Blocks.MOSSY_COBBLESTONE, Blocks.SANDSTONE,
+      Blocks.RED_SANDSTONE, Blocks.TERRACOTTA);
+
+   /** Snow layers (0-7) for the column at (cx, cz) of the ground array, whose real top block is at y top. */
+   static int layers(int[] ground, int cx, int cz, int top, float slope, float cliff, float temperature, boolean rock) {
       float sum = 0.0F;
       float weights = 0.0F;
       for (int dz = -R; dz <= R; dz++) {
@@ -137,6 +155,9 @@ final class NaturalSnow {
          }
       }
       float lift = sum / weights - top; // > 0: a hollow or the foot of a step; < 0: a ridge, a top, the edge of a step
+      if (rock && lift < 0.4F) {
+         return 0;
+      }
 
       float depth;
       if (lift > 0.0F) {

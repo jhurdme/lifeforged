@@ -9,6 +9,8 @@ feature's column:
     the land around it: ridges and hilltops (ridge_thinning);
   - conifers lean towards north-facing slopes; flowers towards south-facing slopes, ferns and moss towards north-facing
     ones (prefer_facing: on the other side they are skipped part of the time, never removed);
+  - Still Life's snow layer patches step aside where the bridge sets snow depth (natural_snow_layers): they reach into
+    neighbouring chunks after those chunks' snow is done and cut it along chunk borders;
   - Still Life's "steep slope" patches (coarse dirt / packed mud) and "stone cliff" patches only land on steep ground
     (min_slope). On Lithosphere's terrain Still Life could count on them falling on slopes; FreeTerraForged's land is
     mostly gentle, so without this they speckle flat ground too.
@@ -77,7 +79,7 @@ def is_tree(rel, text):
 
 
 def patch(root):
-    counts = {'trees': 0, 'conifers': 0, 'flowers': 0, 'shade': 0, 'steep_slope': 0, 'stone_cliff': 0}
+    counts = {'snow': 0, 'trees': 0, 'conifers': 0, 'flowers': 0, 'shade': 0, 'steep_slope': 0, 'stone_cliff': 0}
     for dirpath, dirnames, filenames in os.walk(root):
         d = dirpath.replace('\\', '/')
         if '/worldgen/placed_feature' not in d:
@@ -99,6 +101,12 @@ def patch(root):
             if base.startswith('steep_slope_'):
                 want = terrain(min_slope=STEEP_MIN_SLOPE)
                 counts['steep_slope'] += 1
+            elif base in ('snow_layers', 'snow_layers_no_freeze'):
+                # Still Life's own snow depth patches: they reach into neighbouring chunks and rewrite snow there after
+                # that chunk's snow was done, which cuts it along chunk borders. The bridge's natural_snow_layers does
+                # this job per column, so in its worlds these step aside.
+                want = terrain(skip_with_natural_snow=True)
+                counts['snow'] += 1
             elif base == 'stone_cliff':
                 want = terrain(min_slope=CLIFF_MIN_SLOPE)
                 counts['stone_cliff'] += 1
@@ -128,6 +136,7 @@ def patch(root):
     print(f"terrain filters: {counts['trees']} tree features (max_slope {TREE_MAX_SLOPE}, {counts['conifers']} conifers lean north), "
           f"{counts['flowers']} flower features lean south, {counts['shade']} fern/moss features lean north, "
           f"{counts['steep_slope']} steep slope patches (min_slope {STEEP_MIN_SLOPE}), "
+          f"{counts['snow']} snow layer features step aside for the bridge's snow, "
           f"{counts['stone_cliff']} stone cliff patches (min_slope {CLIFF_MIN_SLOPE})")
     return counts
 
