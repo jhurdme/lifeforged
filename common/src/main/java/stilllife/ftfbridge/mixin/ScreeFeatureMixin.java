@@ -52,6 +52,7 @@ abstract class ScreeFeatureMixin {
 
    @Inject(method = "place", at = @At("RETURN"))
    private void stilllife$end(FeaturePlaceContext<ScreeFeature.Config> context, CallbackInfoReturnable<Boolean> cir) {
+      BridgeHooks.shoresChunk(context.level(), context.origin());
       BridgeHooks.mountainSnowChunk(context.level(), context.origin());
       BridgeHooks.groundCoverEnd();
    }

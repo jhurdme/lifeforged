@@ -43,6 +43,9 @@ public final class StillLifeFtfBridgeFabric implements ModInitializer {
       if (StillLifeFtfBridge.isLoaded("natures_spirit")) {
          vegetation.addAll(StillLifeFtfBridge.NATURES_SPIRIT);
       }
+      if (StillLifeFtfBridge.isLoaded("still_life_naturalized")) {
+         vegetation.addAll(StillLifeFtfBridge.NATURALIZED);
+      }
       for (net.minecraft.resources.ResourceLocation riverside : vegetation) {
          BiomeModifications.addFeature(
             BiomeSelectors.tag(StillLifeFtfBridge.HAS_RIVERSIDE_PLANTS),

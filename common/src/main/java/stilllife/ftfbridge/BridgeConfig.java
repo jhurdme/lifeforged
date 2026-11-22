@@ -84,6 +84,7 @@ final class BridgeConfig {
       boolean mountainSnow = bool(p, "mountain_snow", d.mountainSnow());
       double altitudeCooling = number(p, "altitude_cooling", d.altitudeCooling(), 0.0, 2.0);
       double snowLineClimate = number(p, "snow_line_climate", d.snowLineClimate(), 0.0, 200.0);
+      boolean shores = bool(p, "shores", d.shores());
       LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
       String caveFloorGuard = Settings.caveFloorGuardMode(caveFloorGuardRaw);
@@ -95,7 +96,7 @@ final class BridgeConfig {
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
-         caveFloorGuard, columnDepth, naturalSnow, groundCover, mountainSnow, altitudeCooling, snowLineClimate
+         caveFloorGuard, columnDepth, naturalSnow, groundCover, mountainSnow, altitudeCooling, snowLineClimate, shores
       );
 
       String text = String.format(
@@ -127,16 +128,99 @@ final class BridgeConfig {
          # Smaller = climates change faster as you travel north or south. Still Life itself uses 40000.
          pole_distance=%s
 
+         # -----------------------------------------------------------------------------------------------------
+         #  Climate and height
+         # -----------------------------------------------------------------------------------------------------
+         # Still Life picks its high-mountain biomes (alpine, then snowy peaks) by height. These settings make that,
+         # and everything tied to it (the alpine belt, the treeline, mountain snow), follow the climate and the land.
+
          # Only for latitude=still_life (FTF's own temperature has its "Altitude Cooling Strength" slider instead).
          # How much colder it gets going up, from the sea to the highest peaks, on Still Life's temperature scale
          # (-1 coldest to 1 hottest). Forests give way to colder forests on the way up, and warm lands get snowy rather
          # than barren peaks on their highest mountains. 0 = no cooling (Still Life's own: only its height bands change).
          altitude_cooling=%s
 
-         # Only for latitude=still_life. The high-mountain bands (alpine, then snowy peaks) rise by up to this many blocks
-         # towards the warm equator and drop by as much towards the cold end, like real snow lines. Everything tied to
-         # the snow line (the alpine belt, the treeline, mountain snow) follows. 0 = the same height everywhere.
+         # Only for latitude=still_life. The high-mountain bands rise by up to this many blocks towards the warm
+         # equator and drop by as much towards the cold end, like real snow lines. 0 = the same height everywhere.
          snow_line_climate=%s
+
+         # The height where the high-mountain bands start wanders up and down by up to this many blocks: lower in
+         # gullies, higher on ridges, so it is never a level line like a contour. 0 = a level line.
+         peak_line_variation=%s
+
+         # -----------------------------------------------------------------------------------------------------
+         #  Snow
+         # -----------------------------------------------------------------------------------------------------
+
+         # true = the bridge decides where snow lies on mountains, with one climate model for snow ground, bare rock
+         # and snow layers alike:
+         #   - each place has its own snow line: where the snowy peaks begin, raised in dry climates and lowered in
+         #     wet ones (Still Life's humidity, plus a slow variation from range to range), down to the sea in cold
+         #     latitudes, and with less snow in warm ones
+         #   - above that line, the climate caps how much ground holds snow: about a quarter where it is arid, two
+         #     thirds in a normal climate, nearly all of it where it is wet; below it, leftover snow thins out
+         #   - which spots keep it follows shelter: hollows and gullies, north faces and the side away from the
+         #     prevailing wind (westerly in the middle latitudes, easterly near the equator and the poles) first;
+         #     sunny south faces, wind-facing slopes and exposed ridges last
+         #   - Minecraft's own freezing high up (which whitens warm lands above a few hundred blocks) is cleared
+         #     where the model has no snow
+         # false = Still Life's snow: every snowy-peaks biome solid white, everything high up frozen.
+         mountain_snow=%s
+
+         # Only when "Smooth Layer Decorator" is on in your FTF preset. FTF works out snow depth from its own terrain
+         # height, which often doesn't match the blocks the game actually builds, so the snow comes out in grids and
+         # stripes with odd full snow blocks. true = the bridge sets the depth from the real ground instead: snow
+         # fills the foot of every step like a drift, stays thin on ridges and steep slopes, is a little deeper on
+         # north faces and the sheltered side, and is never thicker than 7 layers. false = FTF's own smooth layers.
+         natural_snow_layers=%s
+
+         # true = snow on mountains isn't turned into stone, tuff or moss by FTF's erosion; only cliffs are bared.
+         snow_caps=%s
+
+         # How steep a slope must be before its snow is cleared off (bare cliffs). Higher = snow on steeper slopes.
+         # 0 = use the rock steepness from your FTF preset.
+         snow_cliff_steepness=%s
+
+         # Only with mountain_snow=false (mountain_snow does this itself): the bottom this many blocks of a snowy peak
+         # get snow in patches that thin out downwards, so the snow fades in instead of starting at a hard edge.
+         # Needs snow_caps=true. 0 = no fade.
+         snow_cap_fade=%s
+
+         # -----------------------------------------------------------------------------------------------------
+         #  Ground and terrain
+         # -----------------------------------------------------------------------------------------------------
+
+         # true = the ground on slopes suits the place, in one family of colours after FTF's own mix: grey talus of
+         # gravel, tuff, andesite and stone on steep slopes (with moss where it is wet), coarse dirt, moss and gravel
+         # where soil thins out, sandstone and red sandstone in deserts; rockfall gravel and the odd boulder at the
+         # foot of cliffs, and fans of gravel fading to finer ground below steep slopes where erosion left sediment.
+         # Along rivers: gravel and sand bars (mud where warm and wet) at the water's edge, and in dry lands a green
+         # strip of grass on the banks and valley floor. Below the snow line, an alpine belt where grass breaks up
+         # into coarse dirt, gravel, moss and stone. false = FTF's own mix everywhere.
+         ground_cover=%s
+
+         # Only for FTF's UPLIFT continent type. FTF raises land towards plate borders but drops that lift near
+         # the coast, which leaves a long cliff (often 40-100 blocks) running along the coast. This spreads the
+         # rise over this many blocks instead, turning the cliff into a slope. 0 = FTF's cliffs.
+         uplift_smoothing=%s
+
+         # -----------------------------------------------------------------------------------------------------
+         #  Coasts and lakes
+         # -----------------------------------------------------------------------------------------------------
+
+         # Coast more than this many blocks above sea level never becomes a beach. Still Life only puts sand or
+         # gravel close to the sea, so higher "beaches" would just be grassland. 0 = no limit.
+         beach_max_height=%s
+
+         # Sea up to this many blocks deep counts as beach (sandy or gravelly sea floor near the shore), like in
+         # Still Life's own worlds. 0 = ocean right up to the shore.
+         beach_shallows=%s
+
+         # true = shores suit their place: rocky shores of gravel, stone and cobble below steep coasts and cliffs;
+         # mud flats in shallow, gently sloping sea water in warm and wet climates; lake shores and shallows of sand,
+         # gravel (cold) or mud (warm and wet), clay deeper down, reed beds at lake edges (Still Life Naturalized's
+         # cattails and sedges when it is installed, sugar cane otherwise) and lily pads on warm lakes.
+         shores=%s
 
          # -----------------------------------------------------------------------------------------------------
          #  American and Afro-Eurasian biomes
@@ -161,18 +245,6 @@ final class BridgeConfig {
          # Where the two sets meet, they mix over about this many blocks in a ragged edge instead of a straight
          # line. 0 = a sharp line.
          biome_set_blend=%s
-
-         # -----------------------------------------------------------------------------------------------------
-         #  Beaches
-         # -----------------------------------------------------------------------------------------------------
-
-         # Coast more than this many blocks above sea level never becomes a beach. Still Life only puts sand or
-         # gravel close to the sea, so higher "beaches" would just be grassland. 0 = no limit.
-         beach_max_height=%s
-
-         # Sea up to this many blocks deep counts as beach (sandy or gravelly sea floor near the shore), like in
-         # Still Life's own worlds. 0 = ocean right up to the shore.
-         beach_shallows=%s
 
          # -----------------------------------------------------------------------------------------------------
          #  Swamps and wetlands
@@ -229,57 +301,6 @@ final class BridgeConfig {
          salt_lake_slope_pools=%s
 
          # -----------------------------------------------------------------------------------------------------
-         #  Snow and mountains
-         # -----------------------------------------------------------------------------------------------------
-
-         # true = Still Life's snow stays on mountain tops at every height. Without this, FTF's erosion turns it
-         # into stone, tuff or moss, and its snow decorator strips snow off most mountain slopes.
-         snow_caps=%s
-
-         # How steep a slope must be before its snow is cleared off (bare cliffs). Higher = snow on steeper slopes.
-         # 0 = use the rock steepness from your FTF preset.
-         snow_cliff_steepness=%s
-
-         # Still Life starts its high mountain biomes (alpine, then snowy peaks) at a fixed height, so every snow
-         # line is perfectly level. This makes the snow line wander up and down by up to this many blocks: lower
-         # in gullies, higher on ridges. 0 = a level line.
-         peak_line_variation=%s
-
-         # The bottom this many blocks of a snowy peak get snow in patches that thin out downwards, with bare rock
-         # between, so the snow fades in instead of starting at a hard edge. Needs snow_caps=true. 0 = no fade.
-         snow_cap_fade=%s
-
-         # Only when "Smooth Layer Decorator" is on in your FTF preset. FTF works out snow depth from its own terrain
-         # height, which often doesn't match the blocks the game actually builds, so the snow comes out in grids and
-         # stripes with odd full snow blocks. true = the bridge sets the depth from the real ground instead: snow drifts
-         # against steps and fills hollows, stays thin on ridges and steep slopes, is a little deeper on cold north
-         # faces and higher up, and is never thicker than 7 layers. false = FTF's own smooth layers.
-         natural_snow_layers=%s
-
-         # true = mountain snow follows wind, sun and the shape of the ground, with real snow ground and bare rock:
-         #   - a prevailing wind (with latitude=still_life: easterly near the equator and the poles, westerly in between;
-         #     otherwise westerly) scours slopes facing into it to bare rock in patches; the sheltered side gets deeper drifts
-         #   - sunny south faces go bare up to 30 blocks above where the snowy peaks begin
-         #   - below that line, leftover snow that grows going up: only in the most sheltered spots (hollows, gullies,
-         #     north faces, out of the wind) low down, more and more towards the line; cold climates bring it further
-         #     down, so lower mountains get some too
-         #   - dry biomes get less snow and more bare rock, wet ones more snow, warm ones only snowy gullies
-         mountain_snow=%s
-
-         # -----------------------------------------------------------------------------------------------------
-         #  Ground cover
-         # -----------------------------------------------------------------------------------------------------
-
-         # true = the ground on slopes suits the place, in one family of colours after FTF's own mix: grey talus of
-         # gravel, tuff, andesite and stone on steep slopes (with moss where it is wet), coarse dirt, moss and gravel where
-         # soil thins out, sandstone and red sandstone in deserts; rockfall gravel and the odd boulder at the foot of
-         # cliffs, and fans of gravel fading to finer ground below steep slopes where erosion left sediment. Along
-         # rivers: gravel and sand bars (mud where warm and wet) at the water's edge, and in dry lands a green strip of
-         # grass on the banks and valley floor. Below the snow line, an alpine belt where grass breaks up into coarse
-         # dirt, gravel, moss and stone. false = FTF's own mix everywhere.
-         ground_cover=%s
-
-         # -----------------------------------------------------------------------------------------------------
          #  Caves
          # -----------------------------------------------------------------------------------------------------
          # FTF often leaves caves in the biome of the ground above them, so Still Life's rules would put that
@@ -294,15 +315,6 @@ final class BridgeConfig {
          # the deepest ones (Haunted Depths), however tall the world is. false = the old behaviour (bridge 5.0-5.4):
          # cave biomes start deeper under high ground and the deepest ones never appear.
          column_depth=%s
-
-         # -----------------------------------------------------------------------------------------------------
-         #  Terrain
-         # -----------------------------------------------------------------------------------------------------
-
-         # Only for FTF's UPLIFT continent type. FTF raises land towards plate borders but drops that lift near
-         # the coast, which leaves a long cliff (often 40-100 blocks) running along the coast. This spreads the
-         # rise over this many blocks instead, turning the cliff into a slope. 0 = FTF's cliffs.
-         uplift_smoothing=%s
          """,
          WorldLock.FILE_NAME,
          enabled,
@@ -310,12 +322,21 @@ final class BridgeConfig {
          plain(pole),
          plain(altitudeCooling),
          plain(snowLineClimate),
+         plain(peakLineVariation),
+         mountainSnow,
+         naturalSnow,
+         snowCaps,
+         plain(snowCliff),
+         plain(snowCapFade),
+         groundCover,
+         plain(upliftSmoothing),
+         plain(beachMaxHeight),
+         plain(beachShallows),
+         shores,
          biomeSets,
          plain(biomeSetRegionSize),
          plain(share),
          plain(biomeSetBlend),
-         plain(beachMaxHeight),
-         plain(beachShallows),
          swamps,
          plain(swampHumidity),
          plain(swampMaxHeight),
@@ -327,16 +348,8 @@ final class BridgeConfig {
          plain(saltLakeWater),
          plain(saltLakeMaxRelief),
          saltLakeSlopePools,
-         snowCaps,
-         plain(snowCliff),
-         plain(peakLineVariation),
-         plain(snowCapFade),
-         naturalSnow,
-         mountainSnow,
-         groundCover,
          caveFloorGuard,
-         columnDepth,
-         plain(upliftSmoothing)
+         columnDepth
       );
 
       text = withLimits(text);

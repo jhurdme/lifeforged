@@ -94,7 +94,8 @@ final class WorldLock {
                   bool(o, "ground_cover", false),
                   bool(o, "mountain_snow", false),
                   num(o, "altitude_cooling", 0.0),
-                  num(o, "snow_line_climate", 0.0)
+                  num(o, "snow_line_climate", 0.0),
+                  bool(o, "shores", false)
                );
             }
 
@@ -195,6 +196,7 @@ final class WorldLock {
             o.addProperty("mountain_snow", s.mountainSnow());
             o.addProperty("altitude_cooling", s.altitudeCooling());
             o.addProperty("snow_line_climate", s.snowLineClimate());
+            o.addProperty("shores", s.shores());
          }
       }
 

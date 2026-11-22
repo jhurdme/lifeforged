@@ -1,0 +1,41 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "still_life_naturalized"
+    }
+  ],
+  "fabric:load_conditions": [
+    {
+      "condition": "fabric:all_mods_loaded",
+      "values": [
+        "still_life_naturalized"
+      ]
+    }
+  ],
+  "feature": "still_life_naturalized:extras/reed_edge_dry",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "terrain_categories": [
+        "lake"
+      ],
+      "requires_option": "shores",
+      "min_temperature": 1.0
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

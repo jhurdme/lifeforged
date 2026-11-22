@@ -39,21 +39,10 @@
       "height_rand_b": 0
     },
     "foliage_provider": {
-      "type": "minecraft:weighted_state_provider",
-      "entries": [
-        {
-          "data": {
-            "Name": "natures_spirit:fir_leaves"
-          },
-          "weight": 3
-        },
-        {
-          "data": {
-            "Name": "natures_spirit:frosty_fir_leaves"
-          },
-          "weight": 1
-        }
-      ]
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "natures_spirit:fir_leaves"
+      }
     },
     "foliage_placer": {
       "type": "minecraft:bush_foliage_placer",

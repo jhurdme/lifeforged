@@ -37,7 +37,11 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *   "max_above_water": 2,                     // at most this many blocks above the nearby river's water (river zones only)
  *   "requires_rain": true,                    // only in biomes with rain or snow (not deserts and other dry biomes)
  *   "skip_with_natural_snow": true,
- *   "skip_if_loaded": ["still_life_naturalized"] }  // not when one of these mods is installed (it does this job itself)          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
+ *   "skip_if_loaded": ["still_life_naturalized"],  // not when one of these mods is installed (it does this job itself)
+ *   "terrain_categories": ["lake"],           // FTF terrain category of the column: deep_ocean, shallow_ocean, coast,
+ *                                             // beach, river, lake, wetland, flatland, lowland, highland, island
+ *   "requires_option": "shores" }             // only when this bridge option is on in the world (shores, ground_cover,
+ *                                             // mountain_snow, natural_snow_layers)          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
  *                                             // features that set snow layers themselves, which would cut through the
  *                                             // bridge's snow along chunk borders
  * </pre>
@@ -70,7 +74,9 @@ public final class TerrainFilter extends PlacementFilter {
          Codec.INT.optionalFieldOf("max_above_water", Integer.MAX_VALUE).forGetter(f -> f.maxAboveWater),
          Codec.BOOL.optionalFieldOf("requires_rain", false).forGetter(f -> f.requiresRain),
          Codec.FLOAT.listOf().optionalFieldOf("treeline", List.of()).forGetter(f -> f.treeline),
-         Codec.STRING.listOf().optionalFieldOf("skip_if_loaded", List.of()).forGetter(f -> f.skipIfLoaded)
+         Codec.STRING.listOf().optionalFieldOf("skip_if_loaded", List.of()).forGetter(f -> f.skipIfLoaded),
+         Codec.STRING.listOf().optionalFieldOf("terrain_categories", List.of()).forGetter(f -> f.terrainCategories),
+         Codec.STRING.optionalFieldOf("requires_option", "").forGetter(f -> f.requiresOption)
       ).apply(i, TerrainFilter::new));
    public static final PlacementModifierType<TerrainFilter> TYPE = () -> CODEC;
 
@@ -86,10 +92,14 @@ public final class TerrainFilter extends PlacementFilter {
    private final List<Float> treeline;
    private final List<String> skipIfLoaded;
    private final boolean skipped;
+   private final List<String> terrainCategories;
+   private final String requiresOption;
 
    private TerrainFilter(Ranges ranges, List<String> riverZones, Optional<String> preferFacing, float facingBias, float ridgeThinning,
                          boolean avoidChutes, boolean skipWithNaturalSnow, int maxAboveWater, boolean requiresRain,
-                         List<Float> treeline, List<String> skipIfLoaded) {
+                         List<Float> treeline, List<String> skipIfLoaded, List<String> terrainCategories, String requiresOption) {
+      this.terrainCategories = terrainCategories.stream().map(s -> s.toLowerCase(Locale.ROOT)).toList();
+      this.requiresOption = requiresOption;
       this.treeline = treeline;
       this.skipIfLoaded = skipIfLoaded;
       this.skipped = skipIfLoaded.stream().anyMatch(StillLifeFtfBridge::isLoaded);
@@ -117,6 +127,9 @@ public final class TerrainFilter extends PlacementFilter {
       if (this.skipWithNaturalSnow && NaturalSnow.active(WorldLock.activeSettings())) {
          return false;
       }
+      if (!this.requiresOption.isEmpty() && !optionOn(this.requiresOption)) {
+         return false;
+      }
       int x = pos.getX();
       int z = pos.getZ();
       Cell cell = FtfTerrain.cell(ctx, level.getChunk(x >> 4, z >> 4), x, z);
@@ -130,6 +143,9 @@ public final class TerrainFilter extends PlacementFilter {
          return false;
       }
       if (!this.riverZones.isEmpty() && !this.riverZones.contains(riverZone(cell))) {
+         return false;
+      }
+      if (!this.terrainCategories.isEmpty() && !this.terrainCategories.contains(category(cell))) {
          return false;
       }
       if (this.maxAboveWater != Integer.MAX_VALUE) {
@@ -191,6 +207,28 @@ public final class TerrainFilter extends PlacementFilter {
          }
       }
       return true;
+   }
+
+   /** The column's FTF terrain category as a lower-case name (lake, coast, beach, river, ...). */
+   static String category(Cell cell) {
+      if (cell.terrain == null) {
+         return "none";
+      }
+      if (cell.terrain.isLake()) {
+         return "lake";
+      }
+      return String.valueOf(cell.terrain.getDelegate()).toLowerCase(Locale.ROOT);
+   }
+
+   private static boolean optionOn(String option) {
+      Settings s = WorldLock.activeSettings();
+      return switch (option) {
+         case "shores" -> BridgeConfig.enabled() && s.shores();
+         case "ground_cover" -> GroundCover.active(s);
+         case "mountain_snow" -> MountainSnow.active(s);
+         case "natural_snow_layers" -> NaturalSnow.active(s);
+         default -> true;
+      };
    }
 
    private static String opposite(String facing) {

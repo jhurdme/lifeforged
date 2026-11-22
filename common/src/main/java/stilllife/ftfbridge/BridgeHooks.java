@@ -41,6 +41,18 @@ public final class BridgeHooks {
       GroundCover.end();
    }
 
+   /** shores' pass over one chunk, at the end of FTF's erosion decorator. */
+   public static void shoresChunk(net.minecraft.world.level.WorldGenLevel level, net.minecraft.core.BlockPos origin) {
+      if (!Shores.active(WorldLock.activeSettings())) {
+         return;
+      }
+      try {
+         Shores.chunk(level, level.getChunk(origin.getX() >> 4, origin.getZ() >> 4));
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("shores", e);
+      }
+   }
+
    /** mountain_snow's pass over one chunk, at the end of FTF's erosion decorator. */
    public static void mountainSnowChunk(net.minecraft.world.level.WorldGenLevel level, net.minecraft.core.BlockPos origin) {
       if (!MountainSnow.active(WorldLock.activeSettings())) {

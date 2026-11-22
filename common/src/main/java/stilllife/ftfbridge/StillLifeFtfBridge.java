@@ -34,7 +34,12 @@ public final class StillLifeFtfBridge {
    public static final java.util.List<ResourceLocation> RIVERSIDE = java.util.List.of(
       id("riverside_willows"), id("riverside_birches"), id("riverside_reeds"), id("riverside_plants"),
       // the alpine belt below the snow line (same biomes)
-      id("krummholz"), id("alpine_flowers"));
+      id("krummholz"), id("alpine_flowers"),
+      // lakes
+      id("lake_reeds"), id("lake_lily_pads"));
+   /** Lake reed edges built from Still Life Naturalized's own reed features, added only when it is installed. */
+   public static final java.util.List<ResourceLocation> NATURALIZED = java.util.List.of(
+      id("lake_reeds_cold"), id("lake_reeds_cold_water"), id("lake_reeds_mild"), id("lake_reeds_mild_water"), id("lake_reeds_dry"), id("lake_reeds_dry_water"));
    /** Variants of the alpine features built with Nature's Spirit plants, added only when it is installed. */
    public static final java.util.List<ResourceLocation> NATURES_SPIRIT = java.util.List.of(id("krummholz_ns"), id("alpine_flowers_ns"));
 

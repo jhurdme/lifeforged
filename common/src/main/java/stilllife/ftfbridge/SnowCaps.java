@@ -38,6 +38,9 @@ final class SnowCaps {
     * is remembered, so FTF's snow pass later clears any snow layer on it (the game lays one on every cold surface).
     */
    static boolean fadeBare(ChunkAccess chunk, int x, int y, int z, float slope) {
+      if (MountainSnow.active(WorldLock.activeSettings())) {
+         return false; // mountain_snow decides where caps are bare
+      }
       Holder<Biome> biome = chunk.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z));
       if (!biome.is(SNOWY_PEAKS)) {
          return false;

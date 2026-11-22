@@ -41,7 +41,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 final class GroundCover {
    private static final ThreadLocal<WorldGenLevel> LEVEL = new ThreadLocal<>();
 
-   private enum Climate { COLD, TEMPERATE, HUMID, ARID, RED_ARID }
+   enum Climate { COLD, TEMPERATE, HUMID, ARID, RED_ARID }
 
    private static final BlockState GRAVEL = Blocks.GRAVEL.defaultBlockState();
    private static final BlockState STONE = Blocks.STONE.defaultBlockState();
@@ -419,7 +419,7 @@ final class GroundCover {
       return false;
    }
 
-   private static Climate climate(ChunkAccess chunk, BlockPos.MutableBlockPos pos, BlockState top, int surfaceY) {
+   static Climate climate(ChunkAccess chunk, BlockPos.MutableBlockPos pos, BlockState top, int surfaceY) {
       if (top.is(Blocks.RED_SAND)) {
          return Climate.RED_ARID;
       }

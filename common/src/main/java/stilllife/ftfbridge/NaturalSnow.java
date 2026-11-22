@@ -99,8 +99,32 @@ final class NaturalSnow {
             int z = z0 + lz;
             int g = ground[(lz + R) * SIZE + lx + R];
             int top = realGround(chunk, pos, x, z);
-            // something stands on the terrain here (a boulder, a log), or the column is under a roof: leave it
-            if (top < 0 || Math.abs(top - g) > 1 || chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz) > top + 2) {
+            if (top < 0) {
+               continue;
+            }
+            boolean mountainSnow = MountainSnow.active(s);
+            if (mountainSnow) {
+               top = meltIce(level, chunk, pos, x, top, z, ctx);
+            }
+            int canopy = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz) - 1;
+            if (canopy > top + 1) {
+               // under trees: Minecraft put its snow on the treetops. With mountain_snow they follow the ground: no
+               // snow on the ground here, none on the leaves either.
+               if (mountainSnow) {
+                  pos.set(x, top, z);
+                  net.minecraft.core.Holder<Biome> h = level.getBiome(pos);
+                  if (!MountainSnow.glacier(h)
+                     && MountainSnow.score(level, x, top, z, FtfTerrain.cell(ctx, chunk, x, z).gradient, h, level.getSeed()) < 0.0) {
+                     pos.setY(canopy);
+                     if (chunk.getBlockState(pos).is(Blocks.SNOW)) {
+                        chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
+                     }
+                  }
+               }
+               continue;
+            }
+            // something stands on the terrain here (a boulder, a log): leave it
+            if (Math.abs(top - g) > 1) {
                continue;
             }
             pos.set(x, top + 1, z);
@@ -240,6 +264,35 @@ final class NaturalSnow {
          }
       }
       return Math.max(rock ? 2 : 1, Math.min(7, Math.round(depth)));
+   }
+
+   /**
+    * mountain_snow: Still Life's ice on mountains (ice sheets, ice boulders and the packed ice in its snowy ground) becomes
+    * snow ground where the snow model has snow and rock where it has none; glaciers keep their ice. Returns the column's
+    * top after the change.
+    */
+   private static int meltIce(WorldGenLevel level, ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int top, int z,
+                              GeneratorContext ctx) {
+      pos.set(x, top, z);
+      BlockState state = chunk.getBlockState(pos);
+      if (!state.is(Blocks.PACKED_ICE) && !state.is(Blocks.BLUE_ICE)) {
+         return top;
+      }
+      net.minecraft.core.Holder<Biome> holder = level.getBiome(pos);
+      if (MountainSnow.glacier(holder)) {
+         return top;
+      }
+      double score = MountainSnow.score(level, x, top, z, FtfTerrain.cell(ctx, chunk, x, z).gradient, holder, level.getSeed());
+      BlockState with = score >= 0.0 ? Blocks.SNOW_BLOCK.defaultBlockState() : Blocks.STONE.defaultBlockState();
+      int y = top;
+      for (int k = 0; k < 6 && y > chunk.getMinBuildHeight(); k++, y--) {
+         BlockState here = chunk.getBlockState(pos.setY(y));
+         if (!here.is(Blocks.PACKED_ICE) && !here.is(Blocks.BLUE_ICE) && !here.is(Blocks.ICE)) {
+            break;
+         }
+         chunk.setBlockState(pos, with, false);
+      }
+      return top;
    }
 
    /** Minecraft's temperature at a height: the biome's, cooling by 0.05 every 40 blocks above Y 80. */

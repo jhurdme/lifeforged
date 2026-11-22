@@ -92,6 +92,49 @@ final class FtfTerrain {
       return ctx.heightmap.levels().scale(out.height);
    }
 
+   /**
+    * The top water block over x/z by FreeTerraForged's terrain model (the sea, or a lake's or river's water level), or
+    * Integer.MIN_VALUE when its ground is above water. The same in every chunk whatever its stage of generation.
+    */
+   static int water(WorldGenLevel level, int x, int z) {
+      GeneratorContext ctx = context(level);
+      if (ctx == null) {
+         return Integer.MIN_VALUE;
+      }
+      Cell c = estimateCell(ctx, level, x, z);
+      Levels levels = ctx.heightmap.levels();
+      if ((c.terrain.isLake() || c.terrain.isRiver()) && c.riverWaterLevel > 0.0F && c.height < c.riverWaterLevel) {
+         return levels.scale(c.riverWaterLevel);
+      }
+      if (c.height < levels.water) {
+         return level.getSeaLevel() - 1;
+      }
+      return Integer.MIN_VALUE;
+   }
+
+   /** True when FreeTerraForged's model has lake water (not sea or river) over x/z. */
+   static boolean lakeWater(WorldGenLevel level, int x, int z) {
+      GeneratorContext ctx = context(level);
+      if (ctx == null) {
+         return false;
+      }
+      Cell c = estimateCell(ctx, level, x, z);
+      return c.terrain.isLake() && c.riverWaterLevel > 0.0F && c.height < c.riverWaterLevel;
+   }
+
+   private static Cell estimateCell(GeneratorContext ctx, WorldGenLevel level, int x, int z) {
+      Cell out = ESTIMATE.get();
+      net.minecraft.world.level.chunk.ChunkAccess chunk = level.getChunk(x >> 4, z >> 4);
+      Cell[] cells = chunk instanceof IChunkCellsHolder holder ? holder.freeterraforged$getOrCreateChunkCells(ctx) : null;
+      if (cells != null) {
+         out.copyFrom(cells[(z & 15) * 16 + (x & 15)]);
+      } else {
+         out.reset();
+         ctx.lookup.applyCell(out, x, z, false, false);
+      }
+      return out;
+   }
+
    private static int scanGround(WorldGenLevel level, int x, int z) {
       // a neighbouring chunk that is still at an early stage of generation has no terrain blocks yet (every read there
       // found the bottom of the world, which drew bare lines along chunk borders, on the sides generated later): use
