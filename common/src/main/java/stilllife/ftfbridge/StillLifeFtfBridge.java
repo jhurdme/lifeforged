@@ -28,6 +28,11 @@ public final class StillLifeFtfBridge {
    /** Placement filter: FreeTerraForged slope, sediment and river zone at a feature's column (see {@link TerrainFilter}). */
    public static final ResourceLocation TERRAIN = id("terrain");
    public static final TagKey<Biome> HAS_WETLAND_POOLS = TagKey.create(Registries.BIOME, id("has_wetland_pools"));
+   /** Biomes that get the riverside plants (placed only in FreeTerraForged's river banks and valley floors). */
+   public static final TagKey<Biome> HAS_RIVERSIDE_PLANTS = TagKey.create(Registries.BIOME, id("has_riverside_plants"));
+   /** The riverside plant features, in vegetal decoration order (trees first). */
+   public static final java.util.List<ResourceLocation> RIVERSIDE = java.util.List.of(
+      id("riverside_willows"), id("riverside_birches"), id("riverside_reeds"), id("riverside_plants"));
 
    private static Platform platform;
 

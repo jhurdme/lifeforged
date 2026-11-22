@@ -2,9 +2,13 @@
 
 usage: python3 patch_terrain.py <extracted datapack folder | jar> [output jar]
 
-Uses the bridge's placement filter stilllife_ftf_bridge:terrain (bridge 5.6+), which reads FreeTerraForged's slope at each
+Uses the bridge's placement filter stilllife_ftf_bridge:terrain (bridge 5.6+), which reads FreeTerraForged's terrain at each
 feature's column:
-  - trees, fallen trees and tree groups no longer grow on cliffs and near-vertical slopes (max_slope);
+  - trees, fallen trees and tree groups no longer grow on cliffs and near-vertical slopes (max_slope), stay out of steep
+    gullies so mountain forests get open avalanche chutes (avoid_chutes), and thin out on ground that stands out above
+    the land around it: ridges and hilltops (ridge_thinning);
+  - conifers lean towards north-facing slopes; flowers towards south-facing slopes, ferns and moss towards north-facing
+    ones (prefer_facing: on the other side they are skipped part of the time, never removed);
   - Still Life's "steep slope" patches (coarse dirt / packed mud) and "stone cliff" patches only land on steep ground
     (min_slope). On Lithosphere's terrain Still Life could count on them falling on slopes; FreeTerraForged's land is
     mostly gentle, so without this they speckle flat ground too.
@@ -22,14 +26,22 @@ STEEP_MIN_SLOPE = 0.45    # FTF's default dirt steepness
 CLIFF_MIN_SLOPE = 0.6     # FTF's default scree steepness
 
 FILTER = 'stilllife_ftf_bridge:terrain'
+TREE_RIDGE_THINNING = 0.4
+CONIFERS = ('spruce', 'fir', 'pine', 'larch', 'cedar', 'redwood', 'juniper', 'hemlock', 'snowy', 'taiga', 'boreal', 'conifer')
+FLOWERS = ('allium', 'azure_bluet', 'cornflower', 'dandelion', 'lilac', 'oxeye_daisy', 'peonies', 'poppies', 'rose_bush',
+           'sunflower', 'tulip', 'wildflower', 'desert_bloom', 'blue_orchid', 'flower')
+SHADE = ('fern', 'moss')
 
 
 def terrain(**kw):
     return dict({'type': FILTER}, **kw)
 
 
-def has_filter(placement):
-    return any(isinstance(m, dict) and m.get('type') == FILTER for m in placement)
+def existing(placement):
+    for m in placement:
+        if isinstance(m, dict) and m.get('type') == FILTER:
+            return m
+    return None
 
 
 def insert(placement, modifier):
@@ -65,7 +77,7 @@ def is_tree(rel, text):
 
 
 def patch(root):
-    counts = {'trees': 0, 'steep_slope': 0, 'stone_cliff': 0}
+    counts = {'trees': 0, 'conifers': 0, 'flowers': 0, 'shade': 0, 'steep_slope': 0, 'stone_cliff': 0}
     for dirpath, dirnames, filenames in os.walk(root):
         d = dirpath.replace('\\', '/')
         if '/worldgen/placed_feature' not in d:
@@ -80,23 +92,41 @@ def patch(root):
             except ValueError:
                 continue
             placement = data.get('placement')
-            if not isinstance(placement, list) or has_filter(placement):
+            if not isinstance(placement, list):
                 continue
             base = name[:-5]
+            relp = rel.replace(os.sep, '/')
             if base.startswith('steep_slope_'):
-                insert(placement, terrain(min_slope=STEEP_MIN_SLOPE))
+                want = terrain(min_slope=STEEP_MIN_SLOPE)
                 counts['steep_slope'] += 1
             elif base == 'stone_cliff':
-                insert(placement, terrain(min_slope=CLIFF_MIN_SLOPE))
+                want = terrain(min_slope=CLIFF_MIN_SLOPE)
                 counts['stone_cliff'] += 1
             elif is_tree(rel, configured_text(root, data.get('feature'))):
-                insert(placement, terrain(max_slope=TREE_MAX_SLOPE))
+                want = terrain(max_slope=TREE_MAX_SLOPE, avoid_chutes=True, ridge_thinning=TREE_RIDGE_THINNING)
+                if any(c in base for c in CONIFERS):
+                    want.update(prefer_facing='north', facing_bias=0.3)
+                    counts['conifers'] += 1
                 counts['trees'] += 1
+            elif '/pf_foliage/ground/' in relp and any(f in base for f in FLOWERS):
+                want = terrain(prefer_facing='south', facing_bias=0.4)
+                counts['flowers'] += 1
+            elif '/pf_foliage/ground/' in relp and any(f in base for f in SHADE):
+                want = terrain(prefer_facing='north', facing_bias=0.4)
+                counts['shade'] += 1
             else:
                 continue
+            old = existing(placement)
+            if old is not None:
+                if all(old.get(k) == v for k, v in want.items()):
+                    continue
+                old.update(want)
+            else:
+                insert(placement, want)
             with open(path, 'w', encoding='utf-8', newline='\n') as f:
                 json.dump(data, f, indent=2)
-    print(f"terrain filters: {counts['trees']} tree features (max_slope {TREE_MAX_SLOPE}), "
+    print(f"terrain filters: {counts['trees']} tree features (max_slope {TREE_MAX_SLOPE}, {counts['conifers']} conifers lean north), "
+          f"{counts['flowers']} flower features lean south, {counts['shade']} fern/moss features lean north, "
           f"{counts['steep_slope']} steep slope patches (min_slope {STEEP_MIN_SLOPE}), "
           f"{counts['stone_cliff']} stone cliff patches (min_slope {CLIFF_MIN_SLOPE})")
     return counts

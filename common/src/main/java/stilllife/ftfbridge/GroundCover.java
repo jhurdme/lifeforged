@@ -55,6 +55,9 @@ final class GroundCover {
    private static final BlockState RED_SAND = Blocks.RED_SAND.defaultBlockState();
    private static final BlockState RED_SANDSTONE = Blocks.RED_SANDSTONE.defaultBlockState();
    private static final BlockState TERRACOTTA = Blocks.TERRACOTTA.defaultBlockState();
+   private static final BlockState MUD = Blocks.MUD.defaultBlockState();
+   private static final BlockState GRASS = Blocks.GRASS_BLOCK.defaultBlockState();
+   private static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
 
    /** A weighted palette: entries picked by a 0..1 sample. A null entry keeps the existing top block. */
    private record Palette(BlockState[] blocks, float[] upTo) {
@@ -116,7 +119,7 @@ final class GroundCover {
    static void erodeColumn(
       ScreeFeature.Config config, Levels levels, Noise rand, ChunkAccess chunk, Cell cell, BlockPos.MutableBlockPos pos, int surfaceY
    ) {
-      if (cell.terrain.isRiver() || cell.terrain.isWetland() || cell.terrain == TerrainType.VOLCANO_PIPE) {
+      if (cell.terrain.isWetland() || cell.terrain == TerrainType.VOLCANO_PIPE) {
          return;
       }
       int x = pos.getX();
@@ -126,6 +129,13 @@ final class GroundCover {
       boolean sand = top.is(Blocks.SAND) || top.is(Blocks.RED_SAND);
       boolean snow = top.is(Blocks.SNOW_BLOCK) || top.is(Blocks.POWDER_SNOW);
       if (!sand && !top.is(FTFBlockTags.ERODIBLE)) {
+         return;
+      }
+      WorldGenLevel riverLevel = LEVEL.get();
+      if (!snow && riverside(config, levels, chunk, cell, pos, surfaceY, riverLevel != null ? riverLevel.getSeed() : 0L)) {
+         return;
+      }
+      if (cell.terrain.isRiver()) {
          return;
       }
 
@@ -165,7 +175,7 @@ final class GroundCover {
       }
 
       // gentle ground: rockfall below cliffs, dry washes on sediment
-      if (level != null && cliffFoot(level, chunk, pos, x, z, surfaceY, seed, climate)) {
+      if (level != null && cliffFoot(level, chunk, pos, x, z, surfaceY, seed, climate, TerrainFilter.sediment(cell))) {
          return;
       }
       if ((climate == Climate.ARID || climate == Climate.RED_ARID) && TerrainFilter.sediment(cell) > 0.35F
@@ -176,14 +186,16 @@ final class GroundCover {
    }
 
    /**
-    * Within 3 blocks of the foot of a cliff (the terrain rising at least 3 blocks within 1 block, 5 within 2 or 7 within 3):
-    * a gravel apron, thinner further out, and now and then a boulder on it.
+    * Below cliffs and steep slopes (the terrain rising at least 1 + 2d blocks within d blocks): within 3 blocks a gravel
+    * apron, thinner further out, with the odd boulder on it; where FTF's erosion left sediment, an alluvial fan reaching 6
+    * blocks out that grades from gravel to coarse dirt (sand in deserts).
     */
    private static boolean cliffFoot(
-      WorldGenLevel level, ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int z, int surfaceY, long seed, Climate climate
+      WorldGenLevel level, ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int z, int surfaceY, long seed, Climate climate,
+      float sediment
    ) {
       int near = 0;
-      for (int d = 1; d <= 3 && near == 0; d++) {
+      for (int d = 1; d <= 6 && near == 0; d++) {
          int rise = 1 + 2 * d;
          for (int i = 0; i < 8; i++) {
             int dx = (i == 0 || i == 1 || i == 7) ? d : (i == 3 || i == 4 || i == 5) ? -d : 0;
@@ -196,6 +208,9 @@ final class GroundCover {
       }
       if (near == 0) {
          return false;
+      }
+      if (near >= 4) {
+         return alluvialFan(chunk, pos, x, z, surfaceY, seed, climate, near, sediment);
       }
       float cover = near == 1 ? 0.8F : near == 2 ? 0.5F : 0.25F;
       if (patch(seed, x, z, 61, 3.0F) > cover) {
@@ -223,6 +238,86 @@ final class GroundCover {
          pos.setY(surfaceY);
       }
       return true;
+   }
+
+   /** The outer part of a fan below a steep slope: only where FTF's erosion deposited sediment. */
+   private static boolean alluvialFan(
+      ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int z, int surfaceY, long seed, Climate climate, int near, float sediment
+   ) {
+      if (sediment < 0.25F) {
+         return false;
+      }
+      float cover = (near == 4 ? 0.55F : near == 5 ? 0.35F : 0.2F) * Math.min(1.0F, sediment / 0.5F);
+      if (patch(seed, x, z, 71, 4.0F) > cover) {
+         return false;
+      }
+      boolean coarse = patch(seed, x, z, 73, 3.0F) < (near - 3) / 3.0F; // finer further out
+      BlockState m = switch (climate) {
+         case ARID -> coarse ? SAND : GRAVEL;
+         case RED_ARID -> coarse ? RED_SAND : GRAVEL;
+         default -> coarse ? COARSE_DIRT : GRAVEL;
+      };
+      ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, m);
+      return true;
+   }
+
+   /**
+    * Ground along rivers (FTF's river zones), on gentle slopes:
+    * <ul>
+    *   <li>bank edges within a block of the water: gravel and sand bars (mud where warm and wet, sand in deserts);</li>
+    *   <li>in dry climates, up to 6 blocks above the water: a green strip of grass and coarse dirt, dense on the banks,
+    *       thinner across the valley floor, fading out at its edge.</li>
+    * </ul>
+    * True when this column was handled.
+    */
+   private static boolean riverside(
+      ScreeFeature.Config config, Levels levels, ChunkAccess chunk, Cell cell, BlockPos.MutableBlockPos pos, int surfaceY, long seed
+   ) {
+      String zone = TerrainFilter.riverZone(cell);
+      if (zone.equals("none") || zone.equals("riverbed") || cell.gradient > config.screeSteepness()) {
+         return false;
+      }
+      int x = pos.getX();
+      int z = pos.getZ();
+      BlockState top = chunk.getBlockState(pos.setY(surfaceY));
+      int waterY = cell.riverWaterLevel > 0.0F ? levels.scale(cell.riverWaterLevel) : levels.waterLevel;
+      int above = surfaceY - waterY;
+      if (above < 0) {
+         return false;
+      }
+      Climate climate = climate(chunk, pos, top, surfaceY);
+
+      if (zone.equals("banks") && above <= 1) {
+         float p = patch(seed, x, z, 81, 4.0F);
+         BlockState m = switch (climate) {
+            case ARID -> p < 0.3F ? GRAVEL : null;
+            case RED_ARID -> p < 0.3F ? GRAVEL : null;
+            case HUMID -> p < 0.35F ? MUD : p < 0.55F ? GRAVEL : null;
+            case COLD -> p < 0.55F ? GRAVEL : null;
+            default -> p < 0.4F ? GRAVEL : p < 0.55F ? SAND : null;
+         };
+         if (m != null) {
+            ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, m);
+            return true;
+         }
+         return false;
+      }
+
+      if ((climate == Climate.ARID || climate == Climate.RED_ARID) && above <= 6) {
+         float cover = switch (zone) {
+            case "banks" -> 0.75F;
+            case "valley_floor" -> 0.45F;
+            default -> 0.15F;
+         };
+         float p = patch(seed, x, z, 83, 6.0F);
+         if (p < cover) {
+            BlockState m = p < cover * 0.8F ? GRASS : COARSE_DIRT;
+            ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY, m);
+            ColumnDecorator.fillDownSolid(chunk, pos, surfaceY - 1, surfaceY - 2, DIRT);
+            return true;
+         }
+      }
+      return false;
    }
 
    private static Climate climate(ChunkAccess chunk, BlockPos.MutableBlockPos pos, BlockState top, int surfaceY) {

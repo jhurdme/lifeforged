@@ -248,8 +248,10 @@ final class BridgeConfig {
 
          # true = the ground on slopes suits the place: talus of gravel, stone and cobble on cold mountains; gravel,
          # coarse dirt and mossy cobble in temperate hills; sandstone and red sandstone in deserts; patchy coarse and
-         # rooted dirt where soil is thin; and rockfall gravel and the odd boulder at the foot of cliffs.
-         # false = FTF's own mix everywhere (tuff, andesite, moss blocks and coarse dirt).
+         # rooted dirt where soil is thin; rockfall gravel and the odd boulder at the foot of cliffs, and fans of gravel
+         # fading to finer ground below steep slopes where erosion left sediment. Along rivers: gravel and sand bars
+         # (mud where warm and wet) at the water's edge, and in dry lands a green strip of grass on the banks and
+         # valley floor. false = FTF's own mix everywhere (tuff, andesite, moss blocks and coarse dirt).
          ground_cover=%s
 
          # -----------------------------------------------------------------------------------------------------
