@@ -184,8 +184,20 @@ final class NaturalSnow {
       // how far the smoothed drift surface lies above this column's ground: ~0.9 at the foot of a step, falling off over
       // 2-3 blocks; ~0 on open flats and the tops of steps; below 0 on ridges and edges
       float fill = sum / weights - top;
-      if (rock && fill < 0.3F) {
-         return 0;
+      if (rock) {
+         // bare rock and gravel only hold snow on gentle ledges and in real hollows: the plain ground around (not the
+         // step-filled drift surface) clearly higher. On a steep staircase of rock every step foot would count otherwise,
+         // which striped whole rock faces with snow.
+         float plain = 0.0F;
+         for (int dz = -B; dz <= B; dz++) {
+            for (int dx = -B; dx <= B; dx++) {
+               plain += Math.min(top + 3, ground[(cz + dz) * SIZE + cx + dx]) * WEIGHT[dz + B][dx + B];
+            }
+         }
+         plain = plain / weights - top;
+         if (slope > 0.35F || plain < 0.35F) {
+            return 0;
+         }
       }
 
       float depth = 1.0F + Math.max(0.0F, fill) * 7.0F * snowy;
@@ -217,7 +229,7 @@ final class NaturalSnow {
             depth = Math.min(depth, 1.0F + (1.0F - steep) * 5.0F);
          }
       }
-      return Math.max(1, Math.min(7, Math.round(depth)));
+      return Math.max(rock ? 2 : 1, Math.min(7, Math.round(depth)));
    }
 
    /** Minecraft's temperature at a height: the biome's, cooling by 0.05 every 40 blocks above Y 80. */
