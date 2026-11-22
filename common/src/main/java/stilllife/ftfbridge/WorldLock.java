@@ -59,10 +59,6 @@ final class WorldLock {
                   num(o, "swamp_max_height", d.swampMaxHeight()),
                   bool(o, "snow_caps", false),
                   num(o, "snow_cliff_steepness", d.snowCliffSteepness()),
-                  // 4.0 / 4.1 worlds (format 2) were made with Still Life 0.3.1, whose saved layout already has these biomes
-                  num(o, "pale_garden", 1.0),
-                  num(o, "dappled_forest", 1.0),
-                  num(o, "sulfur_caves", 1.0),
                   // worlds from before bridge 4.4 (format 2/3) keep generating without the dry wetlands
                   num(o, "aspen_swamps", 0.0),
                   num(o, "salt_lakes", 0.0),
@@ -74,8 +70,6 @@ final class WorldLock {
                   num(o, "wetland_max_height", num(o, "river_flank_max_cut", format >= 10 ? d.wetlandMaxHeight() : 0.0)),
                   // FTF up to 1.0.0025 kept every wetland biome; 5.0 keeps them by default
                   bool(o, "keep_wetland_biomes", true),
-                  // sulfur rock came with bridge 4.3 for every world
-                  bool(o, "sulfur_rock", true),
                   // beach limits came with bridge 5.0 (format 10)
                   num(o, "beach_max_height", format >= 10 ? d.beachMaxHeight() : 0.0),
                   num(o, "beach_shallows", format >= 10 ? d.beachShallows() : 0.0),
@@ -146,12 +140,6 @@ final class WorldLock {
          o.addProperty("swamp_max_height", s.swampMaxHeight());
          o.addProperty("snow_caps", s.snowCaps());
          o.addProperty("snow_cliff_steepness", s.snowCliffSteepness());
-         if (lock.format >= 3) {
-            o.addProperty("pale_garden", s.paleGarden());
-            o.addProperty("dappled_forest", s.dappledForest());
-            o.addProperty("sulfur_caves", s.sulfurCaves());
-         }
-
          if (lock.format >= 4) {
             o.addProperty("aspen_swamps", s.aspenSwamps());
             o.addProperty("salt_lakes", s.saltLakes());
@@ -169,7 +157,6 @@ final class WorldLock {
          if (lock.format >= 10) {
             o.addProperty("wetland_max_height", s.wetlandMaxHeight());
             o.addProperty("keep_wetland_biomes", s.keepWetlandBiomes());
-            o.addProperty("sulfur_rock", s.sulfurRock());
             o.addProperty("beach_max_height", s.beachMaxHeight());
             o.addProperty("beach_shallows", s.beachShallows());
             o.addProperty("salt_lake_water", s.saltLakeWater());

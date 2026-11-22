@@ -12,9 +12,6 @@ package stilllife.ftfbridge;
  * @param swampMaxHeight      highest ground, on Lithosphere's height scale (sea = 63), that can become swamp land
  * @param snowCaps            keep Still Life's snow blocks on peaks at every altitude (FTF erosion only bares cliffs)
  * @param snowCliffSteepness  steepness above which snow is eroded off; 0 or less = FTF's own rock steepness
- * @param paleGarden          VanillaBackport Pale Garden prevalence (1 = standard layout, 0 = none, up to 2)
- * @param dappledForest       VanillaBackport Dappled Forest prevalence
- * @param sulfurCaves         VanillaBackport Sulfur Caves prevalence
  * @param aspenSwamps         Still Life aspen swamps on cool, fairly dry lowland (American continents): 0 = none, 1 = about
  *                            a quarter of that land, up to 2
  * @param saltLakes           Still Life salt lakes on warm-to-hot dry lowland far inland (American continents), same scale
@@ -24,7 +21,6 @@ package stilllife.ftfbridge;
  * @param wetlandMaxHeight    FTF wetlands leave ground more than this many blocks above their water alone (and fade out above half
  *                            of it), so they never dig pits into hillsides; 0 = FTF's own wetlands
  * @param keepWetlandBiomes   wetland water keeps a Still Life wetland biome FTF 1.0.0027+ does not recognise as a wetland
- * @param sulfurRock          sulfur and cinnabar rock in VanillaBackport's Sulfur Caves
  * @param beachMaxHeight      coastal land more than this many blocks above the sea is never a beach biome; 0 = no limit
  * @param beachShallows       sea up to this many blocks deep (not deep ocean) gets beach biomes; 0 = ocean biomes everywhere
  * @param saltLakeWater       share of a salt lake's flat ground covered by one block of water over calcite (wetland_pools only)
@@ -58,16 +54,12 @@ record Settings(
    double swampMaxHeight,
    boolean snowCaps,
    double snowCliffSteepness,
-   double paleGarden,
-   double dappledForest,
-   double sulfurCaves,
    double aspenSwamps,
    double saltLakes,
    boolean wetlandPools,
    double upliftSmoothing,
    double wetlandMaxHeight,
    boolean keepWetlandBiomes,
-   boolean sulfurRock,
    double beachMaxHeight,
    double beachShallows,
    double saltLakeWater,
@@ -107,10 +99,10 @@ record Settings(
    }
 
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 0.18, 0.5, 0.5, 1.0, 1.0, true, 1600.0, 48.0, true, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF, false);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF, false);
    }
 }

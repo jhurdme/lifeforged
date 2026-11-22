@@ -28,7 +28,6 @@ public final class StillLifeFtfBridgeNeoForge {
       DeferredRegister.create(Registries.MATERIAL_CONDITION, StillLifeFtfBridge.MOD_ID);
 
    static {
-      FEATURES.register(StillLifeFtfBridge.SULFUR_ROCK.getPath(), StillLifeFtfBridge::sulfurRockFeature);
       FEATURES.register(StillLifeFtfBridge.WETLAND_POOLS.getPath(), StillLifeFtfBridge::wetlandPoolsFeature);
       CONDITIONS.register(StillLifeFtfBridge.SURFACE_LAYER.getPath(), StillLifeFtfBridge::surfaceLayerCodec);
    }

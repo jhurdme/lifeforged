@@ -9,11 +9,11 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import stilllife.ftfbridge.BridgeHooks;
 
-/** The multi-noise layout FreeTerraForged places biomes from gets the VanillaBackport biomes, at each world's prevalence. */
+/** Reads the multi-noise layout FreeTerraForged places biomes from (for the cave floor guard). */
 @Mixin(value = MinecraftBiomeSourceGraphs.class, remap = false)
 abstract class MinecraftBiomeSourceGraphsMixin {
    @ModifyReturnValue(method = "multiNoiseRoot", at = @At("RETURN"))
-   private static BiomeCandidateRoot stilllife$vanillaBackport(BiomeCandidateRoot root, BiomeSource source, HolderLookup.Provider lookups) {
-      return BridgeHooks.vanillaBackportBiomes(root, lookups);
+   private static BiomeCandidateRoot stilllife$biomeLayout(BiomeCandidateRoot root, BiomeSource source, HolderLookup.Provider lookups) {
+      return BridgeHooks.biomeLayout(root, lookups);
    }
 }
