@@ -25,6 +25,8 @@ public final class StillLifeFtfBridge {
    public static final ResourceLocation WETLAND_POOLS = id("wetland_pools");
    /** Surface rule condition: the column's surface layer (see {@link SurfaceLayer}); registered for datapacks too. */
    public static final ResourceLocation SURFACE_LAYER = id("surface_layer");
+   /** Placement filter: FreeTerraForged slope, sediment and river zone at a feature's column (see {@link TerrainFilter}). */
+   public static final ResourceLocation TERRAIN = id("terrain");
    public static final TagKey<Biome> HAS_WETLAND_POOLS = TagKey.create(Registries.BIOME, id("has_wetland_pools"));
 
    private static Platform platform;

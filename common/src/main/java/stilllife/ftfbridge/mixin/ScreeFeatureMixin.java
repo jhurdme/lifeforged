@@ -11,9 +11,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import stilllife.ftfbridge.BridgeHooks;
 
-/** Keeps Still Life's snow on peaks out of FreeTerraForged's erosion decorator, except on cliffs (and fades the cap's base). */
+/**
+ * FreeTerraForged's erosion decorator: keeps Still Life's snow on peaks out of it, except on cliffs (and fades the cap's
+ * base); with ground_cover the bridge picks the blocks for each column instead (see GroundCover).
+ */
 @Mixin(value = ScreeFeature.class, remap = false)
 abstract class ScreeFeatureMixin {
    @Inject(method = "erodeColumn", at = @At("HEAD"), cancellable = true)
@@ -33,6 +38,20 @@ abstract class ScreeFeatureMixin {
    ) {
       if (BridgeHooks.keepSnow(config, chunk, pos.getX(), surfaceY, pos.getZ(), cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier())) {
          ci.cancel();
+         return;
       }
+      if (BridgeHooks.groundCover(config, levels, rand, chunk, cell, pos, surfaceY)) {
+         ci.cancel();
+      }
+   }
+
+   @Inject(method = "place", at = @At("HEAD"))
+   private void stilllife$begin(FeaturePlaceContext<ScreeFeature.Config> context, CallbackInfoReturnable<Boolean> cir) {
+      BridgeHooks.groundCoverBegin(context.level());
+   }
+
+   @Inject(method = "place", at = @At("RETURN"))
+   private void stilllife$end(FeaturePlaceContext<ScreeFeature.Config> context, CallbackInfoReturnable<Boolean> cir) {
+      BridgeHooks.groundCoverEnd();
    }
 }

@@ -44,6 +44,10 @@ package stilllife.ftfbridge;
  *                            "off" (Still Life's own rules: cave floors get them too)
  * @param columnDepth         cave biome depth as the share of the column below the surface (mapped onto the Lithosphere
  *                            column of the same Still Life height); false = FTF's depth read as 1/128 per block (5.0-5.4)
+ * @param naturalSnowLayers   with FTF's smooth snow layers on: the bridge sets each spot's snow depth from the real ground
+ *                            (drifts against steps and in hollows, thin on ridges and steep slopes, none on cliffs)
+ * @param groundCover         the bridge picks FTF's scree, talus and thin-soil blocks to suit the climate, and lays
+ *                            rockfall gravel and boulders at the foot of cliffs, instead of FTF's one generic mix
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -71,7 +75,9 @@ record Settings(
    String biomeSets,
    double biomeSetRegionSize,
    String caveFloorGuard,
-   boolean columnDepth
+   boolean columnDepth,
+   boolean naturalSnowLayers,
+   boolean groundCover
 ) {
    static final String SETS_CONTINENTS = "continents";
    static final String SETS_REGIONS = "regions";
@@ -99,10 +105,10 @@ record Settings(
    }
 
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, true, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true, true, true);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF, false);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF, false, false, false);
    }
 }

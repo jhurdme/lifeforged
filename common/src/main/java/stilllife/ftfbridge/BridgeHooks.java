@@ -13,6 +13,59 @@ public final class BridgeHooks {
    private BridgeHooks() {
    }
 
+   // ---------------------------------------------------------------- snow layers and ground cover
+
+   /** True when the world uses natural_snow_layers (FTF's own smoothing is then skipped). */
+   public static boolean naturalSnowLayers() {
+      return NaturalSnow.active(WorldLock.activeSettings());
+   }
+
+   /** The bridge's snow layer pass, after FTF's snow decorator on one chunk. */
+   public static void naturalSnow(net.minecraft.world.level.WorldGenLevel level, net.minecraft.core.BlockPos origin, boolean coverPlants, ScreeFeature.Config config) {
+      if (!naturalSnowLayers()) {
+         return;
+      }
+      try {
+         NaturalSnow.decorate(level, origin, coverPlants, config);
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("natural snow layers", e);
+      }
+   }
+
+   /** Start / end of FTF's erosion decorator on one chunk (ground_cover reads neighbouring terrain through the level). */
+   public static void groundCoverBegin(net.minecraft.world.level.WorldGenLevel level) {
+      GroundCover.begin(level);
+   }
+
+   public static void groundCoverEnd() {
+      GroundCover.end();
+   }
+
+   /** True when ground_cover took over this column of FTF's erosion decorator. */
+   public static boolean groundCover(
+      ScreeFeature.Config config, Levels levels, etcodehome.freeterraforged.world.worldgen.noise.module.Noise rand,
+      net.minecraft.world.level.chunk.ChunkAccess chunk, Cell cell, net.minecraft.core.BlockPos.MutableBlockPos pos, int surfaceY
+   ) {
+      if (!GroundCover.active(WorldLock.activeSettings())) {
+         return false;
+      }
+      try {
+         GroundCover.erodeColumn(config, levels, rand, chunk, cell, pos, surfaceY);
+         return true;
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("ground cover", e);
+         return false;
+      }
+   }
+
+   private static final java.util.Set<String> LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+   private static void logOnce(String what, Throwable t) {
+      if (LOGGED.add(what)) {
+         StillLifeFtfBridge.LOG.error("[{}] {} failed (FreeTerraForged changed?); FreeTerraForged's own behaviour is used where it fails", StillLifeFtfBridge.MOD_ID, what, t);
+      }
+   }
+
    // ---------------------------------------------------------------- snow
 
    /**

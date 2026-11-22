@@ -38,6 +38,7 @@ public final class StillLifeFtfBridgeFabric implements ModInitializer {
       });
       Registry.register(BuiltInRegistries.FEATURE, StillLifeFtfBridge.WETLAND_POOLS, StillLifeFtfBridge.wetlandPoolsFeature());
       Registry.register(BuiltInRegistries.MATERIAL_CONDITION, StillLifeFtfBridge.SURFACE_LAYER, StillLifeFtfBridge.surfaceLayerCodec());
+      Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, StillLifeFtfBridge.TERRAIN, stilllife.ftfbridge.TerrainFilter.TYPE);
       BiomeModifications.addFeature(
          BiomeSelectors.tag(StillLifeFtfBridge.HAS_WETLAND_POOLS),
          GenerationStep.Decoration.LAKES,

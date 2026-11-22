@@ -79,6 +79,8 @@ final class BridgeConfig {
       double peakLineVariation = number(p, "peak_line_variation", d.peakLineVariation(), 0.0, 160.0);
       double snowCapFade = number(p, "snow_cap_fade", d.snowCapFade(), 0.0, 64.0);
       boolean columnDepth = bool(p, "column_depth", d.columnDepth());
+      boolean naturalSnow = bool(p, "natural_snow_layers", d.naturalSnowLayers());
+      boolean groundCover = bool(p, "ground_cover", d.groundCover());
       LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
       String caveFloorGuard = Settings.caveFloorGuardMode(caveFloorGuardRaw);
@@ -90,7 +92,7 @@ final class BridgeConfig {
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
-         caveFloorGuard, columnDepth
+         caveFloorGuard, columnDepth, naturalSnow, groundCover
       );
 
       String text = String.format(
@@ -233,6 +235,23 @@ final class BridgeConfig {
          # between, so the snow fades in instead of starting at a hard edge. Needs snow_caps=true. 0 = no fade.
          snow_cap_fade=%s
 
+         # Only when "Smooth Layer Decorator" is on in your FTF preset. FTF works out snow depth from its own terrain
+         # height, which often doesn't match the blocks the game actually builds, so the snow comes out in grids and
+         # stripes with odd full snow blocks. true = the bridge sets the depth from the real ground instead: snow drifts
+         # against steps and fills hollows, stays thin on ridges and steep slopes, is a little deeper on cold north
+         # faces and higher up, and is never thicker than 7 layers. false = FTF's own smooth layers.
+         natural_snow_layers=%s
+
+         # -----------------------------------------------------------------------------------------------------
+         #  Ground cover
+         # -----------------------------------------------------------------------------------------------------
+
+         # true = the ground on slopes suits the place: talus of gravel, stone and cobble on cold mountains; gravel,
+         # coarse dirt and mossy cobble in temperate hills; sandstone and red sandstone in deserts; patchy coarse and
+         # rooted dirt where soil is thin; and rockfall gravel and the odd boulder at the foot of cliffs.
+         # false = FTF's own mix everywhere (tuff, andesite, moss blocks and coarse dirt).
+         ground_cover=%s
+
          # -----------------------------------------------------------------------------------------------------
          #  Caves
          # -----------------------------------------------------------------------------------------------------
@@ -283,6 +302,8 @@ final class BridgeConfig {
          plain(snowCliff),
          plain(peakLineVariation),
          plain(snowCapFade),
+         naturalSnow,
+         groundCover,
          caveFloorGuard,
          columnDepth,
          plain(upliftSmoothing)

@@ -26,15 +26,19 @@ public final class StillLifeFtfBridgeNeoForge {
    private static final DeferredRegister<Feature<?>> FEATURES = DeferredRegister.create(Registries.FEATURE, StillLifeFtfBridge.MOD_ID);
    private static final DeferredRegister<MapCodec<? extends SurfaceRules.ConditionSource>> CONDITIONS =
       DeferredRegister.create(Registries.MATERIAL_CONDITION, StillLifeFtfBridge.MOD_ID);
+   private static final DeferredRegister<net.minecraft.world.level.levelgen.placement.PlacementModifierType<?>> PLACEMENTS =
+      DeferredRegister.create(Registries.PLACEMENT_MODIFIER_TYPE, StillLifeFtfBridge.MOD_ID);
 
    static {
       FEATURES.register(StillLifeFtfBridge.WETLAND_POOLS.getPath(), StillLifeFtfBridge::wetlandPoolsFeature);
       CONDITIONS.register(StillLifeFtfBridge.SURFACE_LAYER.getPath(), StillLifeFtfBridge::surfaceLayerCodec);
+      PLACEMENTS.register(StillLifeFtfBridge.TERRAIN.getPath(), () -> stilllife.ftfbridge.TerrainFilter.TYPE);
    }
 
    public StillLifeFtfBridgeNeoForge(IEventBus modBus) {
       FEATURES.register(modBus);
       CONDITIONS.register(modBus);
+      PLACEMENTS.register(modBus);
       StillLifeFtfBridge.init(new Platform() {
          @Override
          public String name() {
