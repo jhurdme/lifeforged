@@ -34,7 +34,7 @@ final class SnowCaps {
 
    /**
     * snow_cap_fade, in FTF's erosion pass (every column, before FTF's snow pass): true when this column of the lowest blocks
-    * of a snowy peaks cap should have no snow (arctic-desert-like dither, thinning downwards, steep spots first). The column
+    * of a snowy peaks cap should have no snow (patches thinning downwards; ridges and steep spots first, hollows last). The column
     * is remembered, so FTF's snow pass later clears any snow layer on it (the game lays one on every cold surface).
     */
    static boolean fadeBare(ChunkAccess chunk, int x, int y, int z, float slope) {
@@ -43,7 +43,18 @@ final class SnowCaps {
          return false;
       }
       double share = StillLifeClimateBridge.capSnowShare(x, y, z, slope);
-      if (share >= 1.0 || StillLifeClimateBridge.capDither(x, z) < share) {
+      if (share >= 1.0) {
+         return false;
+      }
+      // patches about 7 blocks across rather than a block-by-block dither; snow holds longest in hollows and gullies,
+      // ridges and edges go bare first
+      net.minecraft.world.level.WorldGenLevel level = GroundCover.level();
+      long seed = level != null ? level.getSeed() : 0L;
+      double sample = GroundCover.patch(seed, x, z, 97, 7.0F);
+      if (level != null) {
+         share += 0.35 * Math.max(-1.0, Math.min(1.0, FtfTerrain.hollow(level, x, z)));
+      }
+      if (sample < share) {
          return false;
       }
       BARE.get().mark(chunk.getPos().x, chunk.getPos().z, x, z);

@@ -26,20 +26,24 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * than 2 blocks it skips the column, which repeats every few blocks as a grid of stripes, lumps and gaps.
  *
  * <p>This pass works from the real ground only. Ground heights come from the chunk generator's terrain height map (the
- * same in every chunk, so the snow lines up across chunk borders), smoothed over a 5x5 area: where the area around is
- * higher than a spot (the foot of a step, a hollow, a gully) the snow is deeper, so it ramps up against every step and
- * fills dips; on ridges and tops it stays thin. FTF's slope thins it on steep ground and clears it off cliffs; it is a
- * little deeper on north faces and in colder (higher) places. Never more than 7 layers, so no lone snow blocks.
+ * same in every chunk, so the snow lines up across chunk borders). Like real drifts, snow fills the foot of every step up
+ * to the level above and tapers away from it over 2-3 blocks (each column is raised to its highest neighbour, at most one
+ * block, and that surface is smoothed), so a staircase of 1-block steps reads as a slope of snow; open flats and the tops
+ * of steps get a thin cover, exposed edges stay thin. FTF's slope thins it on steep ground and clears it off cliffs; it is
+ * a little deeper on north faces and in colder places; bare rock and gravel only hold it in hollows. Never more than 7
+ * layers, so no lone snow blocks.
  */
 final class NaturalSnow {
-   private static final int R = 2;
+   /** Blur radius of the snow surface, and how far around the chunk the ground is read (blur + 1 for the drift fill). */
+   private static final int B = 2;
+   private static final int R = B + 1;
    private static final int SIZE = 16 + 2 * R;
-   private static final float[][] WEIGHT = new float[2 * R + 1][2 * R + 1];
+   private static final float[][] WEIGHT = new float[2 * B + 1][2 * B + 1];
 
    static {
-      for (int dz = -R; dz <= R; dz++) {
-         for (int dx = -R; dx <= R; dx++) {
-            WEIGHT[dz + R][dx + R] = (float)Math.exp(-(dx * dx + dz * dz) / 2.5);
+      for (int dz = -B; dz <= B; dz++) {
+         for (int dx = -B; dx <= B; dx++) {
+            WEIGHT[dz + B][dx + B] = (float)Math.exp(-(dx * dx + dz * dz) / 2.5);
          }
       }
    }
@@ -68,6 +72,22 @@ final class NaturalSnow {
       for (int dz = 0; dz < SIZE; dz++) {
          for (int dx = 0; dx < SIZE; dx++) {
             ground[dz * SIZE + dx] = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x0 + dx - R, z0 + dz - R) - 1;
+         }
+      }
+
+      // drift surface: each column filled up to its highest neighbour (at most 1 block up), so snow fills the foot of
+      // every step up to the level above; smoothed below, it ramps away from the step instead of ending in an edge
+      int[] drift = new int[SIZE * SIZE];
+      for (int dz = 1; dz < SIZE - 1; dz++) {
+         for (int dx = 1; dx < SIZE - 1; dx++) {
+            int h0 = ground[dz * SIZE + dx];
+            int m = h0;
+            for (int oz = -1; oz <= 1; oz++) {
+               for (int ox = -1; ox <= 1; ox++) {
+                  m = Math.max(m, ground[(dz + oz) * SIZE + dx + ox]);
+               }
+            }
+            drift[dz * SIZE + dx] = Math.min(m, h0 + 1);
          }
       }
 
@@ -107,7 +127,7 @@ final class NaturalSnow {
             pos.setY(top);
             boolean rock = ROCK.contains(chunk.getBlockState(pos).getBlock());
             pos.setY(top + 1);
-            int layers = layers(ground, lx + R, lz + R, top, slope, cliff, temperature(biome, top), rock);
+            int layers = layers(ground, drift, lx + R, lz + R, top, slope, cliff, temperature(biome, top), rock);
             if (layers == 0) {
                if (hasSnow) {
                   clear(chunk, pos);
@@ -140,42 +160,35 @@ final class NaturalSnow {
       Blocks.BLACKSTONE, Blocks.BASALT, Blocks.SMOOTH_BASALT, Blocks.COBBLESTONE, Blocks.MOSSY_COBBLESTONE, Blocks.SANDSTONE,
       Blocks.RED_SANDSTONE, Blocks.TERRACOTTA);
 
-   /** Snow layers (0-7) for the column at (cx, cz) of the ground array, whose real top block is at y top. */
-   static int layers(int[] ground, int cx, int cz, int top, float slope, float cliff, float temperature, boolean rock) {
+   /** Snow layers (0-7) for the column at (cx, cz) of the ground arrays, whose real top block is at y top. */
+   static int layers(int[] ground, int[] drift, int cx, int cz, int top, float slope, float cliff, float temperature, boolean rock) {
       float sum = 0.0F;
       float weights = 0.0F;
-      for (int dz = -R; dz <= R; dz++) {
-         for (int dx = -R; dx <= R; dx++) {
-            int h = ground[(cz + dz) * SIZE + cx + dx];
-            // a wall more than 3 blocks up counts as 3 (snow drifts against it, it doesn't bury it)
-            h = Math.max(top - 3, Math.min(top + 3, h));
-            float w = WEIGHT[dz + R][dx + R];
-            sum += h * w;
+      for (int dz = -B; dz <= B; dz++) {
+         for (int dx = -B; dx <= B; dx++) {
+            float w = WEIGHT[dz + B][dx + B];
+            sum += drift[(cz + dz) * SIZE + cx + dx] * w;
             weights += w;
          }
       }
-      float lift = sum / weights - top; // > 0: a hollow or the foot of a step; < 0: a ridge, a top, the edge of a step
-      if (rock && lift < 0.4F) {
+      // how far the smoothed drift surface lies above this column's ground: ~0.9 at the foot of a step, falling off over
+      // 2-3 blocks; ~0 on open flats and the tops of steps; below 0 on ridges and edges
+      float fill = sum / weights - top;
+      if (rock && fill < 0.3F) {
          return 0;
       }
 
-      float depth;
-      if (lift > 0.0F) {
-         depth = 1.0F + lift * 7.0F;
-      } else {
-         // exposed: wind keeps it thin
-         depth = 1.0F + lift * 2.0F;
+      float depth = 1.0F + Math.max(0.0F, fill) * 7.0F;
+      if (fill < -0.3F) {
+         depth = 1.0F; // exposed edge or ridge: wind keeps it thin
       }
 
-      // north faces (ground falling towards -z) keep more snow
-      int north = ground[(cz - 1) * SIZE + cx];
-      int south = ground[(cz + 1) * SIZE + cx];
-      if (south - north >= 1) {
-         depth += 1.0F;
+      // north faces (ground falling towards -z) keep a little more
+      if (ground[(cz + 1) * SIZE + cx] - ground[(cz - 1) * SIZE + cx] >= 1) {
+         depth += 0.75F;
       }
-
-      // colder = deeper (Still Life's snowy biomes are well below 0.15; altitude lowers it further)
-      depth += Math.max(0.0F, Math.min(1.0F, (0.15F - temperature) / 0.6F)) * 1.5F;
+      // colder = a little deeper (altitude lowers it too)
+      depth += Math.max(0.0F, Math.min(1.0F, (0.15F - temperature) / 0.6F));
 
       // steep slopes shed snow
       if (cliff > 0.0F) {
@@ -184,7 +197,6 @@ final class NaturalSnow {
             depth = Math.min(depth, 1.0F + (1.0F - steep) * 5.0F);
          }
       }
-
       return Math.max(1, Math.min(7, Math.round(depth)));
    }
 

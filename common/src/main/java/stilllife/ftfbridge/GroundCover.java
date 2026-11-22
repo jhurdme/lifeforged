@@ -115,6 +115,11 @@ final class GroundCover {
       LEVEL.remove();
    }
 
+   /** The level of the erosion pass running on this thread, or null outside it. */
+   static WorldGenLevel level() {
+      return LEVEL.get();
+   }
+
    /** Replaces FTF's erodeColumn for one column. */
    static void erodeColumn(
       ScreeFeature.Config config, Levels levels, Noise rand, ChunkAccess chunk, Cell cell, BlockPos.MutableBlockPos pos, int surfaceY
