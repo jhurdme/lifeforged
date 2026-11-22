@@ -21,8 +21,9 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  *       exposed ridges are scoured to bare rock in patches (more in dry climates), the sheltered side keeps its snow
  *       (and gets deeper drifts in {@link NaturalSnow});</li>
  *   <li>the snow line follows the sun: south faces go bare in patches up to 30 blocks above where the snowy peaks begin;</li>
- *   <li>below the snow line, snow ground stays in gullies (couloirs, up to 70 blocks down) and in north-facing and sheltered
- *       hollows (late snow patches, up to 35 blocks down);</li>
+ *   <li>below the snow line, leftover snow ground that grows going up: from nothing about 120 blocks down (further in
+ *       cold climates, so lower mountains get some too) to most of the ground just under the line, in the most sheltered
+ *       spots first (hollows and gullies, north faces, the side away from the wind);</li>
  *   <li>how much of this happens follows the climate: dry biomes have less snow and more scour, wet ones more snow, warm
  *       ones only keep it in the deepest gullies.</li>
  * </ul>
@@ -66,7 +67,7 @@ final class MountainSnow {
          return false;
       }
       double d = StillLifeClimateBridge.capLineDistance(x, y, z);
-      if (Double.isNaN(d) || d < -70.0) {
+      if (Double.isNaN(d) || d < -2.0 * REACH * 1.25) {
          return false;
       }
       BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, y, z);
@@ -101,21 +102,49 @@ final class MountainSnow {
       if (d >= 0.0 || !snowable(top)) {
          return false;
       }
-      float p = 0.0F;
-      // couloirs: steep gullies hold snow far below the line
+      return gradient(chunk, pos, x, y, z, d, slope, hollow, facing, biome, snowy, seed);
+   }
+
+   /** How far below the snow line leftover snow reaches, at most (blocks; scaled by the climate's snowiness). */
+   static final double REACH = 120.0;
+
+   /**
+    * Below the snow line: leftover snow, more and more going up. The share of ground that holds snow rises from nothing
+    * REACH blocks below the line (further in cold, wet climates, less in dry and warm ones) to most of it just under the
+    * line. Which spots hold it is decided by how sheltered they are: deep hollows and steep gullies (couloirs) first, then
+    * north faces and the side away from the wind; sunny south faces and wind-facing slopes last. So low down there are
+    * only patches in the best spots, which grow and join up towards the line.
+    */
+   private static boolean gradient(
+      ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int y, int z, double d, float slope, float hollow, String facing,
+      Holder<Biome> biome, float snowy, long seed
+   ) {
+      // cold climates bring the snow further down (and so onto lower mountains); warm ones keep it up high
+      float t = biome.value().getBaseTemperature();
+      double reach = REACH * snowy * (t < 0.3F ? 1.0 + Math.min(1.0, (0.3F - t) * 1.5) : 1.0);
+      if (d < -reach) {
+         return false;
+      }
+      double u = 1.0 + d / reach; // 0 at the bottom of the reach, 1 at the line
+      double coverage = u * u * 0.85;
+
+      float shelter = 0.5F * Math.max(-1.0F, Math.min(1.5F, hollow));
       if (hollow > 0.45F && slope > 0.4F) {
-         p = Math.max(p, (float)(1.0 + d / 70.0) * 0.85F + 0.15F);
+         shelter += 0.35F; // couloir
       }
-      // late patches: north-facing or sheltered hollows just below the line
-      if (hollow > 0.25F && d > -35.0 && (facing.equals("north") || lee(facing, z))) {
-         p = Math.max(p, (float)(1.0 + d / 35.0) * 0.7F);
+      if (facing.equals("north")) {
+         shelter += 0.35F;
+      } else if (facing.equals("south")) {
+         shelter -= 0.35F;
       }
-      // the sheltered side of ridges right under the line
-      if (lee(facing, z) && d > -20.0) {
-         p = Math.max(p, (float)(1.0 + d / 20.0) * 0.5F);
+      if (lee(facing, z)) {
+         shelter += 0.25F;
+      } else if (windward(facing, z)) {
+         shelter -= 0.25F;
       }
-      p *= Math.min(1.2F, snowy);
-      if (p <= 0.0F || GroundCover.patch(seed, x, z, 103, hollow > 0.45F ? 3.0F : 7.0F) >= p) {
+      // 0..1: how readily this spot keeps snow, with patchy noise so it forms patches rather than outlines
+      double keep = 0.5 + shelter * 0.45 + (GroundCover.patch(seed, x, z, 103, 6.0F) - 0.5) * 0.5;
+      if (keep < 1.0 - coverage) {
          return false;
       }
       snowGround(chunk, pos, y);

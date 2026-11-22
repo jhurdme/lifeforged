@@ -260,7 +260,9 @@ final class BridgeConfig {
          #   - a prevailing wind (with latitude=still_life: easterly near the equator and the poles, westerly in between;
          #     otherwise westerly) scours slopes facing into it to bare rock in patches; the sheltered side gets deeper drifts
          #   - sunny south faces go bare up to 30 blocks above where the snowy peaks begin
-         #   - below that line, snow stays in steep gullies (couloirs) and in north-facing and sheltered hollows
+         #   - below that line, leftover snow that grows going up: only in the most sheltered spots (hollows, gullies,
+         #     north faces, out of the wind) low down, more and more towards the line; cold climates bring it further
+         #     down, so lower mountains get some too
          #   - dry biomes get less snow and more bare rock, wet ones more snow, warm ones only snowy gullies
          mountain_snow=%s
 
