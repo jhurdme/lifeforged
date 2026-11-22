@@ -41,6 +41,19 @@ public final class BridgeHooks {
       GroundCover.end();
    }
 
+   /** True when mountain_snow handled this column of FTF's erosion decorator (snow ground made or scoured). */
+   public static boolean mountainSnow(net.minecraft.world.level.chunk.ChunkAccess chunk, int x, int y, int z, float slope) {
+      if (!MountainSnow.active(WorldLock.activeSettings())) {
+         return false;
+      }
+      try {
+         return MountainSnow.column(chunk, x, y, z, slope);
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("mountain snow", e);
+         return false;
+      }
+   }
+
    /** True when ground_cover took over this column of FTF's erosion decorator. */
    public static boolean groundCover(
       ScreeFeature.Config config, Levels levels, etcodehome.freeterraforged.world.worldgen.noise.module.Noise rand,

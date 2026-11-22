@@ -91,7 +91,8 @@ final class WorldLock {
                   bool(o, "column_depth", format >= 14 && d.columnDepth()),
                   // natural snow layers and ground cover came with bridge 5.6 (format 15)
                   bool(o, "natural_snow_layers", false),
-                  bool(o, "ground_cover", false)
+                  bool(o, "ground_cover", false),
+                  bool(o, "mountain_snow", false)
                );
             }
 
@@ -189,6 +190,7 @@ final class WorldLock {
          if (lock.format >= 15) {
             o.addProperty("natural_snow_layers", s.naturalSnowLayers());
             o.addProperty("ground_cover", s.groundCover());
+            o.addProperty("mountain_snow", s.mountainSnow());
          }
       }
 

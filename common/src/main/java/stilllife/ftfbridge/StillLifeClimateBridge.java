@@ -965,6 +965,29 @@ public final class StillLifeClimateBridge {
       return share;
    }
 
+   /** Blocks above (+) or below (-) the line where snowy peaks begin at this column, or NaN before the world is known. */
+   static double capLineDistance(int x, int y, int z) {
+      StillLifeClimateBridge.World w = last;
+      if (w == null) {
+         return Double.NaN;
+      }
+      return y - (w.peaksHeight - peakShift(w, w.ctx, QuartPos.fromBlock(x), QuartPos.fromBlock(z)));
+   }
+
+   /**
+    * The prevailing wind at this z: +1 = from the west (blowing east), -1 = from the east. With Still Life's latitude climate
+    * it follows Earth's belts: easterly trade winds near the equator, westerlies in the middle latitudes, polar easterlies
+    * towards the cold end. With FTF's temperature bands there are no latitudes: westerly everywhere.
+    */
+   static int windFromWest(int z) {
+      StillLifeClimateBridge.World w = last;
+      if (w == null || !w.settings.stillLifeLatitude()) {
+         return 1;
+      }
+      double lat = Math.abs(z + w.equatorZ) / w.settings.poleDistance();
+      return lat < 0.3 || lat > 0.65 ? -1 : 1;
+   }
+
    /** Roughly uniform 0..1 dither value for the cap fade (Still Life's arctic-desert noise, through its normal distribution). */
    static double capDither(int x, int z) {
       StillLifeClimateBridge.World w = last;

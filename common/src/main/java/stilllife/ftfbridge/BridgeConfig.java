@@ -81,6 +81,7 @@ final class BridgeConfig {
       boolean columnDepth = bool(p, "column_depth", d.columnDepth());
       boolean naturalSnow = bool(p, "natural_snow_layers", d.naturalSnowLayers());
       boolean groundCover = bool(p, "ground_cover", d.groundCover());
+      boolean mountainSnow = bool(p, "mountain_snow", d.mountainSnow());
       LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
       String caveFloorGuard = Settings.caveFloorGuardMode(caveFloorGuardRaw);
@@ -92,7 +93,7 @@ final class BridgeConfig {
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
-         caveFloorGuard, columnDepth, naturalSnow, groundCover
+         caveFloorGuard, columnDepth, naturalSnow, groundCover, mountainSnow
       );
 
       String text = String.format(
@@ -242,6 +243,14 @@ final class BridgeConfig {
          # faces and higher up, and is never thicker than 7 layers. false = FTF's own smooth layers.
          natural_snow_layers=%s
 
+         # true = mountain snow follows wind, sun and the shape of the ground, with real snow ground and bare rock:
+         #   - a prevailing wind (with latitude=still_life: easterly near the equator and the poles, westerly in between;
+         #     otherwise westerly) scours slopes facing into it to bare rock in patches; the sheltered side gets deeper drifts
+         #   - sunny south faces go bare up to 30 blocks above where the snowy peaks begin
+         #   - below that line, snow stays in steep gullies (couloirs) and in north-facing and sheltered hollows
+         #   - dry biomes get less snow and more bare rock, wet ones more snow, warm ones only snowy gullies
+         mountain_snow=%s
+
          # -----------------------------------------------------------------------------------------------------
          #  Ground cover
          # -----------------------------------------------------------------------------------------------------
@@ -305,6 +314,7 @@ final class BridgeConfig {
          plain(peakLineVariation),
          plain(snowCapFade),
          naturalSnow,
+         mountainSnow,
          groundCover,
          caveFloorGuard,
          columnDepth,

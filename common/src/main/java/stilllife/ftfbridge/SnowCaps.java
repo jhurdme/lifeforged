@@ -77,6 +77,11 @@ final class SnowCaps {
       }
    }
 
+   /** Marks a column bared in the erosion pass, so FTF's snow pass later clears the snow layer the game lays on it. */
+   static void markBare(ChunkAccess chunk, int x, int z) {
+      BARE.get().mark(chunk.getPos().x, chunk.getPos().z, x, z);
+   }
+
    /** True when fadeBare() marked this column of the chunk now being decorated. */
    static boolean bared(int x, int z) {
       return BARE.get().is(x, z);

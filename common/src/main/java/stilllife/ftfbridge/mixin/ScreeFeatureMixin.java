@@ -36,6 +36,11 @@ abstract class ScreeFeatureMixin {
       int surfaceY,
       CallbackInfo ci
    ) {
+      float slope = cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier();
+      if (BridgeHooks.mountainSnow(chunk, pos.getX(), surfaceY, pos.getZ(), slope)) {
+         ci.cancel();
+         return;
+      }
       if (BridgeHooks.keepSnow(config, chunk, pos.getX(), surfaceY, pos.getZ(), cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier())) {
          ci.cancel();
          return;

@@ -110,7 +110,8 @@ final class NaturalSnow {
             if (!hasSnow && !plant) {
                continue;
             }
-            Biome biome = level.getBiome(pos).value();
+            net.minecraft.core.Holder<Biome> holder = level.getBiome(pos);
+            Biome biome = holder.value();
             if (plant && !biome.coldEnoughToSnow(pos)) {
                continue;
             }
@@ -125,9 +126,17 @@ final class NaturalSnow {
             }
 
             pos.setY(top);
-            boolean rock = ROCK.contains(chunk.getBlockState(pos).getBlock());
+            BlockState groundBlock = chunk.getBlockState(pos);
+            boolean rock = ROCK.contains(groundBlock.getBlock());
+            boolean snowGround = SnowCaps.isSnow(groundBlock);
             pos.setY(top + 1);
-            int layers = layers(ground, drift, lx + R, lz + R, top, slope, cliff, temperature(biome, top), rock);
+            boolean mountain = MountainSnow.active(s);
+            int layers = layers(ground, drift, lx + R, lz + R, top, slope, cliff, temperature(biome, top), rock,
+               mountain ? StillLifeClimateBridge.windFromWest(z) : 0, mountain ? MountainSnow.snowiness(holder) : 1.0F);
+            // on snow ground a single layer adds nothing but a seam: only drifts (2+) go on it
+            if (snowGround && layers < 2) {
+               layers = 0;
+            }
             if (layers == 0) {
                if (hasSnow) {
                   clear(chunk, pos);
@@ -161,7 +170,8 @@ final class NaturalSnow {
       Blocks.RED_SANDSTONE, Blocks.TERRACOTTA);
 
    /** Snow layers (0-7) for the column at (cx, cz) of the ground arrays, whose real top block is at y top. */
-   static int layers(int[] ground, int[] drift, int cx, int cz, int top, float slope, float cliff, float temperature, boolean rock) {
+   static int layers(int[] ground, int[] drift, int cx, int cz, int top, float slope, float cliff, float temperature, boolean rock,
+                     int wind, float snowy) {
       float sum = 0.0F;
       float weights = 0.0F;
       for (int dz = -B; dz <= B; dz++) {
@@ -178,9 +188,19 @@ final class NaturalSnow {
          return 0;
       }
 
-      float depth = 1.0F + Math.max(0.0F, fill) * 7.0F;
+      float depth = 1.0F + Math.max(0.0F, fill) * 7.0F * snowy;
       if (fill < -0.3F) {
          depth = 1.0F; // exposed edge or ridge: wind keeps it thin
+      }
+
+      // prevailing wind (mountain_snow): it strips slopes facing into it and drops the snow on the sheltered side
+      if (wind != 0) {
+         int rise = ground[cz * SIZE + cx + 2] - ground[cz * SIZE + cx - 2]; // > 0: the ground rises towards the east
+         if (rise * wind >= 2) {
+            depth = Math.min(depth, 1.0F);
+         } else if (rise * wind <= -2) {
+            depth += 2.0F * snowy;
+         }
       }
 
       // north faces (ground falling towards -z) keep a little more
