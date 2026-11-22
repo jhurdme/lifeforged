@@ -17,7 +17,10 @@
       "river_zones": [
         "banks"
       ],
-      "min_temperature": 0.3
+      "min_temperature": 0.3,
+      "skip_if_loaded": [
+        "still_life_naturalized"
+      ]
     },
     {
       "type": "minecraft:biome"

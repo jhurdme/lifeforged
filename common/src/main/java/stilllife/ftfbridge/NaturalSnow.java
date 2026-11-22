@@ -71,7 +71,7 @@ final class NaturalSnow {
       int[] ground = new int[SIZE * SIZE];
       for (int dz = 0; dz < SIZE; dz++) {
          for (int dx = 0; dx < SIZE; dx++) {
-            ground[dz * SIZE + dx] = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x0 + dx - R, z0 + dz - R) - 1;
+            ground[dz * SIZE + dx] = FtfTerrain.ground(level, x0 + dx - R, z0 + dz - R);
          }
       }
 
@@ -132,7 +132,7 @@ final class NaturalSnow {
             pos.setY(top + 1);
             boolean mountain = MountainSnow.active(s);
             int layers = layers(ground, drift, lx + R, lz + R, top, slope, cliff, temperature(biome, top), rock,
-               mountain ? StillLifeClimateBridge.windFromWest(z) : 0, mountain ? MountainSnow.snowiness(holder) : 1.0F);
+               mountain ? StillLifeClimateBridge.windFromWest(z) : 0, mountain ? MountainSnow.climateSnow(holder, x, top, z, level.getSeed()) : 1.0F);
             // on snow ground a single layer adds nothing but a seam: only drifts (2+) go on it
             if (snowGround && layers < 2) {
                layers = 0;

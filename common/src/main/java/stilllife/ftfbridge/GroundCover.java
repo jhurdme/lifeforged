@@ -194,7 +194,7 @@ final class GroundCover {
       }
       if ((climate == Climate.ARID || climate == Climate.RED_ARID) && TerrainFilter.sediment(cell) > 0.35F
          && patch(seed, x, z, 41, 12.0F) > 0.62F) {
-         BlockState m = patch(seed, x, z, 43, 5.0F) > 0.5F ? GRAVEL : (climate == Climate.RED_ARID ? RED_SAND : COARSE_DIRT);
+         BlockState m = patch(seed, x, z, 43, 5.0F) > 0.5F ? GRAVEL : (climate == Climate.RED_ARID ? RED_SAND : drySoil());
          ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, m);
       }
    }
@@ -214,7 +214,7 @@ final class GroundCover {
          for (int i = 0; i < 8; i++) {
             int dx = (i == 0 || i == 1 || i == 7) ? d : (i == 3 || i == 4 || i == 5) ? -d : 0;
             int dz = (i == 1 || i == 2 || i == 3) ? d : (i == 5 || i == 6 || i == 7) ? -d : 0;
-            if (level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x + dx, z + dz) - 1 >= surfaceY + rise) {
+            if (FtfTerrain.ground(level, x + dx, z + dz) >= surfaceY + rise) {
                near = d;
                break;
             }
@@ -285,13 +285,18 @@ final class GroundCover {
       if (steepness > dirtSteepness) {
          p += 0.15F;
       }
+      // a fringe of bare, wet ground (gravel, coarse dirt) around snow patches, instead of grass running into snow
+      if (MountainSnow.active(WorldLock.activeSettings()) && nearSnow(level, x, z, seed)) {
+         p += 0.45F;
+      }
       boolean changed = false;
       if (patch(seed, x, z, 121, 5.0F) < p) {
+         Extra e = Extra.get();
          Palette palette = switch (climate) {
-            case HUMID -> ALPINE_HUMID;
-            case ARID -> ALPINE_ARID;
+            case HUMID -> e.present() ? e.alpineHumid : ALPINE_HUMID;
+            case ARID -> e.present() ? e.alpineArid : ALPINE_ARID;
             case RED_ARID -> ALPINE_RED;
-            case COLD -> ALPINE_COLD;
+            case COLD -> e.present() ? e.alpineCold : ALPINE_COLD;
             default -> ALPINE_TEMPERATE;
          };
          ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, palette.pick(patch(seed, x, z, 123, 3.0F)));
@@ -308,6 +313,26 @@ final class GroundCover {
          pos.setY(surfaceY);
       }
       return changed;
+   }
+
+   /** True when mountain_snow puts snow ground 2 blocks away in one of the four directions. */
+   private static boolean nearSnow(WorldGenLevel level, int x, int z, long seed) {
+      for (int i = 0; i < 4; i++) {
+         int nx = x + (i == 0 ? 2 : i == 1 ? -2 : 0);
+         int nz = z + (i == 2 ? 2 : i == 3 ? -2 : 0);
+         int ny = FtfTerrain.ground(level, nx, nz);
+         Cell c = FtfTerrain.cell(level, nx, nz);
+         if (c == null) {
+            return false;
+         }
+         float slope = c.gradient;
+         Holder<Biome> biome = level.getBiome(new BlockPos(nx, ny, nz));
+         double score = MountainSnow.score(level, nx, ny, nz, slope, biome, seed);
+         if (!Double.isNaN(score) && score >= 0.0) {
+            return true;
+         }
+      }
+      return false;
    }
 
    /** The outer part of a fan below a steep slope: only where FTF's erosion deposited sediment. */
@@ -381,7 +406,7 @@ final class GroundCover {
          };
          float p = patch(seed, x, z, 83, 6.0F);
          if (p < cover) {
-            BlockState m = p < cover * 0.8F ? GRASS : COARSE_DIRT;
+            BlockState m = p < cover * 0.8F ? GRASS : drySoil();
             ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY, m);
             ColumnDecorator.fillDownSolid(chunk, pos, surfaceY - 1, surfaceY - 2, DIRT);
             return true;
@@ -409,7 +434,68 @@ final class GroundCover {
       return Climate.TEMPERATE;
    }
 
+   /**
+    * Nature's Spirit's ground blocks (installed with Still Life Naturalized), looked up once: chert as a second rock in
+    * talus and alpine ground, sandy soil instead of coarse dirt in dry land, red moss on cold wet alpine ground. Null
+    * fields when Nature's Spirit is not installed; the vanilla mixes are used then.
+    */
+   private static final class Extra {
+      static volatile Extra instance;
+      final BlockState chert;
+      final BlockState sandySoil;
+      final BlockState redMoss;
+      final Palette talusCold;
+      final Palette talusTemperate;
+      final Palette alpineCold;
+      final Palette alpineHumid;
+      final Palette alpineArid;
+
+      private Extra() {
+         this.chert = block("chert");
+         this.sandySoil = block("sandy_soil");
+         this.redMoss = block("red_moss_block");
+         BlockState chertOr = this.chert != null ? this.chert : STONE;
+         BlockState soilOr = this.sandySoil != null ? this.sandySoil : COARSE_DIRT;
+         BlockState mossOr = this.redMoss != null ? this.redMoss : Blocks.MOSS_BLOCK.defaultBlockState();
+         this.talusCold = Palette.of(GRAVEL, 3, STONE, 2, chertOr, 2, COBBLE, 1, ANDESITE, 1);
+         this.talusTemperate = Palette.of(GRAVEL, 3, COARSE_DIRT, 2, chertOr, 1, COBBLE, 1, STONE, 1);
+         this.alpineCold = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, chertOr, 1, mossOr, 1, STONE, 1);
+         this.alpineHumid = Palette.of(Blocks.MOSS_BLOCK.defaultBlockState(), 2, COARSE_DIRT, 2, mossOr, 1, GRAVEL, 1, MOSSY_COBBLE, 1);
+         this.alpineArid = Palette.of(GRAVEL, 2, soilOr, 2, chertOr, 1);
+      }
+
+      static Extra get() {
+         Extra e = instance;
+         if (e == null) {
+            e = new Extra();
+            instance = e;
+         }
+         return e;
+      }
+
+      boolean present() {
+         return this.chert != null;
+      }
+
+      private static BlockState block(String name) {
+         return net.minecraft.core.registries.BuiltInRegistries.BLOCK
+            .getOptional(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("natures_spirit", name))
+            .map(net.minecraft.world.level.block.Block::defaultBlockState)
+            .orElse(null);
+      }
+   }
+
+   /** Coarse dirt, or Nature's Spirit's sandy soil in dry land when it is installed. */
+   private static BlockState drySoil() {
+      BlockState s = Extra.get().sandySoil;
+      return s != null ? s : COARSE_DIRT;
+   }
+
    private static Palette talus(Climate c) {
+      Extra e = Extra.get();
+      if (e.present() && (c == Climate.COLD || c == Climate.TEMPERATE)) {
+         return c == Climate.COLD ? e.talusCold : e.talusTemperate;
+      }
       return switch (c) {
          case COLD -> TALUS_COLD;
          case HUMID -> TALUS_HUMID;

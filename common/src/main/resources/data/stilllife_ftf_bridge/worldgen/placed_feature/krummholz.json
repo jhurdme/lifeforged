@@ -24,7 +24,10 @@
       "max_temperature": 0.5,
       "requires_rain": true,
       "prefer_facing": "north",
-      "facing_bias": 0.3
+      "facing_bias": 0.3,
+      "skip_if_loaded": [
+        "natures_spirit"
+      ]
     },
     {
       "type": "minecraft:biome"

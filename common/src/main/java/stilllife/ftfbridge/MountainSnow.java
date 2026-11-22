@@ -60,74 +60,48 @@ final class MountainSnow {
       return facing.equals(StillLifeClimateBridge.windFromWest(z) > 0 ? "east" : "west");
    }
 
-   /** True when this column was handled (FTF's own erosion is then skipped for it). */
-   static boolean column(ChunkAccess chunk, int x, int y, int z, float slope) {
-      WorldGenLevel level = GroundCover.level();
-      if (level == null) {
-         return false;
-      }
-      double d = StillLifeClimateBridge.capLineDistance(x, y, z);
-      if (Double.isNaN(d) || d < -2.0 * REACH * 1.25) {
-         return false;
-      }
-      BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, y, z);
-      BlockState top = chunk.getBlockState(pos);
-      boolean snow = SnowCaps.isSnow(top);
-      long seed = level.getSeed();
-      Holder<Biome> biome = chunk.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z));
-      float snowy = snowiness(biome);
-      String facing = FtfTerrain.facing(level, x, z);
-      float hollow = FtfTerrain.hollow(level, x, z);
-
-      if (snow) {
-         // wind scour: into the wind, steep and exposed
-         if (windward(facing, z) && slope > 0.3F && hollow < 0.2F) {
-            float p = (1.6F - snowy) * 0.45F * Math.min(1.0F, (slope - 0.3F) / 0.4F) + (hollow < -0.4F ? 0.15F : 0.0F);
-            if (GroundCover.patch(seed, x, z, 101, 6.0F) < p) {
-               bare(chunk, x, y, z);
-               return true;
-            }
-         }
-         // the snow line sits higher on sunny south faces
-         if (facing.equals("south") && d >= 0.0 && d < 30.0 && hollow < 0.3F) {
-            float p = (float)(1.0 - d / 30.0) * 0.7F / Math.max(0.6F, snowy);
-            if (GroundCover.patch(seed, x, z, 109, 7.0F) < p) {
-               bare(chunk, x, y, z);
-               return true;
-            }
-         }
-         return false;
-      }
-
-      if (d >= 0.0 || !snowable(top)) {
-         return false;
-      }
-      return gradient(chunk, pos, x, y, z, d, slope, hollow, facing, biome, snowy, seed);
+   /**
+    * How much snow a place gets from its climate, about 0.3 (dry, warm) to 1.8 (wet, cold): the biome (dry / wet tags, base
+    * temperature), the local humidity of Still Life's climate, and a slow regional variation (about a kilometre across),
+    * so ranges differ from each other: some heavily snowed, some mostly bare rock.
+    */
+   static float climateSnow(Holder<Biome> biome, int x, int y, int z, long seed) {
+      float humidity = StillLifeClimateBridge.humidity(x, y, z);
+      float region = GroundCover.patch(seed, x, z, 131, 1100.0F) - 0.5F;
+      return Math.max(0.3F, Math.min(1.8F, snowiness(biome) * (1.0F + 0.45F * humidity + 0.8F * region)));
    }
 
-   /** How far below the snow line leftover snow reaches, at most (blocks; scaled by the climate's snowiness). */
-   static final double REACH = 120.0;
-
    /**
-    * Below the snow line: leftover snow, more and more going up. The share of ground that holds snow rises from nothing
-    * REACH blocks below the line (further in cold, wet climates, less in dry and warm ones) to most of it just under the
-    * line. Which spots hold it is decided by how sheltered they are: deep hollows and steep gullies (couloirs) first, then
-    * north faces and the side away from the wind; sunny south faces and wind-facing slopes last. So low down there are
-    * only patches in the best spots, which grow and join up towards the line.
+    * > 0 when this spot keeps snow ground, < 0 when it is bare: how sheltered it is (hollows and gullies, north faces, the
+    * side away from the wind; sunny south faces, wind-facing slopes and exposed ridges last) against how much of the
+    * ground holds snow at this height in this climate. The share rises from nothing well below the snow line, through
+    * about 85% at it, to all of it some way above; wetter climates move the whole curve down the mountain and drier ones
+    * up, so dry ranges have patchy peaks and wet ones snow far down. Below the line in cold climates it reaches further
+    * down, onto lower mountains too.
     */
-   private static boolean gradient(
-      ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int y, int z, double d, float slope, float hollow, String facing,
-      Holder<Biome> biome, float snowy, long seed
-   ) {
-      // cold climates bring the snow further down (and so onto lower mountains); warm ones keep it up high
-      float t = biome.value().getBaseTemperature();
-      double reach = REACH * snowy * (t < 0.3F ? 1.0 + Math.min(1.0, (0.3F - t) * 1.5) : 1.0);
-      if (d < -reach) {
-         return false;
+   static double score(WorldGenLevel level, int x, int y, int z, float slope, Holder<Biome> biome, long seed) {
+      double d = StillLifeClimateBridge.capLineDistance(x, y, z);
+      if (Double.isNaN(d)) {
+         return Double.NaN;
       }
-      double u = 1.0 + d / reach; // 0 at the bottom of the reach, 1 at the line
-      double coverage = u * u * 0.85;
+      float snow = climateSnow(biome, x, y, z, seed);
+      double dEff = d + 60.0 * (snow - 1.0);
+      double coverage;
+      if (dEff < 0.0) {
+         float t = biome.value().getBaseTemperature();
+         double reach = REACH * Math.min(1.3, snow) * (t < 0.3F ? 1.0 + Math.min(1.0, (0.3F - t) * 1.5) : 1.0);
+         if (dEff < -reach) {
+            return -1.0;
+         }
+         double u = 1.0 + dEff / reach;
+         coverage = u * u * 0.85;
+      } else {
+         double top = Math.max(0.7, Math.min(1.0, 0.6 + 0.4 * snow));
+         coverage = 0.85 + (top - 0.85) * Math.min(1.0, dEff / 40.0);
+      }
 
+      String facing = FtfTerrain.facing(level, x, z);
+      float hollow = FtfTerrain.hollow(level, x, z);
       float shelter = 0.5F * Math.max(-1.0F, Math.min(1.5F, hollow));
       if (hollow > 0.45F && slope > 0.4F) {
          shelter += 0.35F; // couloir
@@ -140,16 +114,44 @@ final class MountainSnow {
       if (lee(facing, z)) {
          shelter += 0.25F;
       } else if (windward(facing, z)) {
-         shelter -= 0.25F;
+         // the wind scours steep slopes facing it, more in dry places
+         shelter -= 0.25F + Math.max(0.0F, Math.min(1.0F, (slope - 0.3F) / 0.4F)) * 0.35F * (1.6F - Math.min(1.6F, snow));
       }
-      // 0..1: how readily this spot keeps snow, with patchy noise so it forms patches rather than outlines
       double keep = 0.5 + shelter * 0.45 + (GroundCover.patch(seed, x, z, 103, 6.0F) - 0.5) * 0.5;
-      if (keep < 1.0 - coverage) {
+      return keep - (1.0 - coverage);
+   }
+
+   /** True when this column was handled (FTF's own erosion is then skipped for it). */
+   static boolean column(ChunkAccess chunk, int x, int y, int z, float slope) {
+      WorldGenLevel level = GroundCover.level();
+      if (level == null) {
          return false;
       }
-      snowGround(chunk, pos, y);
-      return true;
+      BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, y, z);
+      BlockState top = chunk.getBlockState(pos);
+      boolean snow = SnowCaps.isSnow(top);
+      if (!snow && !snowable(top)) {
+         return false;
+      }
+      long seed = level.getSeed();
+      Holder<Biome> biome = chunk.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z));
+      double score = score(level, x, y, z, slope, biome, seed);
+      if (Double.isNaN(score)) {
+         return false;
+      }
+      if (snow && score < 0.0) {
+         bare(chunk, x, y, z);
+         return true;
+      }
+      if (!snow && score >= 0.0) {
+         snowGround(chunk, pos, y);
+         return true;
+      }
+      return false;
    }
+
+   /** How far below the snow line leftover snow reaches (blocks, before the climate scales it). */
+   static final double REACH = 120.0;
 
    private static boolean snowable(BlockState top) {
       return top.is(BlockTags.DIRT) || top.is(Blocks.GRAVEL) || top.is(BlockTags.BASE_STONE_OVERWORLD) || top.is(Blocks.COBBLESTONE)

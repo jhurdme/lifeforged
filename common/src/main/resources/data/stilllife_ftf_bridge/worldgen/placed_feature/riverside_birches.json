@@ -29,7 +29,10 @@
       "max_above_water": 3,
       "min_temperature": -0.2,
       "max_temperature": 0.45,
-      "requires_rain": true
+      "requires_rain": true,
+      "skip_if_loaded": [
+        "still_life_naturalized"
+      ]
     },
     {
       "type": "minecraft:biome"

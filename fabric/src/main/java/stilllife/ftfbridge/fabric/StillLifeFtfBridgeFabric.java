@@ -39,7 +39,11 @@ public final class StillLifeFtfBridgeFabric implements ModInitializer {
       Registry.register(BuiltInRegistries.FEATURE, StillLifeFtfBridge.WETLAND_POOLS, StillLifeFtfBridge.wetlandPoolsFeature());
       Registry.register(BuiltInRegistries.MATERIAL_CONDITION, StillLifeFtfBridge.SURFACE_LAYER, StillLifeFtfBridge.surfaceLayerCodec());
       Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, StillLifeFtfBridge.TERRAIN, stilllife.ftfbridge.TerrainFilter.TYPE);
-      for (net.minecraft.resources.ResourceLocation riverside : StillLifeFtfBridge.RIVERSIDE) {
+      java.util.List<net.minecraft.resources.ResourceLocation> vegetation = new java.util.ArrayList<>(StillLifeFtfBridge.RIVERSIDE);
+      if (StillLifeFtfBridge.isLoaded("natures_spirit")) {
+         vegetation.addAll(StillLifeFtfBridge.NATURES_SPIRIT);
+      }
+      for (net.minecraft.resources.ResourceLocation riverside : vegetation) {
          BiomeModifications.addFeature(
             BiomeSelectors.tag(StillLifeFtfBridge.HAS_RIVERSIDE_PLANTS),
             GenerationStep.Decoration.VEGETAL_DECORATION,

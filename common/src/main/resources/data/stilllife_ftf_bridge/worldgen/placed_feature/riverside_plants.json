@@ -18,7 +18,10 @@
         "banks",
         "valley_floor"
       ],
-      "max_slope": 0.6
+      "max_slope": 0.6,
+      "skip_if_loaded": [
+        "still_life_naturalized"
+      ]
     },
     {
       "type": "minecraft:biome"

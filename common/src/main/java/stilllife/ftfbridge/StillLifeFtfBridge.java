@@ -35,6 +35,8 @@ public final class StillLifeFtfBridge {
       id("riverside_willows"), id("riverside_birches"), id("riverside_reeds"), id("riverside_plants"),
       // the alpine belt below the snow line (same biomes)
       id("krummholz"), id("alpine_flowers"));
+   /** Variants of the alpine features built with Nature's Spirit plants, added only when it is installed. */
+   public static final java.util.List<ResourceLocation> NATURES_SPIRIT = java.util.List.of(id("krummholz_ns"), id("alpine_flowers_ns"));
 
    private static Platform platform;
 
@@ -42,6 +44,11 @@ public final class StillLifeFtfBridge {
    }
 
    /** Reads the config and checks FreeTerraForged. Call once, from the loader's entry point, before anything else. */
+   /** True when the mod with this id is installed. */
+   public static boolean isLoaded(String modId) {
+      return platform != null && platform.modVersion(modId).isPresent();
+   }
+
    public static void init(Platform p) {
       platform = p;
       BridgeConfig.load(p.configDir());

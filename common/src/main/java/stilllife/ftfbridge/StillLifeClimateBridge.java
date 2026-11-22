@@ -985,6 +985,37 @@ public final class StillLifeClimateBridge {
       return share;
    }
 
+   /** Still Life's humidity (-1 dry to 1 wet) at this position, cached per 4x4 column; 0 before the world is known. */
+   static float humidity(int x, int y, int z) {
+      Sampler sampler = lastSampler;
+      if (sampler == null) {
+         return 0.0F;
+      }
+      int qx = QuartPos.fromBlock(x);
+      int qz = QuartPos.fromBlock(z);
+      HumidityCache c = HUMIDITY_CACHE.get();
+      int slot = (qx * 31 + qz) & (HumidityCache.SIZE - 1);
+      if (c.sampler[slot] == sampler && c.qx[slot] == qx && c.qz[slot] == qz) {
+         return c.value[slot];
+      }
+      float h = Climate.unquantizeCoord(sampler.sample(qx, QuartPos.fromBlock(y), qz).humidity());
+      c.sampler[slot] = sampler;
+      c.qx[slot] = qx;
+      c.qz[slot] = qz;
+      c.value[slot] = h;
+      return h;
+   }
+
+   private static final ThreadLocal<HumidityCache> HUMIDITY_CACHE = ThreadLocal.withInitial(HumidityCache::new);
+
+   private static final class HumidityCache {
+      static final int SIZE = 256;
+      final Object[] sampler = new Object[SIZE];
+      final int[] qx = new int[SIZE];
+      final int[] qz = new int[SIZE];
+      final float[] value = new float[SIZE];
+   }
+
    /** Blocks above (+) or below (-) the line where snowy peaks begin at this column, or NaN before the world is known. */
    static double capLineDistance(int x, int y, int z) {
       StillLifeClimateBridge.World w = last;

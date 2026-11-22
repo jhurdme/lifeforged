@@ -36,7 +36,8 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *                                             // where the snowy peaks begin), always above it: trees thinning out upwards
  *   "max_above_water": 2,                     // at most this many blocks above the nearby river's water (river zones only)
  *   "requires_rain": true,                    // only in biomes with rain or snow (not deserts and other dry biomes)
- *   "skip_with_natural_snow": true }          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
+ *   "skip_with_natural_snow": true,
+ *   "skip_if_loaded": ["still_life_naturalized"] }  // not when one of these mods is installed (it does this job itself)          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
  *                                             // features that set snow layers themselves, which would cut through the
  *                                             // bridge's snow along chunk borders
  * </pre>
@@ -68,7 +69,8 @@ public final class TerrainFilter extends PlacementFilter {
          Codec.BOOL.optionalFieldOf("skip_with_natural_snow", false).forGetter(f -> f.skipWithNaturalSnow),
          Codec.INT.optionalFieldOf("max_above_water", Integer.MAX_VALUE).forGetter(f -> f.maxAboveWater),
          Codec.BOOL.optionalFieldOf("requires_rain", false).forGetter(f -> f.requiresRain),
-         Codec.FLOAT.listOf().optionalFieldOf("treeline", List.of()).forGetter(f -> f.treeline)
+         Codec.FLOAT.listOf().optionalFieldOf("treeline", List.of()).forGetter(f -> f.treeline),
+         Codec.STRING.listOf().optionalFieldOf("skip_if_loaded", List.of()).forGetter(f -> f.skipIfLoaded)
       ).apply(i, TerrainFilter::new));
    public static final PlacementModifierType<TerrainFilter> TYPE = () -> CODEC;
 
@@ -82,11 +84,15 @@ public final class TerrainFilter extends PlacementFilter {
    private final int maxAboveWater;
    private final boolean requiresRain;
    private final List<Float> treeline;
+   private final List<String> skipIfLoaded;
+   private final boolean skipped;
 
    private TerrainFilter(Ranges ranges, List<String> riverZones, Optional<String> preferFacing, float facingBias, float ridgeThinning,
                          boolean avoidChutes, boolean skipWithNaturalSnow, int maxAboveWater, boolean requiresRain,
-                         List<Float> treeline) {
+                         List<Float> treeline, List<String> skipIfLoaded) {
       this.treeline = treeline;
+      this.skipIfLoaded = skipIfLoaded;
+      this.skipped = skipIfLoaded.stream().anyMatch(StillLifeFtfBridge::isLoaded);
       this.skipWithNaturalSnow = skipWithNaturalSnow;
       this.maxAboveWater = maxAboveWater;
       this.requiresRain = requiresRain;
@@ -100,6 +106,9 @@ public final class TerrainFilter extends PlacementFilter {
 
    @Override
    protected boolean shouldPlace(PlacementContext context, RandomSource random, BlockPos pos) {
+      if (this.skipped) {
+         return false;
+      }
       WorldGenLevel level = context.getLevel();
       GeneratorContext ctx = FtfTerrain.context(level);
       if (ctx == null) {

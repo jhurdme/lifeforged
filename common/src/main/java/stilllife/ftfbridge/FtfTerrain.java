@@ -45,8 +45,72 @@ final class FtfTerrain {
    // These read the generator's terrain height map (top solid block before features), the same in every chunk, within
    // 2 blocks of the column, which stays inside the area a feature may read.
 
+   /**
+    * The top block of the terrain itself at x/z: the first solid block going down that is not a snow layer, plant, leaf,
+    * log or other feature growth, past any water.
+    *
+    * <p>Minecraft's terrain height maps can't be used for neighbouring columns: in a chunk next door they hold the bare
+    * terrain or the decorated surface (with snow layers, trees...) depending on how far that chunk has got, so every pass
+    * that looked across a chunk border saw different ground there than inside, which drew lines along chunk borders. This
+    * reads the blocks, the same whatever stage the chunk is at. Cached per thread for the chunk being decorated.
+    */
    static int ground(WorldGenLevel level, int x, int z) {
-      return level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
+      GroundCache c = GROUND.get();
+      int cx = x >> 4;
+      int cz = z >> 4;
+      if (c.level != level || Math.abs(cx - c.cx) > 1 || Math.abs(cz - c.cz) > 1) {
+         c.reset(level, cx, cz);
+      }
+      int i = ((z - (c.cz - 1) * 16) * 48) + (x - (c.cx - 1) * 16);
+      int v = c.values[i];
+      if (v == Integer.MIN_VALUE) {
+         v = scanGround(level, x, z);
+         c.values[i] = v;
+      }
+      return v;
+   }
+
+   private static int scanGround(WorldGenLevel level, int x, int z) {
+      BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+      int min = level.getMinBuildHeight();
+      int y = Math.max(level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z), level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z));
+      for (; y >= min; y--) {
+         net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos.set(x, y, z));
+         if (isTerrain(state, level, pos)) {
+            return y;
+         }
+      }
+      return min;
+   }
+
+   static boolean isTerrain(net.minecraft.world.level.block.state.BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+      if (state.isAir() || !state.getFluidState().isEmpty() && !state.isSolid()) {
+         return false;
+      }
+      if (state.is(net.minecraft.world.level.block.Blocks.SNOW) || state.is(net.minecraft.tags.BlockTags.LEAVES)
+         || state.is(net.minecraft.tags.BlockTags.LOGS) || state.is(net.minecraft.world.level.block.Blocks.CACTUS)
+         || state.is(net.minecraft.world.level.block.Blocks.BAMBOO) || state.is(net.minecraft.world.level.block.Blocks.BROWN_MUSHROOM_BLOCK)
+         || state.is(net.minecraft.world.level.block.Blocks.RED_MUSHROOM_BLOCK) || state.is(net.minecraft.world.level.block.Blocks.MUSHROOM_STEM)) {
+         return false;
+      }
+      return !state.getCollisionShape(level, pos).isEmpty();
+   }
+
+   private static final ThreadLocal<GroundCache> GROUND = ThreadLocal.withInitial(GroundCache::new);
+
+   /** Ground heights of a 3x3-chunk window around the chunk being decorated. */
+   private static final class GroundCache {
+      Object level;
+      int cx;
+      int cz;
+      final int[] values = new int[48 * 48];
+
+      void reset(Object level, int cx, int cz) {
+         this.level = level;
+         this.cx = cx;
+         this.cz = cz;
+         java.util.Arrays.fill(this.values, Integer.MIN_VALUE);
+      }
    }
 
    /** Blocks by which the ground within 2 blocks (weighted towards the centre) lies above this column: + hollow, - ridge. */
