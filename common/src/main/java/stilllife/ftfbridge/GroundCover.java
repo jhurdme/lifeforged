@@ -88,21 +88,26 @@ final class GroundCover {
       }
    }
 
-   private static final Palette TALUS_COLD = Palette.of(GRAVEL, 3, STONE, 2, COBBLE, 2, ANDESITE, 1);
-   private static final Palette TALUS_TEMPERATE = Palette.of(GRAVEL, 3, COARSE_DIRT, 2, COBBLE, 1, STONE, 1);
-   private static final Palette TALUS_HUMID = Palette.of(GRAVEL, 2, COARSE_DIRT, 2, MOSSY_COBBLE, 2, COBBLE, 1);
+   // One family of colours, after FreeTerraForged's own mix (tuff, andesite, gravel, coarse dirt, moss) and real mountains:
+   // grey rock and scree (stone, tuff, andesite, gravel), moss where it is wet, coarse dirt and gravel where soil thins out.
+   private static final BlockState TUFF = Blocks.TUFF.defaultBlockState();
+   private static final BlockState MOSS = Blocks.MOSS_BLOCK.defaultBlockState();
+
+   private static final Palette TALUS_COLD = Palette.of(GRAVEL, 3, TUFF, 2, ANDESITE, 2, STONE, 2, COBBLE, 1);
+   private static final Palette TALUS_TEMPERATE = Palette.of(TUFF, 3, ANDESITE, 2, GRAVEL, 2, COARSE_DIRT, 1, MOSS, 1);
+   private static final Palette TALUS_HUMID = Palette.of(TUFF, 2, MOSS, 2, GRAVEL, 2, ANDESITE, 1, MOSSY_COBBLE, 1);
    private static final Palette TALUS_ARID = Palette.of(SANDSTONE, 3, GRAVEL, 1, SAND, 1);
    private static final Palette TALUS_RED = Palette.of(RED_SANDSTONE, 2, TERRACOTTA, 1, GRAVEL, 1, RED_SAND, 1);
 
-   private static final Palette ALPINE_COLD = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, STONE, 1, COBBLE, 1);
-   private static final Palette ALPINE_TEMPERATE = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, ROOTED_DIRT, 1, STONE, 1);
-   private static final Palette ALPINE_HUMID = Palette.of(Blocks.MOSS_BLOCK.defaultBlockState(), 2, COARSE_DIRT, 2, GRAVEL, 1, MOSSY_COBBLE, 1);
+   private static final Palette ALPINE_COLD = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, TUFF, 1, MOSS, 1, STONE, 1);
+   private static final Palette ALPINE_TEMPERATE = Palette.of(COARSE_DIRT, 3, MOSS, 2, GRAVEL, 2, TUFF, 1);
+   private static final Palette ALPINE_HUMID = Palette.of(MOSS, 3, COARSE_DIRT, 2, GRAVEL, 1, MOSSY_COBBLE, 1);
    private static final Palette ALPINE_ARID = Palette.of(GRAVEL, 2, COARSE_DIRT, 2, STONE, 1);
    private static final Palette ALPINE_RED = Palette.of(GRAVEL, 2, COARSE_DIRT, 1, TERRACOTTA, 1, STONE, 1);
 
-   private static final Palette THIN_COLD = Palette.of(null, 3, COARSE_DIRT, 2, GRAVEL, 1);
-   private static final Palette THIN_TEMPERATE = Palette.of(null, 4, COARSE_DIRT, 2, ROOTED_DIRT, 1);
-   private static final Palette THIN_HUMID = Palette.of(null, 5, ROOTED_DIRT, 1, COARSE_DIRT, 1);
+   private static final Palette THIN_COLD = Palette.of(null, 3, COARSE_DIRT, 2, GRAVEL, 1, MOSS, 1);
+   private static final Palette THIN_TEMPERATE = Palette.of(null, 4, COARSE_DIRT, 2, MOSS, 2, GRAVEL, 1);
+   private static final Palette THIN_HUMID = Palette.of(null, 4, MOSS, 3, COARSE_DIRT, 1);
    private static final Palette THIN_ARID = Palette.of(null, 4, COARSE_DIRT, 1, SANDSTONE, 1);
    private static final Palette THIN_RED = Palette.of(null, 4, TERRACOTTA, 1, RED_SANDSTONE, 1);
 
@@ -291,12 +296,11 @@ final class GroundCover {
       }
       boolean changed = false;
       if (patch(seed, x, z, 121, 5.0F) < p) {
-         Extra e = Extra.get();
          Palette palette = switch (climate) {
-            case HUMID -> e.present() ? e.alpineHumid : ALPINE_HUMID;
-            case ARID -> e.present() ? e.alpineArid : ALPINE_ARID;
+            case HUMID -> ALPINE_HUMID;
+            case ARID -> ALPINE_ARID;
             case RED_ARID -> ALPINE_RED;
-            case COLD -> e.present() ? e.alpineCold : ALPINE_COLD;
+            case COLD -> ALPINE_COLD;
             default -> ALPINE_TEMPERATE;
          };
          ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, palette.pick(patch(seed, x, z, 123, 3.0F)));
@@ -306,7 +310,7 @@ final class GroundCover {
          pos.setY(surfaceY + 1);
          if (chunk.getBlockState(pos).isAir()) {
             float r = hash(seed, x, z, 127);
-            BlockState rock = climate == Climate.HUMID && r < 0.5F ? MOSSY_COBBLE : r < 0.5F ? STONE : COBBLE;
+            BlockState rock = climate == Climate.HUMID && r < 0.4F ? MOSSY_COBBLE : r < 0.35F ? STONE : r < 0.7F ? ANDESITE : COBBLE;
             chunk.setBlockState(pos, rock, false);
             changed = true;
          }
@@ -434,34 +438,16 @@ final class GroundCover {
       return Climate.TEMPERATE;
    }
 
-   /**
-    * Nature's Spirit's ground blocks (installed with Still Life Naturalized), looked up once: chert as a second rock in
-    * talus and alpine ground, sandy soil instead of coarse dirt in dry land, red moss on cold wet alpine ground. Null
-    * fields when Nature's Spirit is not installed; the vanilla mixes are used then.
-    */
+   /** Nature's Spirit's sandy soil (installed with Still Life Naturalized), looked up once; null when it is not installed. */
    private static final class Extra {
       static volatile Extra instance;
-      final BlockState chert;
       final BlockState sandySoil;
-      final BlockState redMoss;
-      final Palette talusCold;
-      final Palette talusTemperate;
-      final Palette alpineCold;
-      final Palette alpineHumid;
-      final Palette alpineArid;
 
       private Extra() {
-         this.chert = block("chert");
-         this.sandySoil = block("sandy_soil");
-         this.redMoss = block("red_moss_block");
-         BlockState chertOr = this.chert != null ? this.chert : STONE;
-         BlockState soilOr = this.sandySoil != null ? this.sandySoil : COARSE_DIRT;
-         BlockState mossOr = this.redMoss != null ? this.redMoss : Blocks.MOSS_BLOCK.defaultBlockState();
-         this.talusCold = Palette.of(GRAVEL, 3, STONE, 2, chertOr, 2, COBBLE, 1, ANDESITE, 1);
-         this.talusTemperate = Palette.of(GRAVEL, 3, COARSE_DIRT, 2, chertOr, 1, COBBLE, 1, STONE, 1);
-         this.alpineCold = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, chertOr, 1, mossOr, 1, STONE, 1);
-         this.alpineHumid = Palette.of(Blocks.MOSS_BLOCK.defaultBlockState(), 2, COARSE_DIRT, 2, mossOr, 1, GRAVEL, 1, MOSSY_COBBLE, 1);
-         this.alpineArid = Palette.of(GRAVEL, 2, soilOr, 2, chertOr, 1);
+         this.sandySoil = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+            .getOptional(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("natures_spirit", "sandy_soil"))
+            .map(net.minecraft.world.level.block.Block::defaultBlockState)
+            .orElse(null);
       }
 
       static Extra get() {
@@ -472,17 +458,6 @@ final class GroundCover {
          }
          return e;
       }
-
-      boolean present() {
-         return this.chert != null;
-      }
-
-      private static BlockState block(String name) {
-         return net.minecraft.core.registries.BuiltInRegistries.BLOCK
-            .getOptional(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("natures_spirit", name))
-            .map(net.minecraft.world.level.block.Block::defaultBlockState)
-            .orElse(null);
-      }
    }
 
    /** Coarse dirt, or Nature's Spirit's sandy soil in dry land when it is installed. */
@@ -492,10 +467,6 @@ final class GroundCover {
    }
 
    private static Palette talus(Climate c) {
-      Extra e = Extra.get();
-      if (e.present() && (c == Climate.COLD || c == Climate.TEMPERATE)) {
-         return c == Climate.COLD ? e.talusCold : e.talusTemperate;
-      }
       return switch (c) {
          case COLD -> TALUS_COLD;
          case HUMID -> TALUS_HUMID;
