@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:has_riverside_plants",
+  "features": [
+    "stilllife_ftf_bridge:krummholz",
+    "stilllife_ftf_bridge:alpine_flowers"
+  ],
+  "step": "vegetal_decoration"
+}

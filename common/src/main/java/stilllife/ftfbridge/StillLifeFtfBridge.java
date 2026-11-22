@@ -32,7 +32,9 @@ public final class StillLifeFtfBridge {
    public static final TagKey<Biome> HAS_RIVERSIDE_PLANTS = TagKey.create(Registries.BIOME, id("has_riverside_plants"));
    /** The riverside plant features, in vegetal decoration order (trees first). */
    public static final java.util.List<ResourceLocation> RIVERSIDE = java.util.List.of(
-      id("riverside_willows"), id("riverside_birches"), id("riverside_reeds"), id("riverside_plants"));
+      id("riverside_willows"), id("riverside_birches"), id("riverside_reeds"), id("riverside_plants"),
+      // the alpine belt below the snow line (same biomes)
+      id("krummholz"), id("alpine_flowers"));
 
    private static Platform platform;
 

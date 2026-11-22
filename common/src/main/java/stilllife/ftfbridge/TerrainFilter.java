@@ -31,6 +31,9 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *   "ridge_thinning": 0.5,                    // skipped up to this share of the time on ground that stands out above the
  *                                             // land within 32 blocks (from 16 blocks up, fully at 48)
  *   "avoid_chutes": true,                     // not in steep gullies (avalanche chutes: open strips down mountain forests)
+ *   "min_snow_line": -45, "max_snow_line": -8, // blocks above (+) / below (-) where the snowy peaks begin here
+ *   "treeline": [-110, -45],                  // skipped more and more from the first height to the second (relative to
+ *                                             // where the snowy peaks begin), always above it: trees thinning out upwards
  *   "max_above_water": 2,                     // at most this many blocks above the nearby river's water (river zones only)
  *   "requires_rain": true,                    // only in biomes with rain or snow (not deserts and other dry biomes)
  *   "skip_with_natural_snow": true }          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
@@ -40,7 +43,7 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  */
 public final class TerrainFilter extends PlacementFilter {
    private record Ranges(float minSlope, float maxSlope, float minSediment, float maxSediment, float minHollow, float maxHollow,
-                         float minTemperature, float maxTemperature) {
+                         float minTemperature, float maxTemperature, float minSnowLine, float maxSnowLine) {
       static final MapCodec<Ranges> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.FLOAT.optionalFieldOf("min_slope", Float.NEGATIVE_INFINITY).forGetter(Ranges::minSlope),
             Codec.FLOAT.optionalFieldOf("max_slope", Float.POSITIVE_INFINITY).forGetter(Ranges::maxSlope),
@@ -49,7 +52,9 @@ public final class TerrainFilter extends PlacementFilter {
             Codec.FLOAT.optionalFieldOf("min_hollow", Float.NEGATIVE_INFINITY).forGetter(Ranges::minHollow),
             Codec.FLOAT.optionalFieldOf("max_hollow", Float.POSITIVE_INFINITY).forGetter(Ranges::maxHollow),
             Codec.FLOAT.optionalFieldOf("min_temperature", Float.NEGATIVE_INFINITY).forGetter(Ranges::minTemperature),
-            Codec.FLOAT.optionalFieldOf("max_temperature", Float.POSITIVE_INFINITY).forGetter(Ranges::maxTemperature)
+            Codec.FLOAT.optionalFieldOf("max_temperature", Float.POSITIVE_INFINITY).forGetter(Ranges::maxTemperature),
+            Codec.FLOAT.optionalFieldOf("min_snow_line", Float.NEGATIVE_INFINITY).forGetter(Ranges::minSnowLine),
+            Codec.FLOAT.optionalFieldOf("max_snow_line", Float.POSITIVE_INFINITY).forGetter(Ranges::maxSnowLine)
          ).apply(i, Ranges::new));
    }
 
@@ -62,7 +67,8 @@ public final class TerrainFilter extends PlacementFilter {
          Codec.BOOL.optionalFieldOf("avoid_chutes", false).forGetter(f -> f.avoidChutes),
          Codec.BOOL.optionalFieldOf("skip_with_natural_snow", false).forGetter(f -> f.skipWithNaturalSnow),
          Codec.INT.optionalFieldOf("max_above_water", Integer.MAX_VALUE).forGetter(f -> f.maxAboveWater),
-         Codec.BOOL.optionalFieldOf("requires_rain", false).forGetter(f -> f.requiresRain)
+         Codec.BOOL.optionalFieldOf("requires_rain", false).forGetter(f -> f.requiresRain),
+         Codec.FLOAT.listOf().optionalFieldOf("treeline", List.of()).forGetter(f -> f.treeline)
       ).apply(i, TerrainFilter::new));
    public static final PlacementModifierType<TerrainFilter> TYPE = () -> CODEC;
 
@@ -75,9 +81,12 @@ public final class TerrainFilter extends PlacementFilter {
    private final boolean skipWithNaturalSnow;
    private final int maxAboveWater;
    private final boolean requiresRain;
+   private final List<Float> treeline;
 
    private TerrainFilter(Ranges ranges, List<String> riverZones, Optional<String> preferFacing, float facingBias, float ridgeThinning,
-                         boolean avoidChutes, boolean skipWithNaturalSnow, int maxAboveWater, boolean requiresRain) {
+                         boolean avoidChutes, boolean skipWithNaturalSnow, int maxAboveWater, boolean requiresRain,
+                         List<Float> treeline) {
+      this.treeline = treeline;
       this.skipWithNaturalSnow = skipWithNaturalSnow;
       this.maxAboveWater = maxAboveWater;
       this.requiresRain = requiresRain;
@@ -121,6 +130,23 @@ public final class TerrainFilter extends PlacementFilter {
       }
       if (this.requiresRain && !level.getBiome(pos).value().hasPrecipitation()) {
          return false;
+      }
+      boolean lineRange = r.minSnowLine != Float.NEGATIVE_INFINITY || r.maxSnowLine != Float.POSITIVE_INFINITY;
+      if (lineRange || this.treeline.size() == 2) {
+         double d = StillLifeClimateBridge.capLineDistance(x, pos.getY(), z);
+         if (!Double.isNaN(d)) {
+            if (d < r.minSnowLine || d > r.maxSnowLine) {
+               return false;
+            }
+            if (this.treeline.size() == 2) {
+               float a = this.treeline.get(0);
+               float b = this.treeline.get(1);
+               double t = (d - a) / Math.max(1.0F, b - a);
+               if (t >= 1.0 || t > 0.0 && random.nextFloat() < t) {
+                  return false;
+               }
+            }
+         }
       }
 
       boolean needHollow = r.minHollow != Float.NEGATIVE_INFINITY || r.maxHollow != Float.POSITIVE_INFINITY || this.avoidChutes;

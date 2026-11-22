@@ -82,6 +82,8 @@ final class BridgeConfig {
       boolean naturalSnow = bool(p, "natural_snow_layers", d.naturalSnowLayers());
       boolean groundCover = bool(p, "ground_cover", d.groundCover());
       boolean mountainSnow = bool(p, "mountain_snow", d.mountainSnow());
+      double altitudeCooling = number(p, "altitude_cooling", d.altitudeCooling(), 0.0, 2.0);
+      double snowLineClimate = number(p, "snow_line_climate", d.snowLineClimate(), 0.0, 200.0);
       LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
       String caveFloorGuard = Settings.caveFloorGuardMode(caveFloorGuardRaw);
@@ -93,7 +95,7 @@ final class BridgeConfig {
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
-         caveFloorGuard, columnDepth, naturalSnow, groundCover, mountainSnow
+         caveFloorGuard, columnDepth, naturalSnow, groundCover, mountainSnow, altitudeCooling, snowLineClimate
       );
 
       String text = String.format(
@@ -124,6 +126,17 @@ final class BridgeConfig {
          # Only for latitude=still_life: how many blocks it is from the equator to the coldest climate.
          # Smaller = climates change faster as you travel north or south. Still Life itself uses 40000.
          pole_distance=%s
+
+         # Only for latitude=still_life (FTF's own temperature has its "Altitude Cooling Strength" slider instead).
+         # How much colder it gets going up, from the sea to the highest peaks, on Still Life's temperature scale
+         # (-1 coldest to 1 hottest). Forests give way to colder forests on the way up, and warm lands get snowy rather
+         # than barren peaks on their highest mountains. 0 = no cooling (Still Life's own: only its height bands change).
+         altitude_cooling=%s
+
+         # Only for latitude=still_life. The high-mountain bands (alpine, then snowy peaks) rise by up to this many blocks
+         # towards the warm equator and drop by as much towards the cold end, like real snow lines. Everything tied to
+         # the snow line (the alpine belt, the treeline, mountain snow) follows. 0 = the same height everywhere.
+         snow_line_climate=%s
 
          # -----------------------------------------------------------------------------------------------------
          #  American and Afro-Eurasian biomes
@@ -292,6 +305,8 @@ final class BridgeConfig {
          enabled,
          stillLife ? "still_life" : "ftf",
          plain(pole),
+         plain(altitudeCooling),
+         plain(snowLineClimate),
          biomeSets,
          plain(biomeSetRegionSize),
          plain(share),

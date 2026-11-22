@@ -1,0 +1,28 @@
+{
+  "feature": "stilllife_ftf_bridge:alpine_flowers",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "min_snow_line": -80.0,
+      "max_snow_line": -12.0,
+      "max_slope": 0.45,
+      "max_temperature": 0.9,
+      "prefer_facing": "south",
+      "facing_bias": 0.5
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

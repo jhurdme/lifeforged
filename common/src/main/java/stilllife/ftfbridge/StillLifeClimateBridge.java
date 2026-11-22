@@ -262,7 +262,7 @@ public final class StillLifeClimateBridge {
          final float cellControl = cell.controlPoint;
          // peak_line_variation: the high-mountain bands start at a wandering height instead of a level line
          double yBand = yL;
-         if (!submerged && w.settings.peakLineVariation() > 0.0 && yL > PEAK_SHIFT_FROM) {
+         if (!submerged && (w.settings.peakLineVariation() > 0.0 || w.settings.snowLineClimate() > 0.0) && yL > PEAK_SHIFT_FROM) {
             double ramp = clamp((yL - PEAK_SHIFT_FROM) / (PEAK_SHIFT_FULL - PEAK_SHIFT_FROM), 0.0, 1.0);
             yBand = toLitho(heights, y + ramp * peakShift(w, ctx, qx, qz));
          }
@@ -301,6 +301,11 @@ public final class StillLifeClimateBridge {
          long temperature = target.temperature();
          if (w.settings.stillLifeLatitude()) {
             double t = 0.2 * w.temperature.getValue(bx * 1.1, 0.0, bz * 1.1) + 1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance();
+            // altitude_cooling: colder going up, from the sea (Still Life's Y 63) to Lithosphere's highest peaks (Y 349), so
+            // forests give way to colder forests and the high bands get their cold variants in warm lands too
+            if (!submerged && w.settings.altitudeCooling() > 0.0) {
+               t -= w.settings.altitudeCooling() * clamp((yL - 63.0) / (349.0 - 63.0), 0.0, 1.0);
+            }
             temperature = Climate.quantizeCoord((float)t);
          }
 
@@ -886,7 +891,22 @@ public final class StillLifeClimateBridge {
     * away) count as higher, so snow and alpine biomes reach further down them, while ridges and spurs count as lower; plus a
     * small per-cell jitter, so the edge is dithered like FTF's other biome edges.
     */
+   /**
+    * How far the high-mountain bands start below (+) or above (-) their base height here: peak_line_variation's wander,
+    * plus snow_line_climate (latitude=still_life only): the line rises towards the warm equator and drops towards the
+    * cold end, by up to that many blocks either way.
+    */
    static double peakShift(StillLifeClimateBridge.World w, GeneratorContext ctx, int qx, int qz) {
+      double climate = 0.0;
+      double c = w.settings.snowLineClimate();
+      if (c > 0.0 && w.settings.stillLifeLatitude()) {
+         double lat = clamp(1.0 - 2.0 * Math.abs(QuartPos.toBlock(qz) + w.equatorZ) / w.settings.poleDistance(), -1.0, 1.0);
+         climate = -c * lat;
+      }
+      return climate + peakNoiseShift(w, ctx, qx, qz);
+   }
+
+   private static double peakNoiseShift(StillLifeClimateBridge.World w, GeneratorContext ctx, int qx, int qz) {
       double v = w.settings.peakLineVariation();
       if (v <= 0.0) {
          return 0.0;

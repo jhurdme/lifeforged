@@ -94,6 +94,12 @@ final class GroundCover {
    private static final Palette TALUS_ARID = Palette.of(SANDSTONE, 3, GRAVEL, 1, SAND, 1);
    private static final Palette TALUS_RED = Palette.of(RED_SANDSTONE, 2, TERRACOTTA, 1, GRAVEL, 1, RED_SAND, 1);
 
+   private static final Palette ALPINE_COLD = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, STONE, 1, COBBLE, 1);
+   private static final Palette ALPINE_TEMPERATE = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, ROOTED_DIRT, 1, STONE, 1);
+   private static final Palette ALPINE_HUMID = Palette.of(Blocks.MOSS_BLOCK.defaultBlockState(), 2, COARSE_DIRT, 2, GRAVEL, 1, MOSSY_COBBLE, 1);
+   private static final Palette ALPINE_ARID = Palette.of(GRAVEL, 2, COARSE_DIRT, 2, STONE, 1);
+   private static final Palette ALPINE_RED = Palette.of(GRAVEL, 2, COARSE_DIRT, 1, TERRACOTTA, 1, STONE, 1);
+
    private static final Palette THIN_COLD = Palette.of(null, 3, COARSE_DIRT, 2, GRAVEL, 1);
    private static final Palette THIN_TEMPERATE = Palette.of(null, 4, COARSE_DIRT, 2, ROOTED_DIRT, 1);
    private static final Palette THIN_HUMID = Palette.of(null, 5, ROOTED_DIRT, 1, COARSE_DIRT, 1);
@@ -171,6 +177,9 @@ final class GroundCover {
          ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 3, m);
          return;
       }
+      if (level != null && alpine(level, chunk, pos, x, z, surfaceY, seed, climate, top, steepness, config.dirtSteepness())) {
+         return;
+      }
       if (steepness > config.dirtSteepness() && height > dirtThreshold) {
          BlockState m = thin(climate).pick(patch(seed, x, z, 23, 7.0F));
          if (m != null) {
@@ -243,6 +252,62 @@ final class GroundCover {
          pos.setY(surfaceY);
       }
       return true;
+   }
+
+   /** Grass and soil tops the alpine belt may break up. */
+   private static boolean soil(BlockState top) {
+      return top.is(Blocks.GRASS_BLOCK) || top.is(Blocks.DIRT) || top.is(Blocks.PODZOL) || top.is(Blocks.COARSE_DIRT)
+         || top.is(Blocks.ROOTED_DIRT) || top.is(Blocks.MOSS_BLOCK) || top.is(Blocks.MYCELIUM);
+   }
+
+   /**
+    * The alpine belt: the 60 blocks below where the snowy peaks begin here (which follows peak_line_variation and
+    * snow_line_climate). Going up, the grass breaks up into patches of coarse dirt, gravel and frost-shattered stone (moss
+    * where it is wet), with a scattering of boulders; sunny south faces and sheltered hollows stay green longest, steep
+    * ground goes first. True when this column was changed.
+    */
+   private static boolean alpine(
+      WorldGenLevel level, ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int z, int surfaceY, long seed, Climate climate,
+      BlockState top, float steepness, float dirtSteepness
+   ) {
+      double d = StillLifeClimateBridge.capLineDistance(x, surfaceY, z);
+      if (Double.isNaN(d) || d >= 0.0 || d < -60.0 || !soil(top)) {
+         return false;
+      }
+      float t = (float)((d + 60.0) / 60.0);
+      float p = (float)Math.pow(t, 1.4) * 0.75F;
+      if (FtfTerrain.facing(level, x, z).equals("south")) {
+         p -= 0.15F;
+      }
+      if (FtfTerrain.hollow(level, x, z) > 0.3F) {
+         p -= 0.2F;
+      }
+      if (steepness > dirtSteepness) {
+         p += 0.15F;
+      }
+      boolean changed = false;
+      if (patch(seed, x, z, 121, 5.0F) < p) {
+         Palette palette = switch (climate) {
+            case HUMID -> ALPINE_HUMID;
+            case ARID -> ALPINE_ARID;
+            case RED_ARID -> ALPINE_RED;
+            case COLD -> ALPINE_COLD;
+            default -> ALPINE_TEMPERATE;
+         };
+         ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, palette.pick(patch(seed, x, z, 123, 3.0F)));
+         changed = true;
+      }
+      if (hash(seed, x, z, 125) < 0.012F * t) {
+         pos.setY(surfaceY + 1);
+         if (chunk.getBlockState(pos).isAir()) {
+            float r = hash(seed, x, z, 127);
+            BlockState rock = climate == Climate.HUMID && r < 0.5F ? MOSSY_COBBLE : r < 0.5F ? STONE : COBBLE;
+            chunk.setBlockState(pos, rock, false);
+            changed = true;
+         }
+         pos.setY(surfaceY);
+      }
+      return changed;
    }
 
    /** The outer part of a fan below a steep slope: only where FTF's erosion deposited sediment. */

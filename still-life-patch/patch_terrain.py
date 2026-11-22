@@ -5,8 +5,9 @@ usage: python3 patch_terrain.py <extracted datapack folder | jar> [output jar]
 Uses the bridge's placement filter stilllife_ftf_bridge:terrain (bridge 5.6+), which reads FreeTerraForged's terrain at each
 feature's column:
   - trees, fallen trees and tree groups no longer grow on cliffs and near-vertical slopes (max_slope), stay out of steep
-    gullies so mountain forests get open avalanche chutes (avoid_chutes), and thin out on ground that stands out above
-    the land around it: ridges and hilltops (ridge_thinning);
+    gullies so mountain forests get open avalanche chutes (avoid_chutes), thin out on ground that stands out above
+    the land around it: ridges and hilltops (ridge_thinning), and thin out towards the snow line (treeline: broadleaf
+    trees from 110 to 45 blocks below where the snowy peaks begin, conifers from 75 to 20);
   - conifers lean towards north-facing slopes; flowers towards south-facing slopes, ferns and moss towards north-facing
     ones (prefer_facing: on the other side they are skipped part of the time, never removed);
   - Still Life's snow layer patches step aside where the bridge sets snow depth (natural_snow_layers): they reach into
@@ -111,9 +112,12 @@ def patch(root):
                 want = terrain(min_slope=CLIFF_MIN_SLOPE)
                 counts['stone_cliff'] += 1
             elif is_tree(rel, configured_text(root, data.get('feature'))):
-                want = terrain(max_slope=TREE_MAX_SLOPE, avoid_chutes=True, ridge_thinning=TREE_RIDGE_THINNING)
+                # treeline: thinning out towards the snow line (blocks below where the snowy peaks begin, which the bridge
+                # moves with latitude); conifers reach higher than broadleaf trees
+                want = terrain(max_slope=TREE_MAX_SLOPE, avoid_chutes=True, ridge_thinning=TREE_RIDGE_THINNING,
+                               treeline=[-110.0, -45.0])
                 if any(c in base for c in CONIFERS):
-                    want.update(prefer_facing='north', facing_bias=0.3)
+                    want.update(prefer_facing='north', facing_bias=0.3, treeline=[-75.0, -20.0])
                     counts['conifers'] += 1
                 counts['trees'] += 1
             elif '/pf_foliage/ground/' in relp and any(f in base for f in FLOWERS):
