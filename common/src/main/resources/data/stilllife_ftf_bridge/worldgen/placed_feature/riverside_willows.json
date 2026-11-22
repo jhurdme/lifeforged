@@ -23,12 +23,13 @@
     {
       "type": "stilllife_ftf_bridge:terrain",
       "river_zones": [
-        "banks",
-        "valley_floor"
+        "banks"
       ],
       "max_slope": 0.5,
+      "max_above_water": 2,
       "min_temperature": 0.45,
-      "max_temperature": 3.0
+      "max_temperature": 1.0,
+      "requires_rain": true
     },
     {
       "type": "minecraft:biome"

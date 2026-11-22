@@ -31,6 +31,8 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *   "ridge_thinning": 0.5,                    // skipped up to this share of the time on ground that stands out above the
  *                                             // land within 32 blocks (from 16 blocks up, fully at 48)
  *   "avoid_chutes": true,                     // not in steep gullies (avalanche chutes: open strips down mountain forests)
+ *   "max_above_water": 2,                     // at most this many blocks above the nearby river's water (river zones only)
+ *   "requires_rain": true,                    // only in biomes with rain or snow (not deserts and other dry biomes)
  *   "skip_with_natural_snow": true }          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
  *                                             // features that set snow layers themselves, which would cut through the
  *                                             // bridge's snow along chunk borders
@@ -58,7 +60,9 @@ public final class TerrainFilter extends PlacementFilter {
          Codec.FLOAT.optionalFieldOf("facing_bias", 0.4F).forGetter(f -> f.facingBias),
          Codec.FLOAT.optionalFieldOf("ridge_thinning", 0.0F).forGetter(f -> f.ridgeThinning),
          Codec.BOOL.optionalFieldOf("avoid_chutes", false).forGetter(f -> f.avoidChutes),
-         Codec.BOOL.optionalFieldOf("skip_with_natural_snow", false).forGetter(f -> f.skipWithNaturalSnow)
+         Codec.BOOL.optionalFieldOf("skip_with_natural_snow", false).forGetter(f -> f.skipWithNaturalSnow),
+         Codec.INT.optionalFieldOf("max_above_water", Integer.MAX_VALUE).forGetter(f -> f.maxAboveWater),
+         Codec.BOOL.optionalFieldOf("requires_rain", false).forGetter(f -> f.requiresRain)
       ).apply(i, TerrainFilter::new));
    public static final PlacementModifierType<TerrainFilter> TYPE = () -> CODEC;
 
@@ -69,10 +73,14 @@ public final class TerrainFilter extends PlacementFilter {
    private final float ridgeThinning;
    private final boolean avoidChutes;
    private final boolean skipWithNaturalSnow;
+   private final int maxAboveWater;
+   private final boolean requiresRain;
 
    private TerrainFilter(Ranges ranges, List<String> riverZones, Optional<String> preferFacing, float facingBias, float ridgeThinning,
-                         boolean avoidChutes, boolean skipWithNaturalSnow) {
+                         boolean avoidChutes, boolean skipWithNaturalSnow, int maxAboveWater, boolean requiresRain) {
       this.skipWithNaturalSnow = skipWithNaturalSnow;
+      this.maxAboveWater = maxAboveWater;
+      this.requiresRain = requiresRain;
       this.ranges = ranges;
       this.riverZones = riverZones.stream().map(s -> s.toLowerCase(Locale.ROOT)).toList();
       this.preferFacing = preferFacing.map(s -> s.toLowerCase(Locale.ROOT));
@@ -104,6 +112,14 @@ public final class TerrainFilter extends PlacementFilter {
          return false;
       }
       if (!this.riverZones.isEmpty() && !this.riverZones.contains(riverZone(cell))) {
+         return false;
+      }
+      if (this.maxAboveWater != Integer.MAX_VALUE) {
+         if (cell.riverWaterLevel <= 0.0F || pos.getY() - ctx.heightmap.levels().scale(cell.riverWaterLevel) > this.maxAboveWater) {
+            return false;
+         }
+      }
+      if (this.requiresRain && !level.getBiome(pos).value().hasPrecipitation()) {
          return false;
       }
 
