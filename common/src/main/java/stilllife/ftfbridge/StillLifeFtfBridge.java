@@ -36,7 +36,9 @@ public final class StillLifeFtfBridge {
       // the alpine belt below the snow line (same biomes)
       id("krummholz"), id("alpine_flowers"),
       // lakes
-      id("lake_reeds"), id("lake_lily_pads"));
+      id("lake_reeds"), id("lake_lily_pads"),
+      // forest edges
+      id("forest_edge_birches"), id("forest_edge_spruces"), id("forest_edge_leaf_bushes"), id("forest_edge_bushes"));
    /** Lake reed edges built from Still Life Naturalized's own reed features, added only when it is installed. */
    public static final java.util.List<ResourceLocation> NATURALIZED = java.util.List.of(
       id("lake_reeds_cold"), id("lake_reeds_cold_water"), id("lake_reeds_mild"), id("lake_reeds_mild_water"), id("lake_reeds_dry"), id("lake_reeds_dry_water"));

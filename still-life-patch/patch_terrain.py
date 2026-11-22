@@ -7,7 +7,8 @@ feature's column:
   - trees, fallen trees and tree groups no longer grow on cliffs and near-vertical slopes (max_slope), stay out of steep
     gullies so mountain forests get open avalanche chutes (avoid_chutes), thin out on ground that stands out above
     the land around it: ridges and hilltops (ridge_thinning), and thin out towards the snow line (treeline: broadleaf
-    trees from 110 to 45 blocks below where the snowy peaks begin, conifers from 75 to 20);
+    trees from 110 to 45 blocks below where the snowy peaks begin, conifers from 75 to 20); with the bridge's
+    forest_variety, forests get natural clearings and each tree group grows more or less from region to region;
   - conifers lean towards north-facing slopes; flowers towards south-facing slopes, ferns and moss towards north-facing
     ones (prefer_facing: on the other side they are skipped part of the time, never removed);
   - Still Life's snow layer patches step aside where the bridge sets snow depth (natural_snow_layers): they reach into
@@ -119,6 +120,11 @@ def patch(root):
                 if any(c in base for c in CONIFERS):
                     want.update(prefer_facing='north', facing_bias=0.3, treeline=[-75.0, -20.0])
                     counts['conifers'] += 1
+                # forest_variety: natural clearings (position-based, so a group and its trees agree), and for tree groups
+                # a regional mix: each group more or less common from region to region, by a variation of its own
+                want.update(clearings=0.1)
+                if '/pf_foliage/groups/' in relp:
+                    want.update(regional_mix=0.4, mix_salt=sum(ord(ch) * (i + 1) for i, ch in enumerate(base)) % 997)
                 counts['trees'] += 1
             elif '/pf_foliage/ground/' in relp and any(f in base for f in FLOWERS):
                 want = terrain(prefer_facing='south', facing_bias=0.4)

@@ -85,6 +85,7 @@ final class BridgeConfig {
       double altitudeCooling = number(p, "altitude_cooling", d.altitudeCooling(), 0.0, 2.0);
       double snowLineClimate = number(p, "snow_line_climate", d.snowLineClimate(), 0.0, 200.0);
       boolean shores = bool(p, "shores", d.shores());
+      boolean forestVariety = bool(p, "forest_variety", d.forestVariety());
       LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
       String caveFloorGuard = Settings.caveFloorGuardMode(caveFloorGuardRaw);
@@ -96,7 +97,7 @@ final class BridgeConfig {
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
-         caveFloorGuard, columnDepth, naturalSnow, groundCover, mountainSnow, altitudeCooling, snowLineClimate, shores
+         caveFloorGuard, columnDepth, naturalSnow, groundCover, mountainSnow, altitudeCooling, snowLineClimate, shores, forestVariety
       );
 
       String text = String.format(
@@ -198,6 +199,12 @@ final class BridgeConfig {
          # strip of grass on the banks and valley floor. Below the snow line, an alpine belt where grass breaks up
          # into coarse dirt, gravel, moss and stone. false = FTF's own mix everywhere.
          ground_cover=%s
+
+         # true = forests that look grown rather than painted on: a belt of bushes and young trees (birch where it is
+         # temperate, small spruce where it is cold) where forest meets open land, natural clearings (about a tenth of
+         # forest land), and tree mixes that shift from region to region (one forest mostly birch, the next mostly oak).
+         # The clearings and mixes need the Still Life FTF edition 0.3.7 or later.
+         forest_variety=%s
 
          # Only for FTF's UPLIFT continent type. FTF raises land towards plate borders but drops that lift near
          # the coast, which leaves a long cliff (often 40-100 blocks) running along the coast. This spreads the
@@ -329,6 +336,7 @@ final class BridgeConfig {
          plain(snowCliff),
          plain(snowCapFade),
          groundCover,
+         forestVariety,
          plain(upliftSmoothing),
          plain(beachMaxHeight),
          plain(beachShallows),

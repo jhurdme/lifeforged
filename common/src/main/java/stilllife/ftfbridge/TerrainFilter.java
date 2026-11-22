@@ -40,7 +40,11 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *   "skip_if_loaded": ["still_life_naturalized"],  // not when one of these mods is installed (it does this job itself)
  *   "terrain_categories": ["lake"],           // FTF terrain category of the column: deep_ocean, shallow_ocean, coast,
  *                                             // beach, river, lake, wetland, flatland, lowland, highland, island
- *   "requires_option": "shores" }             // only when this bridge option is on in the world (shores, ground_cover,
+ *   "requires_option": "shores",
+ *   "forest_edge": 12,                        // only within this many blocks of where forest meets open land
+ *   "clearings": 0.1,                         // (forest_variety) skipped in natural clearings, about this share of the land
+ *   "regional_mix": 0.4, "mix_salt": 17 }     // (forest_variety) skipped up to this share of the time, by a slow
+ *                                             // regional variation of its own (mix_salt), so tree mixes vary             // only when this bridge option is on in the world (shores, ground_cover,
  *                                             // mountain_snow, natural_snow_layers)          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
  *                                             // features that set snow layers themselves, which would cut through the
  *                                             // bridge's snow along chunk borders
@@ -76,7 +80,8 @@ public final class TerrainFilter extends PlacementFilter {
          Codec.FLOAT.listOf().optionalFieldOf("treeline", List.of()).forGetter(f -> f.treeline),
          Codec.STRING.listOf().optionalFieldOf("skip_if_loaded", List.of()).forGetter(f -> f.skipIfLoaded),
          Codec.STRING.listOf().optionalFieldOf("terrain_categories", List.of()).forGetter(f -> f.terrainCategories),
-         Codec.STRING.optionalFieldOf("requires_option", "").forGetter(f -> f.requiresOption)
+         Codec.STRING.optionalFieldOf("requires_option", "").forGetter(f -> f.requiresOption),
+         Forest.CODEC.forGetter(f -> f.forest)
       ).apply(i, TerrainFilter::new));
    public static final PlacementModifierType<TerrainFilter> TYPE = () -> CODEC;
 
@@ -94,10 +99,22 @@ public final class TerrainFilter extends PlacementFilter {
    private final boolean skipped;
    private final List<String> terrainCategories;
    private final String requiresOption;
+   private final Forest forest;
+
+   private record Forest(int edge, float clearings, float regionalMix, int mixSalt) {
+      static final MapCodec<Forest> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
+            Codec.INT.optionalFieldOf("forest_edge", 0).forGetter(Forest::edge),
+            Codec.FLOAT.optionalFieldOf("clearings", 0.0F).forGetter(Forest::clearings),
+            Codec.FLOAT.optionalFieldOf("regional_mix", 0.0F).forGetter(Forest::regionalMix),
+            Codec.INT.optionalFieldOf("mix_salt", 0).forGetter(Forest::mixSalt)
+         ).apply(i, Forest::new));
+   }
 
    private TerrainFilter(Ranges ranges, List<String> riverZones, Optional<String> preferFacing, float facingBias, float ridgeThinning,
                          boolean avoidChutes, boolean skipWithNaturalSnow, int maxAboveWater, boolean requiresRain,
-                         List<Float> treeline, List<String> skipIfLoaded, List<String> terrainCategories, String requiresOption) {
+                         List<Float> treeline, List<String> skipIfLoaded, List<String> terrainCategories, String requiresOption,
+                         Forest forest) {
+      this.forest = forest;
       this.terrainCategories = terrainCategories.stream().map(s -> s.toLowerCase(Locale.ROOT)).toList();
       this.requiresOption = requiresOption;
       this.treeline = treeline;
@@ -206,6 +223,19 @@ public final class TerrainFilter extends PlacementFilter {
             return false;
          }
       }
+      Forest f = this.forest;
+      if (f.edge > 0 && !ForestEdges.nearEdge(level, x, pos.getY(), z, f.edge)) {
+         return false;
+      }
+      if ((f.clearings > 0.0F || f.regionalMix > 0.0F) && optionOn("forest_variety")) {
+         long seed = level.getSeed();
+         if (f.clearings > 0.0F && GroundCover.patch(seed, x, z, 171, 40.0F) > 1.0F - f.clearings) {
+            return false;
+         }
+         if (f.regionalMix > 0.0F && random.nextFloat() < f.regionalMix * GroundCover.patch(seed, x, z, 200 + f.mixSalt, 350.0F)) {
+            return false;
+         }
+      }
       return true;
    }
 
@@ -227,6 +257,7 @@ public final class TerrainFilter extends PlacementFilter {
          case "ground_cover" -> GroundCover.active(s);
          case "mountain_snow" -> MountainSnow.active(s);
          case "natural_snow_layers" -> NaturalSnow.active(s);
+         case "forest_variety" -> BridgeConfig.enabled() && s.forestVariety();
          default -> true;
       };
    }
