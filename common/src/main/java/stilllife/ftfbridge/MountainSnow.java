@@ -61,23 +61,34 @@ final class MountainSnow {
    }
 
    /**
-    * How much snow a place gets from its climate, about 0.3 (dry, warm) to 1.8 (wet, cold): the biome (dry / wet tags, base
-    * temperature), the local humidity of Still Life's climate, and a slow regional variation (about a kilometre across),
-    * so ranges differ from each other: some heavily snowed, some mostly bare rock.
+    * How much snow falls here, about 0.25 (arid) to 1.75 (wet): Still Life's humidity at this place (the climate around a
+    * mountain, not the peak biome on its top; blended per block, so no 4-block steps), a slow regional variation (about a
+    * kilometre across) so ranges differ, and less in warm latitudes.
     */
    static float climateSnow(Holder<Biome> biome, int x, int y, int z, long seed) {
       float humidity = StillLifeClimateBridge.humidity(x, y, z);
       float region = GroundCover.patch(seed, x, z, 131, 1100.0F) - 0.5F;
-      return Math.max(0.3F, Math.min(1.8F, snowiness(biome) * (1.0F + 0.45F * humidity + 0.8F * region)));
+      float moist = Math.max(0.0F, Math.min(1.0F, 0.5F + 0.7F * humidity + 0.6F * region));
+      // warm latitudes get less snow at the same height (Still Life's latitude temperature; snow_line_climate raises the
+      // line there too)
+      float lat = StillLifeClimateBridge.latitudeTemperature(z);
+      if (lat > 0.2F) {
+         moist *= 1.0F - Math.min(0.7F, (lat - 0.2F) * 0.9F);
+      }
+      return 0.25F + 1.5F * moist;
    }
 
    /**
-    * > 0 when this spot keeps snow ground, < 0 when it is bare: how sheltered it is (hollows and gullies, north faces, the
-    * side away from the wind; sunny south faces, wind-facing slopes and exposed ridges last) against how much of the
-    * ground holds snow at this height in this climate. The share rises from nothing well below the snow line, through
-    * about 85% at it, to all of it some way above; wetter climates move the whole curve down the mountain and drier ones
-    * up, so dry ranges have patchy peaks and wet ones snow far down. Below the line in cold climates it reaches further
-    * down, onto lower mountains too.
+    * More than 0 when this spot holds snow, less than 0 when it is bare. The one snow model of the bridge, used for snow
+    * ground, bare rock and snow layers alike.
+    *
+    * <p>Each place has its own snow line: where Still Life's snowy peaks begin (which already follows latitude with
+    * snow_line_climate), raised in dry climates and lowered in wet ones (by up to about 80 blocks), and brought down
+    * towards the sea in cold latitudes. Above it, the share of ground that holds snow is capped by the climate: about a
+    * quarter in arid places (snow only in the most sheltered spots), about two thirds in a normal climate, nearly all of it
+    * where it is wet. Below the line the share falls off over the reach (further in cold, wet places). Which spots get it
+    * is decided by shelter: hollows and gullies, north faces and the side away from the wind first; sunny south faces,
+    * wind-facing slopes and exposed ridges last.
     */
    static double score(WorldGenLevel level, int x, int y, int z, float slope, Holder<Biome> biome, long seed) {
       double d = StillLifeClimateBridge.capLineDistance(x, y, z);
@@ -85,23 +96,28 @@ final class MountainSnow {
          return Double.NaN;
       }
       float snow = climateSnow(biome, x, y, z, seed);
-      double dEff = d + 60.0 * (snow - 1.0);
+      float lat = StillLifeClimateBridge.latitudeTemperature(z);
+      double lineShift = (1.0 - snow) * 110.0;
+      if (lat < -0.3F) {
+         lineShift -= (-0.3F - lat) * 500.0;
+      }
+      double dEff = d - lineShift;
+      double top = Math.max(0.2, Math.min(1.0, 0.1 + 0.55 * snow));
       double coverage;
       if (dEff < 0.0) {
-         float t = biome.value().getBaseTemperature();
-         double reach = REACH * Math.min(1.3, snow) * (t < 0.3F ? 1.0 + Math.min(1.0, (0.3F - t) * 1.5) : 1.0);
+         double reach = REACH * Math.min(1.3, snow) * (lat < -0.3F ? 1.0 + Math.min(1.0, (-0.3F - lat) * 1.5) : 1.0);
          if (dEff < -reach) {
             return -1.0;
          }
          double u = 1.0 + dEff / reach;
-         coverage = u * u * 0.85;
+         coverage = top * u * u;
       } else {
-         double top = Math.max(0.7, Math.min(1.0, 0.6 + 0.4 * snow));
-         coverage = 0.85 + (top - 0.85) * Math.min(1.0, dEff / 40.0);
+         coverage = top;
       }
 
-      String facing = FtfTerrain.facing(level, x, z);
-      float hollow = FtfTerrain.hollow(level, x, z);
+      // shelter from the shape of the land over several blocks, not single steps (which drew bare rows along terraces)
+      String facing = FtfTerrain.facingWide(level, x, z);
+      float hollow = FtfTerrain.hollowWide(level, x, z) / 2.5F;
       float shelter = 0.5F * Math.max(-1.0F, Math.min(1.5F, hollow));
       if (hollow > 0.45F && slope > 0.4F) {
          shelter += 0.35F; // couloir
@@ -117,37 +133,70 @@ final class MountainSnow {
          // the wind scours steep slopes facing it, more in dry places
          shelter -= 0.25F + Math.max(0.0F, Math.min(1.0F, (slope - 0.3F) / 0.4F)) * 0.35F * (1.6F - Math.min(1.6F, snow));
       }
-      double keep = 0.5 + shelter * 0.45 + (GroundCover.patch(seed, x, z, 103, 6.0F) - 0.5) * 0.5;
+      // 0..1 (capped, so where the climate allows almost no snow, even the most sheltered spot stays bare)
+      double keep = Math.max(0.0, Math.min(0.995, 0.5 + shelter * 0.45 + (GroundCover.patch(seed, x, z, 103, 6.0F) - 0.5) * 0.5));
       return keep - (1.0 - coverage);
    }
 
-   /** True when this column was handled (FTF's own erosion is then skipped for it). */
-   static boolean column(ChunkAccess chunk, int x, int y, int z, float slope) {
-      WorldGenLevel level = GroundCover.level();
-      if (level == null) {
-         return false;
+   /** Biomes whose snow ground belongs to the mountains (so the model may bare it), not to a cold lowland climate. */
+   static final TagKey<Biome> MOUNTAIN = TagKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("c", "is_mountain"));
+
+   /** Glaciers and ice keep their snow whatever the model says. */
+   static boolean glacier(Holder<Biome> biome) {
+      String path = biome.unwrapKey().map(k -> k.location().getPath()).orElse("");
+      return path.contains("glacier") || path.contains("ice") || path.contains("frozen");
+   }
+
+   static boolean mountainBiome(Holder<Biome> biome) {
+      if (biome.is(MOUNTAIN)) {
+         return true;
       }
-      BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, y, z);
-      BlockState top = chunk.getBlockState(pos);
-      boolean snow = SnowCaps.isSnow(top);
-      if (!snow && !snowable(top)) {
-         return false;
+      String path = biome.unwrapKey().map(k -> k.location().getPath()).orElse("");
+      return path.contains("peak") || path.contains("alpine") || path.contains("glacier");
+   }
+
+   /**
+    * The snow ground of one chunk, after FTF's erosion pass (raw generation): every column, not only those FTF's erosion
+    * looks at. Snow ground the model leaves bare becomes the rock under it (whatever biome made it: with altitude_cooling,
+    * Still Life puts cold biomes high up in warm lands too; the model keeps snow down to the sea in cold latitudes; glaciers
+    * keep theirs), and soil or rock where the model has snow becomes snow ground.
+    */
+   static void chunk(WorldGenLevel level, ChunkAccess chunk) {
+      etcodehome.freeterraforged.world.worldgen.GeneratorContext ctx = FtfTerrain.context(level);
+      if (ctx == null) {
+         return;
       }
       long seed = level.getSeed();
-      Holder<Biome> biome = chunk.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z));
-      double score = score(level, x, y, z, slope, biome, seed);
-      if (Double.isNaN(score)) {
-         return false;
+      int x0 = chunk.getPos().getMinBlockX();
+      int z0 = chunk.getPos().getMinBlockZ();
+      BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+      for (int lz = 0; lz < 16; lz++) {
+         for (int lx = 0; lx < 16; lx++) {
+            int x = x0 + lx;
+            int z = z0 + lz;
+            int y = FtfTerrain.ground(level, x, z);
+            pos.set(x, y, z);
+            BlockState top = chunk.getBlockState(pos);
+            boolean snow = SnowCaps.isSnow(top);
+            if (!snow && !snowable(top)) {
+               continue;
+            }
+            Holder<Biome> biome = chunk.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z));
+            if (snow && glacier(biome)) {
+               continue;
+            }
+            float slope = FtfTerrain.cell(ctx, chunk, x, z).gradient;
+            double score = score(level, x, y, z, slope, biome, seed);
+            if (Double.isNaN(score)) {
+               continue;
+            }
+            if (snow && score < 0.0) {
+               bare(chunk, x, y, z);
+            } else if (!snow && score >= 0.0) {
+               snowGround(chunk, pos, y);
+            }
+         }
       }
-      if (snow && score < 0.0) {
-         bare(chunk, x, y, z);
-         return true;
-      }
-      if (!snow && score >= 0.0) {
-         snowGround(chunk, pos, y);
-         return true;
-      }
-      return false;
    }
 
    /** How far below the snow line leftover snow reaches (blocks, before the climate scales it). */

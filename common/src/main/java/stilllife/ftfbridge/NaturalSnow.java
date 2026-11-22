@@ -118,6 +118,16 @@ final class NaturalSnow {
 
             Cell cell = FtfTerrain.cell(ctx, chunk, x, z);
             float slope = cell.gradient;
+            // Minecraft freezes every biome high enough up (its temperature drops with height), so warm and dry lands get
+            // snow over everything above a few hundred blocks. mountain_snow decides instead: no snow where its model
+            // has none (its snow line comes down to the sea in cold latitudes; glaciers keep theirs).
+            if (MountainSnow.active(s) && !MountainSnow.glacier(holder)
+               && MountainSnow.score(level, x, top, z, slope, holder, level.getSeed()) < 0.0) {
+               if (hasSnow) {
+                  clear(chunk, pos);
+               }
+               continue;
+            }
             if (slope > cliff) {
                if (hasSnow) {
                   clear(chunk, pos);

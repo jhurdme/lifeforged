@@ -969,7 +969,7 @@ public final class StillLifeClimateBridge {
       }
       int qx = QuartPos.fromBlock(x);
       int qz = QuartPos.fromBlock(z);
-      double d = y - (w.peaksHeight - peakShift(w, w.ctx, qx, qz));
+      double d = capLineDistance(x, y, z);
       if (d >= fade) {
          return 1.0;
       }
@@ -985,14 +985,36 @@ public final class StillLifeClimateBridge {
       return share;
    }
 
-   /** Still Life's humidity (-1 dry to 1 wet) at this position, cached per 4x4 column; 0 before the world is known. */
+   /** Still Life's latitude temperature here (1 at the equator, -1 at pole_distance), or 0 without latitude=still_life. */
+   static float latitudeTemperature(int z) {
+      StillLifeClimateBridge.World w = last;
+      if (w == null || !w.settings.stillLifeLatitude()) {
+         return 0.0F;
+      }
+      return (float)clamp(1.0 - 2.0 * Math.abs(z + w.equatorZ) / w.settings.poleDistance(), -1.0, 1.0);
+   }
+
+   /** Still Life's humidity (-1 dry to 1 wet) at this block, blended between the 4x4 columns around it (no 4-block steps). */
    static float humidity(int x, int y, int z) {
+      double fx = (x - 2) / 4.0;
+      double fz = (z - 2) / 4.0;
+      int qx = (int)Math.floor(fx);
+      int qz = (int)Math.floor(fz);
+      float tx = (float)(fx - qx);
+      float tz = (float)(fz - qz);
+      float h00 = quartHumidity(qx, y, qz);
+      float h10 = quartHumidity(qx + 1, y, qz);
+      float h01 = quartHumidity(qx, y, qz + 1);
+      float h11 = quartHumidity(qx + 1, y, qz + 1);
+      return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
+   }
+
+   /** Still Life's humidity of one 4x4 column, cached; 0 before the world is known. */
+   private static float quartHumidity(int qx, int y, int qz) {
       Sampler sampler = lastSampler;
       if (sampler == null) {
          return 0.0F;
       }
-      int qx = QuartPos.fromBlock(x);
-      int qz = QuartPos.fromBlock(z);
       HumidityCache c = HUMIDITY_CACHE.get();
       int slot = (qx * 31 + qz) & (HumidityCache.SIZE - 1);
       if (c.sampler[slot] == sampler && c.qx[slot] == qx && c.qz[slot] == qz) {
@@ -1022,7 +1044,20 @@ public final class StillLifeClimateBridge {
       if (w == null) {
          return Double.NaN;
       }
-      return y - (w.peaksHeight - peakShift(w, w.ctx, QuartPos.fromBlock(x), QuartPos.fromBlock(z)));
+      // the shift is worked out per 4x4 column (biome resolution); blend the four around this block, so the line has no
+      // 4-block steps when it decides single blocks (snow ground, snow layers)
+      double fx = (x - 2) / 4.0;
+      double fz = (z - 2) / 4.0;
+      int qx = (int)Math.floor(fx);
+      int qz = (int)Math.floor(fz);
+      double tx = fx - qx;
+      double tz = fz - qz;
+      double s00 = peakShift(w, w.ctx, qx, qz);
+      double s10 = peakShift(w, w.ctx, qx + 1, qz);
+      double s01 = peakShift(w, w.ctx, qx, qz + 1);
+      double s11 = peakShift(w, w.ctx, qx + 1, qz + 1);
+      double shift = (s00 * (1 - tx) + s10 * tx) * (1 - tz) + (s01 * (1 - tx) + s11 * tx) * tz;
+      return y - (w.peaksHeight - shift);
    }
 
    /**

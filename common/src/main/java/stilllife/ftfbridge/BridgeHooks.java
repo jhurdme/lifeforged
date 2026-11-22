@@ -41,16 +41,15 @@ public final class BridgeHooks {
       GroundCover.end();
    }
 
-   /** True when mountain_snow handled this column of FTF's erosion decorator (snow ground made or scoured). */
-   public static boolean mountainSnow(net.minecraft.world.level.chunk.ChunkAccess chunk, int x, int y, int z, float slope) {
+   /** mountain_snow's pass over one chunk, at the end of FTF's erosion decorator. */
+   public static void mountainSnowChunk(net.minecraft.world.level.WorldGenLevel level, net.minecraft.core.BlockPos origin) {
       if (!MountainSnow.active(WorldLock.activeSettings())) {
-         return false;
+         return;
       }
       try {
-         return MountainSnow.column(chunk, x, y, z, slope);
+         MountainSnow.chunk(level, level.getChunk(origin.getX() >> 4, origin.getZ() >> 4));
       } catch (RuntimeException | LinkageError e) {
          logOnce("mountain snow", e);
-         return false;
       }
    }
 

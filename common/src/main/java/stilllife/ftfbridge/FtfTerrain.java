@@ -70,10 +70,56 @@ final class FtfTerrain {
       return v;
    }
 
+   /**
+    * FreeTerraForged's own estimate of the top block at x/z (its terrain height model): available for every chunk at every
+    * stage, so it is the same whatever order chunks are generated in. Within a block or two of the real top.
+    */
+   static int estimate(WorldGenLevel level, int x, int z) {
+      GeneratorContext ctx = context(level);
+      if (ctx == null) {
+         return level.getMinBuildHeight();
+      }
+      // its own scratch cell, so callers holding the one cell() returns keep their values
+      Cell out = ESTIMATE.get();
+      net.minecraft.world.level.chunk.ChunkAccess chunk = level.getChunk(x >> 4, z >> 4);
+      Cell[] cells = chunk instanceof IChunkCellsHolder holder ? holder.freeterraforged$getOrCreateChunkCells(ctx) : null;
+      if (cells != null) {
+         out.copyFrom(cells[(z & 15) * 16 + (x & 15)]);
+      } else {
+         out.reset();
+         ctx.lookup.applyCell(out, x, z, false, false);
+      }
+      return ctx.heightmap.levels().scale(out.height);
+   }
+
    private static int scanGround(WorldGenLevel level, int x, int z) {
+      // a neighbouring chunk that is still at an early stage of generation has no terrain blocks yet (every read there
+      // found the bottom of the world, which drew bare lines along chunk borders, on the sides generated later): use
+      // FreeTerraForged's height for it
+      net.minecraft.world.level.chunk.ChunkAccess target = level.getChunk(x >> 4, z >> 4);
+      if (!target.getPersistedStatus().isOrAfter(net.minecraft.world.level.chunk.status.ChunkStatus.NOISE)) {
+         return estimate(level, x, z);
+      }
       BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
       int min = level.getMinBuildHeight();
+      int max = level.getMaxBuildHeight() - 1;
       int y = Math.max(level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z), level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z));
+      if (y <= min + 1) {
+         // a neighbouring chunk whose terrain height maps are not filled in yet reports the bottom of the world: start
+         // from the top of its highest filled section instead (climbing up from the bottom would stop in the first cave,
+         // which is what drew bare lines along chunk borders)
+         net.minecraft.world.level.chunk.ChunkAccess chunk = level.getChunk(x >> 4, z >> 4);
+         int index = chunk.getHighestFilledSectionIndex();
+         if (index < 0) {
+            return min;
+         }
+         y = Math.min(max, net.minecraft.core.SectionPos.sectionToBlockCoord(chunk.getSectionYFromSectionIndex(index)) + 15);
+      } else {
+         // a height map can also sit a little below the real top: climb to it
+         while (y < max && isTerrain(level.getBlockState(pos.set(x, y + 1, z)), level, pos)) {
+            y++;
+         }
+      }
       for (; y >= min; y--) {
          net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos.set(x, y, z));
          if (isTerrain(state, level, pos)) {
@@ -142,6 +188,37 @@ final class FtfTerrain {
       return dx > 0 ? "west" : "east";
    }
 
+   /**
+    * Like hollow(), but over the shape of the land rather than single steps: the ground 3 and 6 blocks around (12 points)
+    * against this column. 1-block terraces don't register; gullies, bowls and ridges do.
+    */
+   static float hollowWide(WorldGenLevel level, int x, int z) {
+      // from FreeTerraForged's terrain model throughout, so it is the same in every chunk whatever its neighbours' stage
+      int h0 = estimate(level, x, z);
+      float sum = 0.0F;
+      for (int i = 0; i < 8; i++) {
+         int dx = i == 0 || i == 1 || i == 7 ? 6 : i == 3 || i == 4 || i == 5 ? -6 : 0;
+         int dz = i == 1 || i == 2 || i == 3 ? 6 : i == 5 || i == 6 || i == 7 ? -6 : 0;
+         sum += Math.max(h0 - 12, Math.min(h0 + 12, estimate(level, x + dx, z + dz)));
+      }
+      float near = 0.0F;
+      near += estimate(level, x + 3, z) + estimate(level, x - 3, z) + estimate(level, x, z + 3) + estimate(level, x, z - 3);
+      return (sum / 8.0F + near / 4.0F) / 2.0F - h0;
+   }
+
+   /** The way the land falls here over 8 blocks: north, south, east, west, or flat (less than 3 blocks). */
+   static String facingWide(WorldGenLevel level, int x, int z) {
+      int dx = estimate(level, x + 4, z) - estimate(level, x - 4, z);
+      int dz = estimate(level, x, z + 4) - estimate(level, x, z - 4);
+      if (Math.max(Math.abs(dx), Math.abs(dz)) < 3) {
+         return "flat";
+      }
+      if (Math.abs(dz) >= Math.abs(dx)) {
+         return dz > 0 ? "north" : "south";
+      }
+      return dx > 0 ? "west" : "east";
+   }
+
    /** A steep gully: where avalanches and rockfall keep mountain forests open in strips. */
    static boolean isChute(float slope, float hollow) {
       return slope > 0.5F && hollow > 0.35F;
@@ -168,6 +245,7 @@ final class FtfTerrain {
    }
 
    private static final ThreadLocal<Cell> RING = ThreadLocal.withInitial(Cell::new);
+   private static final ThreadLocal<Cell> ESTIMATE = ThreadLocal.withInitial(Cell::new);
 
    static Cell cell(GeneratorContext ctx, ChunkAccess chunk, int x, int z) {
       Cell out = SCRATCH.get();

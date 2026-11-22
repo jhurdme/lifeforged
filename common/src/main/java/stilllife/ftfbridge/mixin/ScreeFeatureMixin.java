@@ -36,11 +36,6 @@ abstract class ScreeFeatureMixin {
       int surfaceY,
       CallbackInfo ci
    ) {
-      float slope = cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier();
-      if (BridgeHooks.mountainSnow(chunk, pos.getX(), surfaceY, pos.getZ(), slope)) {
-         ci.cancel();
-         return;
-      }
       if (BridgeHooks.keepSnow(config, chunk, pos.getX(), surfaceY, pos.getZ(), cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier())) {
          ci.cancel();
          return;
@@ -57,6 +52,7 @@ abstract class ScreeFeatureMixin {
 
    @Inject(method = "place", at = @At("RETURN"))
    private void stilllife$end(FeaturePlaceContext<ScreeFeature.Config> context, CallbackInfoReturnable<Boolean> cir) {
+      BridgeHooks.mountainSnowChunk(context.level(), context.origin());
       BridgeHooks.groundCoverEnd();
    }
 }
