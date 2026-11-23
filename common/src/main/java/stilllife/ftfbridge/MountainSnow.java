@@ -91,31 +91,15 @@ final class MountainSnow {
     * wind-facing slopes and exposed ridges last.
     */
    static double score(WorldGenLevel level, int x, int y, int z, float slope, Holder<Biome> biome, long seed) {
-      double d = StillLifeClimateBridge.capLineDistance(x, y, z);
-      if (Double.isNaN(d)) {
+      double coverage = coverage(x, y, z, biome, seed);
+      if (Double.isNaN(coverage)) {
          return Double.NaN;
       }
+      if (coverage <= 0.0) {
+         return -1.0;
+      }
       float snow = climateSnow(biome, x, y, z, seed);
-      float lat = StillLifeClimateBridge.latitudeTemperature(z);
-      double lineShift = (1.0 - snow) * 110.0;
-      if (lat < -0.3F) {
-         lineShift -= (-0.3F - lat) * 500.0;
-      }
-      double dEff = d - lineShift;
-      double top = Math.max(0.2, Math.min(1.0, 0.1 + 0.55 * snow));
-      double coverage;
-      if (dEff < 0.0) {
-         double reach = REACH * Math.min(1.3, snow) * (lat < -0.3F ? 1.0 + Math.min(1.0, (-0.3F - lat) * 1.5) : 1.0);
-         if (dEff < -reach) {
-            return -1.0;
-         }
-         double u = 1.0 + dEff / reach;
-         coverage = top * u * u;
-      } else {
-         coverage = top;
-      }
 
-      // shelter from the shape of the land over several blocks, not single steps (which drew bare rows along terraces)
       String facing = FtfTerrain.facingWide(level, x, z);
       float hollow = FtfTerrain.hollowWide(level, x, z) / 2.5F;
       float shelter = 0.5F * Math.max(-1.0F, Math.min(1.5F, hollow));
@@ -136,6 +120,34 @@ final class MountainSnow {
       // 0..1 (capped, so where the climate allows almost no snow, even the most sheltered spot stays bare)
       double keep = Math.max(0.0, Math.min(0.995, 0.5 + shelter * 0.45 + (GroundCover.patch(seed, x, z, 103, 6.0F) - 0.5) * 0.5));
       return keep - (1.0 - coverage);
+   }
+
+   /**
+    * The share of the ground around here that holds snow (0..1) at this height in this climate, before shelter picks the
+    * spots; NaN before the world is known. See score().
+    */
+   static double coverage(int x, int y, int z, Holder<Biome> biome, long seed) {
+      double d = StillLifeClimateBridge.capLineDistance(x, y, z);
+      if (Double.isNaN(d)) {
+         return Double.NaN;
+      }
+      float snow = climateSnow(biome, x, y, z, seed);
+      float lat = StillLifeClimateBridge.latitudeTemperature(z);
+      double lineShift = (1.0 - snow) * 110.0;
+      if (lat < -0.3F) {
+         lineShift -= (-0.3F - lat) * 500.0;
+      }
+      double dEff = d - lineShift;
+      double top = Math.max(0.2, Math.min(1.0, 0.1 + 0.55 * snow));
+      if (dEff >= 0.0) {
+         return top;
+      }
+      double reach = REACH * Math.min(1.3, snow) * (lat < -0.3F ? 1.0 + Math.min(1.0, (-0.3F - lat) * 1.5) : 1.0);
+      if (dEff < -reach) {
+         return 0.0;
+      }
+      double u = 1.0 + dEff / reach;
+      return top * u * u;
    }
 
    /** Biomes whose snow ground belongs to the mountains (so the model may bare it), not to a cold lowland climate. */

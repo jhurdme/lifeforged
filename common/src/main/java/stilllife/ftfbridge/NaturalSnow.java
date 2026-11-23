@@ -98,23 +98,17 @@ final class NaturalSnow {
             int x = x0 + lx;
             int z = z0 + lz;
             int g = ground[(lz + R) * SIZE + lx + R];
-            int top = realGround(chunk, pos, x, z);
-            if (top < 0) {
-               continue;
-            }
             boolean mountainSnow = MountainSnow.active(s);
-            if (mountainSnow) {
-               top = meltIce(level, chunk, pos, x, top, z, ctx);
-            }
             int canopy = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz) - 1;
-            if (canopy > top + 1) {
-               // under trees: Minecraft put its snow on the treetops. With mountain_snow they follow the ground: no
-               // snow on the ground here, none on the leaves either.
+            if (canopy > g + 1 && treeTop(chunk, pos, x, canopy, z)) {
+               // under trees (g is the terrain's own top, below trunks and leaves): Minecraft put its snow on the
+               // treetops only. With mountain_snow, treetops keep it only where most of the ground around holds snow,
+               // so trees aren't white over green or bare ground.
                if (mountainSnow) {
-                  pos.set(x, top, z);
+                  pos.set(x, g, z);
                   net.minecraft.core.Holder<Biome> h = level.getBiome(pos);
-                  if (!MountainSnow.glacier(h)
-                     && MountainSnow.score(level, x, top, z, FtfTerrain.cell(ctx, chunk, x, z).gradient, h, level.getSeed()) < 0.0) {
+                  double coverage = MountainSnow.glacier(h) ? 1.0 : MountainSnow.coverage(x, g, z, h, level.getSeed());
+                  if (!Double.isNaN(coverage) && coverage < 0.6) {
                      pos.setY(canopy);
                      if (chunk.getBlockState(pos).is(Blocks.SNOW)) {
                         chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
@@ -122,6 +116,13 @@ final class NaturalSnow {
                   }
                }
                continue;
+            }
+            int top = realGround(chunk, pos, x, z);
+            if (top < 0) {
+               continue;
+            }
+            if (mountainSnow) {
+               top = meltIce(level, chunk, pos, x, top, z, ctx);
             }
             // something stands on the terrain here (a boulder, a log): leave it
             if (Math.abs(top - g) > 1) {
@@ -264,6 +265,15 @@ final class NaturalSnow {
          }
       }
       return Math.max(rock ? 2 : 1, Math.min(7, Math.round(depth)));
+   }
+
+   /** True when the top of this column is a tree (leaves or a log, or a snow layer on one). */
+   private static boolean treeTop(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+      BlockState state = chunk.getBlockState(pos.set(x, y, z));
+      if (state.is(Blocks.SNOW)) {
+         state = chunk.getBlockState(pos.set(x, y - 1, z));
+      }
+      return state.is(net.minecraft.tags.BlockTags.LEAVES) || state.is(net.minecraft.tags.BlockTags.LOGS);
    }
 
    /**

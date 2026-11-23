@@ -195,8 +195,7 @@ final class BridgeConfig {
 
          # true = the ground on slopes suits the place, in one family of colours after FTF's own mix: grey talus of
          # gravel, tuff, andesite and stone on steep slopes (with moss where it is wet), coarse dirt, moss and gravel
-         # where soil thins out, sandstone and red sandstone in deserts; rockfall gravel and the odd boulder at the
-         # foot of cliffs, and fans of gravel fading to finer ground below steep slopes where erosion left sediment.
+         # where soil thins out, sandstone and red sandstone in deserts; rockfall gravel at the foot of cliffs, and fans of gravel fading to finer ground below steep slopes where erosion left sediment.
          # Along rivers: gravel and sand bars (mud where warm and wet) at the water's edge, and in dry lands a green
          # strip of grass on the banks and valley floor. Below the snow line, an alpine belt where grass breaks up
          # into coarse dirt, gravel, moss and stone. false = FTF's own mix everywhere.

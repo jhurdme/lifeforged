@@ -34,7 +34,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
  *       in temperate land, with mossy cobble where it is warm and wet; sandstone (or red sandstone and terracotta) with
  *       gravel in deserts;</li>
  *   <li>thin soil on moderate slopes: patches of coarse dirt, rooted dirt or gravel between the ground Still Life laid;</li>
- *   <li>at the foot of cliffs: an apron of rockfall gravel (sand and sandstone in deserts) and the odd boulder;</li>
+ *   <li>at the foot of cliffs: an apron of rockfall gravel (sand and sandstone in deserts);</li>
  *   <li>in dry lands, gravel and coarse dirt washes where FTF's erosion left sediment on flat ground.</li>
  * </ul>
  */
@@ -93,11 +93,6 @@ final class GroundCover {
    private static final BlockState TUFF = Blocks.TUFF.defaultBlockState();
    private static final BlockState MOSS = Blocks.MOSS_BLOCK.defaultBlockState();
 
-   private static final Palette TALUS_COLD = Palette.of(GRAVEL, 3, TUFF, 2, ANDESITE, 2, STONE, 2, COBBLE, 1);
-   private static final Palette TALUS_TEMPERATE = Palette.of(TUFF, 3, ANDESITE, 2, GRAVEL, 2, COARSE_DIRT, 1, MOSS, 1);
-   private static final Palette TALUS_HUMID = Palette.of(TUFF, 2, MOSS, 2, GRAVEL, 2, ANDESITE, 1, MOSSY_COBBLE, 1);
-   private static final Palette TALUS_ARID = Palette.of(SANDSTONE, 3, GRAVEL, 1, SAND, 1);
-   private static final Palette TALUS_RED = Palette.of(RED_SANDSTONE, 2, TERRACOTTA, 1, GRAVEL, 1, RED_SAND, 1);
 
    private static final Palette ALPINE_COLD = Palette.of(COARSE_DIRT, 3, GRAVEL, 2, TUFF, 1, MOSS, 1, STONE, 1);
    private static final Palette ALPINE_TEMPERATE = Palette.of(COARSE_DIRT, 3, MOSS, 2, GRAVEL, 2, TUFF, 1);
@@ -178,7 +173,7 @@ final class GroundCover {
       Climate climate = climate(chunk, pos, top, surfaceY);
 
       if (steepness > config.screeSteepness()) {
-         BlockState m = talus(climate).pick(patch(seed, x, z, 11, 9.0F));
+         BlockState m = talusBlock(seed, x, z, climate, biomeTemperature(chunk, pos, surfaceY), patch(seed, x, z, 11, 9.0F));
          ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 3, m);
          return;
       }
@@ -206,7 +201,7 @@ final class GroundCover {
 
    /**
     * Below cliffs and steep slopes (the terrain rising at least 1 + 2d blocks within d blocks): within 3 blocks a gravel
-    * apron, thinner further out, with the odd boulder on it; where FTF's erosion left sediment, an alluvial fan reaching 6
+    * apron, thinner further out; where FTF's erosion left sediment, an alluvial fan reaching 6
     * blocks out that grades from gravel to coarse dirt (sand in deserts).
     */
    private static boolean cliffFoot(
@@ -242,20 +237,6 @@ final class GroundCover {
       };
       ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, apron);
 
-      if (near <= 2 && hash(seed, x, z, 67) < 0.05F) {
-         pos.setY(surfaceY + 1);
-         if (chunk.getBlockState(pos).isAir()) {
-            BlockState rock = switch (climate) {
-               case ARID -> SANDSTONE;
-               case RED_ARID -> RED_SANDSTONE;
-               case HUMID -> hash(seed, x, z, 69) < 0.6F ? MOSSY_COBBLE : COBBLE;
-               case COLD -> hash(seed, x, z, 69) < 0.5F ? STONE : COBBLE;
-               default -> hash(seed, x, z, 69) < 0.25F ? MOSSY_COBBLE : COBBLE;
-            };
-            chunk.setBlockState(pos, rock, false);
-         }
-         pos.setY(surfaceY);
-      }
       return true;
    }
 
@@ -268,7 +249,7 @@ final class GroundCover {
    /**
     * The alpine belt: the 60 blocks below where the snowy peaks begin here (which follows peak_line_variation and
     * snow_line_climate). Going up, the grass breaks up into patches of coarse dirt, gravel and frost-shattered stone (moss
-    * where it is wet), with a scattering of boulders; sunny south faces and sheltered hollows stay green longest, steep
+    * where it is wet); sunny south faces and sheltered hollows stay green longest, steep
     * ground goes first. True when this column was changed.
     */
    private static boolean alpine(
@@ -303,18 +284,13 @@ final class GroundCover {
             case COLD -> ALPINE_COLD;
             default -> ALPINE_TEMPERATE;
          };
-         ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, palette.pick(patch(seed, x, z, 123, 3.0F)));
-         changed = true;
-      }
-      if (hash(seed, x, z, 125) < 0.012F * t) {
-         pos.setY(surfaceY + 1);
-         if (chunk.getBlockState(pos).isAir()) {
-            float r = hash(seed, x, z, 127);
-            BlockState rock = climate == Climate.HUMID && r < 0.4F ? MOSSY_COBBLE : r < 0.35F ? STONE : r < 0.7F ? ANDESITE : COBBLE;
-            chunk.setBlockState(pos, rock, false);
-            changed = true;
+         BlockState m = palette.pick(patch(seed, x, z, 123, 3.0F));
+         if (m == STONE || m == TUFF) {
+            // the rock share of the alpine ground is the region's own rock
+            m = talusBlock(seed, x, z, climate, biomeTemperature(chunk, pos, surfaceY), patch(seed, x, z, 124, 3.0F));
          }
-         pos.setY(surfaceY);
+         ColumnDecorator.fillDownSolid(chunk, pos, surfaceY, surfaceY - 1, m);
+         changed = true;
       }
       return changed;
    }
@@ -419,14 +395,16 @@ final class GroundCover {
       return false;
    }
 
+   static float biomeTemperature(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int y) {
+      return chunk.getNoiseBiome(QuartPos.fromBlock(pos.getX()), QuartPos.fromBlock(y), QuartPos.fromBlock(pos.getZ())).value().getBaseTemperature();
+   }
+
    static Climate climate(ChunkAccess chunk, BlockPos.MutableBlockPos pos, BlockState top, int surfaceY) {
-      if (top.is(Blocks.RED_SAND)) {
-         return Climate.RED_ARID;
-      }
       Holder<Biome> holder = chunk.getNoiseBiome(QuartPos.fromBlock(pos.getX()), QuartPos.fromBlock(surfaceY), QuartPos.fromBlock(pos.getZ()));
       Biome biome = holder.value();
-      if (top.is(Blocks.SAND) || !biome.hasPrecipitation()) {
-         return Climate.ARID;
+      // dry from the biome (no rain, or tagged dry), not from a sand top: beaches and sandy coasts are not deserts
+      if (!biome.hasPrecipitation() || holder.is(MountainSnow.DRY)) {
+         return top.is(Blocks.RED_SAND) || top.is(BlockTags.TERRACOTTA) ? Climate.RED_ARID : Climate.ARID;
       }
       float t = biome.getBaseTemperature();
       if (t < 0.3F) {
@@ -438,14 +416,60 @@ final class GroundCover {
       return Climate.TEMPERATE;
    }
 
-   /** Nature's Spirit's sandy soil (installed with Still Life Naturalized), looked up once; null when it is not installed. */
+   /**
+    * The rock a region's slopes are made of: each region (about 700 blocks across) gets one family, so neighbouring hill
+    * ranges look different, and the climate decides which families can occur.
+    * <ul>
+    *   <li>GREY: stone, andesite and gravel with some tuff;</li>
+    *   <li>DARK: mostly tuff, with andesite, gravel and cobble;</li>
+    *   <li>PALE: limestone hills: Nature's Spirit travertine and calcite (diorite and calcite without it); commoner in warm
+    *       lands, rare in cold ones;</li>
+    *   <li>SAND: sandstone with sandy soil (dry lands);</li>
+    *   <li>RED: red sandstone and terracotta (red deserts);</li>
+    *   <li>CLAY: badland clays: Nature's Spirit brown, orange and white kaolin (terracotta colours without it).</li>
+    * </ul>
+    * In wet places moss (and mossy cobble or mossy travertine) comes in, in temperate ones some coarse dirt.
+    */
+   enum Family { GREY, DARK, PALE, SAND, RED, CLAY }
+
+   static Family family(long seed, int x, int z, Climate c, float temperature) {
+      float r = patch(seed, x, z, 181, 700.0F);
+      return switch (c) {
+         case ARID -> r < 0.55F ? Family.SAND : Family.CLAY;
+         case RED_ARID -> r < 0.6F ? Family.RED : Family.CLAY;
+         case COLD -> r < 0.55F ? Family.GREY : r < 0.9F ? Family.DARK : Family.PALE;
+         default -> {
+            float pale = temperature > 0.8F ? 0.5F : 0.72F;
+            yield r < pale * 0.55F ? Family.GREY : r < pale ? Family.DARK : Family.PALE;
+         }
+      };
+   }
+
+   /** Nature's Spirit's ground blocks (installed with Still Life Naturalized), looked up once; null when not installed. */
    private static final class Extra {
       static volatile Extra instance;
       final BlockState sandySoil;
+      final BlockState travertine;
+      final BlockState cobbledTravertine;
+      final BlockState mossyTravertine;
+      final BlockState brownKaolin;
+      final BlockState orangeKaolin;
+      final BlockState whiteKaolin;
+      final java.util.Map<String, Palette> talus = new java.util.concurrent.ConcurrentHashMap<>();
 
       private Extra() {
-         this.sandySoil = net.minecraft.core.registries.BuiltInRegistries.BLOCK
-            .getOptional(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("natures_spirit", "sandy_soil"))
+         this.sandySoil = ns("sandy_soil");
+         this.travertine = ns("travertine");
+         this.cobbledTravertine = ns("cobbled_travertine");
+         this.mossyTravertine = ns("mossy_cobbled_travertine");
+         this.brownKaolin = ns("brown_kaolin");
+         this.orangeKaolin = ns("orange_kaolin");
+         this.whiteKaolin = ns("white_kaolin");
+      }
+
+      private static BlockState ns(String name) {
+         return net.minecraft.core.registries.BuiltInRegistries.BLOCK
+            .getOptional(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("natures_spirit", name))
             .map(net.minecraft.world.level.block.Block::defaultBlockState)
             .orElse(null);
       }
@@ -458,6 +482,33 @@ final class GroundCover {
          }
          return e;
       }
+
+      Palette talus(Family f, Climate c) {
+         return this.talus.computeIfAbsent(f + "/" + c, k -> build(f, c));
+      }
+
+      private Palette build(Family f, Climate c) {
+         java.util.List<Object> e = new java.util.ArrayList<>();
+         boolean ns = this.travertine != null;
+         switch (f) {
+            case GREY -> e.addAll(java.util.List.of(GRAVEL, 3, STONE, 3, ANDESITE, 2, TUFF, 1, COBBLE, 1));
+            case DARK -> e.addAll(java.util.List.of(TUFF, 4, ANDESITE, 2, GRAVEL, 2, COBBLE, 1));
+            case PALE -> e.addAll(ns ? java.util.List.of(this.travertine, 3, this.cobbledTravertine, 2, GRAVEL, 2, Blocks.CALCITE.defaultBlockState(), 1)
+               : java.util.List.of(Blocks.DIORITE.defaultBlockState(), 2, Blocks.CALCITE.defaultBlockState(), 1, GRAVEL, 2, STONE, 2));
+            case SAND -> e.addAll(java.util.List.of(SANDSTONE, 3, this.sandySoil != null ? this.sandySoil : SAND, 2, GRAVEL, 1));
+            case RED -> e.addAll(java.util.List.of(RED_SANDSTONE, 2, TERRACOTTA, 1, Blocks.ORANGE_TERRACOTTA.defaultBlockState(), 1, RED_SAND, 1));
+            case CLAY -> e.addAll(this.brownKaolin != null
+               ? java.util.List.of(this.brownKaolin, 2, this.orangeKaolin, 2, this.whiteKaolin, 1, GRAVEL, 1)
+               : java.util.List.of(Blocks.BROWN_TERRACOTTA.defaultBlockState(), 2, Blocks.ORANGE_TERRACOTTA.defaultBlockState(), 2,
+                  Blocks.WHITE_TERRACOTTA.defaultBlockState(), 1, GRAVEL, 1));
+         }
+         if (c == Climate.HUMID && f != Family.SAND && f != Family.RED && f != Family.CLAY) {
+            e.addAll(java.util.List.of(MOSS, 2, f == Family.PALE && this.mossyTravertine != null ? this.mossyTravertine : MOSSY_COBBLE, 1));
+         } else if (c == Climate.TEMPERATE && (f == Family.GREY || f == Family.DARK || f == Family.PALE)) {
+            e.addAll(java.util.List.of(COARSE_DIRT, 1));
+         }
+         return Palette.of(e.toArray());
+      }
    }
 
    /** Coarse dirt, or Nature's Spirit's sandy soil in dry land when it is installed. */
@@ -466,14 +517,9 @@ final class GroundCover {
       return s != null ? s : COARSE_DIRT;
    }
 
-   private static Palette talus(Climate c) {
-      return switch (c) {
-         case COLD -> TALUS_COLD;
-         case HUMID -> TALUS_HUMID;
-         case ARID -> TALUS_ARID;
-         case RED_ARID -> TALUS_RED;
-         default -> TALUS_TEMPERATE;
-      };
+   /** The talus (scree) palette of this place: its region's rock family in its climate. */
+   static BlockState talusBlock(long seed, int x, int z, Climate c, float temperature, float sample) {
+      return Extra.get().talus(family(seed, x, z, c, temperature), c).pick(sample);
    }
 
    private static Palette thin(Climate c) {

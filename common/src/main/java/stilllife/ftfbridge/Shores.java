@@ -109,7 +109,7 @@ final class Shores {
             if (steep(level, x, z, y, slope)) {
                float cover = above <= 2 ? 0.85F : 0.5F;
                if (GroundCover.patch(seed, x, z, 153, 4.0F) < cover) {
-                  set(chunk, pos, y, rocky(climate, GroundCover.patch(seed, x, z, 155, 3.0F)));
+                  set(chunk, pos, y, rocky(seed, x, z, climate, GroundCover.biomeTemperature(chunk, pos, y), GroundCover.patch(seed, x, z, 155, 3.0F)));
                   if (above <= 2) {
                      set(chunk, pos, y - 1, GRAVEL);
                   }
@@ -151,14 +151,12 @@ final class Shores {
       }
    }
 
-   private static BlockState rocky(GroundCover.Climate climate, float sample) {
-      if (climate == GroundCover.Climate.ARID || climate == GroundCover.Climate.RED_ARID) {
-         return sample < 0.5F ? GRAVEL : sample < 0.8F ? Blocks.SANDSTONE.defaultBlockState() : STONE;
+   /** Rocky shore: gravel at the water's edge and the region's own rock (its talus), so shores match their hills. */
+   private static BlockState rocky(long seed, int x, int z, GroundCover.Climate climate, float temperature, float sample) {
+      if (sample < 0.4F) {
+         return GRAVEL;
       }
-      if (climate == GroundCover.Climate.HUMID) {
-         return sample < 0.4F ? GRAVEL : sample < 0.6F ? MOSSY_COBBLE : sample < 0.8F ? STONE : ANDESITE;
-      }
-      return sample < 0.45F ? GRAVEL : sample < 0.7F ? STONE : sample < 0.85F ? COBBLE : ANDESITE;
+      return GroundCover.talusBlock(seed, x, z, climate, temperature, (sample - 0.4F) / 0.6F);
    }
 
    private static BlockState lakeShore(GroundCover.Climate climate, float sample) {
