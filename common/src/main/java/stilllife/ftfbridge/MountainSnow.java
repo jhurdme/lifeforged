@@ -157,7 +157,7 @@ final class MountainSnow {
 
    /**
     * The snow ground of one chunk, after FTF's erosion pass (raw generation): every column, not only those FTF's erosion
-    * looks at. Snow ground the model leaves bare becomes the rock under it (whatever biome made it: with altitude_cooling,
+    * looks at. Snow ground the model leaves bare becomes the rock under it (whatever biome made it: with mountain_cooling,
     * Still Life puts cold biomes high up in warm lands too; the model keeps snow down to the sea in cold latitudes; glaciers
     * keep theirs), and soil or rock where the model has snow becomes snow ground.
     */

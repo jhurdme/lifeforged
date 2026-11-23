@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 15;
+   private static final int FORMAT = 16;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -89,11 +89,12 @@ final class WorldLock {
                      : Settings.GUARD_OFF,
                   // depth as a share of the column came with bridge 5.5 too; older worlds keep 1/128 per block
                   bool(o, "column_depth", format >= 14 && d.columnDepth()),
-                  // natural snow layers and ground cover came with bridge 5.6 (format 15)
+                  // mountain belts came with bridge 5.6 (format 15); older worlds keep Still Life's own bands
+                  num(o, "mountain_cooling", format >= 15 ? d.mountainCooling() : 0.0),
+                  // natural snow layers, ground cover, mountain snow, shores and forest variety came with bridge 6.0 (format 16)
                   bool(o, "natural_snow_layers", false),
                   bool(o, "ground_cover", false),
                   bool(o, "mountain_snow", false),
-                  num(o, "altitude_cooling", 0.0),
                   num(o, "snow_line_climate", 0.0),
                   bool(o, "shores", false),
                   bool(o, "forest_variety", false)
@@ -192,10 +193,10 @@ final class WorldLock {
          }
 
          if (lock.format >= 15) {
+            o.addProperty("mountain_cooling", s.mountainCooling());
             o.addProperty("natural_snow_layers", s.naturalSnowLayers());
             o.addProperty("ground_cover", s.groundCover());
             o.addProperty("mountain_snow", s.mountainSnow());
-            o.addProperty("altitude_cooling", s.altitudeCooling());
             o.addProperty("snow_line_climate", s.snowLineClimate());
             o.addProperty("shores", s.shores());
             o.addProperty("forest_variety", s.forestVariety());

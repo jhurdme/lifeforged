@@ -90,6 +90,13 @@ public final class StillLifeClimateBridge {
    // peak_line_variation acts from here up (full from PEAK_SHIFT_FULL), so lowland bands, beaches and wetlands never move
    private static final double PEAK_SHIFT_FROM = 140.0;
    private static final double PEAK_SHIFT_FULL = 175.0;
+   // mountain_cooling ramps in from this Still Life height (the highland band) to the snowy peaks band (YL_PEAKS)
+   private static final double COOL_FROM = 160.0;
+   // and only near the surface: FTF never gives the first ~29 blocks below the ground a cave biome, so this covers every
+   // surface biome while cave biomes below keep the climate of the column
+   private static final double COOL_MAX_BELOW = 24.0;
+   // Still Life's polar line: below it the alpine band is a polar snowy peaks cap
+   private static final float POLAR_T = -0.56F;
    // 5-95% range of 0.7 * big + 0.3 * mid (measured)
    private static final double PEAK_NOISE_RANGE = 0.375;
    // standard deviation of the dither noise (Still Life's surface_dithered settings; measured)
@@ -301,11 +308,6 @@ public final class StillLifeClimateBridge {
          long temperature = target.temperature();
          if (w.settings.stillLifeLatitude()) {
             double t = 0.2 * w.temperature.getValue(bx * 1.1, 0.0, bz * 1.1) + 1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance();
-            // altitude_cooling: colder going up, from the sea (Still Life's Y 63) to Lithosphere's highest peaks (Y 349), so
-            // forests give way to colder forests and the high bands get their cold variants in warm lands too
-            if (!submerged && w.settings.altitudeCooling() > 0.0) {
-               t -= w.settings.altitudeCooling() * clamp((yL - 63.0) / (349.0 - 63.0), 0.0, 1.0);
-            }
             temperature = Climate.quantizeCoord((float)t);
          }
 
@@ -354,6 +356,20 @@ public final class StillLifeClimateBridge {
                ? LITHO_DEPTH[LITHO_DEPTH.length - 1] + (blocks - 16.0 * (LITHO_DEPTH.length - 1)) / 200.0
                : LITHO_DEPTH[lo] + (LITHO_DEPTH[lo + 1] - LITHO_DEPTH[lo]) * (i - lo);
             depth = Climate.quantizeCoord((float)lithoDepth);
+         }
+
+         // mountain_cooling: cooler climate up through the highland and alpine bands, so warm lowland biomes give way to montane
+         // and alpine ones below the snow instead of running up to it. The snowy peaks band keeps its own temperature (its snowy,
+         // bare and painted caps stay as they are), and no column is cooled across the polar line (polar caps stay too).
+         double cooling = w.settings.mountainCooling();
+         if (cooling > 0.0 && !submerged && yBand > COOL_FROM && yBand < YL_PEAKS
+            && (ftfDepth <= 0.0F ? 0.0 : ftfDepth / 1.5 * (y + levels.worldDepth)) < COOL_MAX_BELOW) {
+            float t = Climate.unquantizeCoord(temperature);
+            double cooled = t - cooling * (yBand - COOL_FROM) / (YL_PEAKS - COOL_FROM);
+            if (t >= POLAR_T) {
+               cooled = Math.max(cooled, POLAR_T + 0.005);
+            }
+            temperature = Climate.quantizeCoord((float)cooled);
          }
 
          return new TargetPoint(temperature, target.humidity(), continentalness, Climate.quantizeCoord((float)erosion), depth, weirdness);

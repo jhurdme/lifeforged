@@ -44,12 +44,13 @@ package stilllife.ftfbridge;
  *                            "off" (Still Life's own rules: cave floors get them too)
  * @param columnDepth         cave biome depth as the share of the column below the surface (mapped onto the Lithosphere
  *                            column of the same Still Life height); false = FTF's depth read as 1/128 per block (5.0-5.4)
+ * @param mountainCooling     how much cooler (Still Life temperature) the climate gets from the highland band up to the snowy
+ *                            peaks band, for choosing biomes only, so mountains get montane and alpine belts under their caps;
+ *                            0 = Still Life's own bands
  * @param naturalSnowLayers   with FTF's smooth snow layers on: the bridge sets each spot's snow depth from the real ground
  *                            (drifts against steps and in hollows, thin on ridges and steep slopes, none on cliffs)
  * @param mountainSnow        snow ground shaped by wind (by latitude), sun (south faces bare higher) and gullies / hollows
  *                            (couloirs and late patches below the snow line), more or less by the biome's climate
- * @param altitudeCooling     latitude=still_life: temperature drop from the sea to the highest peaks (Still Life's -1..1
- *                            scale); 0 = none (Still Life's own: only its height bands change with altitude)
  * @param snowLineClimate     latitude=still_life: blocks by which the high-mountain bands (alpine, snowy peaks) rise at the
  *                            equator and drop at the cold end; 0 = the same height everywhere
  * @param forestVariety       belts of bushes and young trees at forest edges, natural clearings, regional tree mixes
@@ -84,10 +85,10 @@ record Settings(
    double biomeSetRegionSize,
    String caveFloorGuard,
    boolean columnDepth,
+   double mountainCooling,
    boolean naturalSnowLayers,
    boolean groundCover,
    boolean mountainSnow,
-   double altitudeCooling,
    double snowLineClimate,
    boolean shores,
    boolean forestVariety
@@ -118,10 +119,10 @@ record Settings(
    }
 
    /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, false, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true, true, true, true, 0.3, 60.0, true, true);
+   static final Settings DEFAULT = new Settings(true, 40000.0, 0.5, false, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true, 0.25, true, true, true, 60.0, true, true);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF, false, false, false, false, 0.0, 0.0, false, false);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CONTINENTS, 25.0, GUARD_OFF, false, 0.0, false, false, false, 0.0, false, false);
    }
 }

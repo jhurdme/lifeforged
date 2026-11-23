@@ -74,6 +74,9 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
 - **A natural snow line** (`peak_line_variation`, `snow_cap_fade`): snow caps no longer start at one height everywhere like a
   contour line. The line wanders up and down across a range, reaches further down gullies than ridges, and the lowest blocks
   of a cap hold snow only in patches, so it fades in.
+- **Mountain belts** (`mountain_cooling`, off by default): in warm, dry country Still Life's shrublands ran straight up to
+  the snow caps. With it on, mountains pass montane and alpine biomes (meadows, prairie highlands, alpine tundra, cold barren
+  highlands) below their caps; the caps themselves stay as they are ([mountain belts](docs/bridge.md#mountain-belts-56)).
 - Standing water in Still Life's swamps, marshes, bogs and salt lakes at any height (Still Life floods them only at sea
   level), only on level ground, so it never lines the steps of a slope.
 - Granite and diorite only where erosion cuts into rock, not whole pink or white mountains.
@@ -92,11 +95,11 @@ Each item links to its full explanation in [`docs/bridge.md`](docs/bridge.md) (b
 | NeoForge | 21.1.265 | any 21.1.x should work; jar `stilllife_ftf_bridge-<version>-neoforge.jar` |
 | Fabric Loader / Fabric API | 0.20.1 / 0.116.18+1.21.1 | jar `stilllife_ftf_bridge-<version>-fabric.jar`; needs Fabric API (VanillaBackport needs Loader 0.16.12+) |
 | Java | 21 or newer | the jars are compiled for Java 21 |
-| FreeTerraForged | 1.0.0027-1.0.0032 (unstable) | 1.0.0027 or newer for bridge 5.x (bridge 4.x: 1.0.0025); 5.1 tested on 1.0.0027, 1.0.0030 and 1.0.0032, 5.2-5.5 on 1.0.0032 (5.3 on both loaders: FTF's `-neoforge` and `-fabric` jars); continent type UPLIFT for `uplift_smoothing` |
+| FreeTerraForged | 1.0.0027-1.0.0033 (unstable) | 1.0.0027 or newer for bridge 5.x (bridge 4.x: 1.0.0025); 5.1 tested on 1.0.0027, 1.0.0030 and 1.0.0032, 5.2-5.5 on 1.0.0032 (5.3 on both loaders: FTF's `-neoforge` and `-fabric` jars), 5.6 on 1.0.0032 and 1.0.0033; continent type UPLIFT for `uplift_smoothing` |
 | Still Life FTF edition | 0.3.6-ftf | made from Still Life 0.3 with `still-life-patch/` (0.3.5-ftf also works, without the river beds) |
 | VanillaBackport | 1.2.2 | **required** (1.2.2 or newer, both loaders): Still Life uses its 1.21.4+ content (pale oak, bushes, leaf litter...), and the bridge places its biomes. Without it the game doesn't start and says so. |
 | Platform | 1.4.2 | VanillaBackport's library |
-| Worldgen Accelerator (0.63.4), C2ME, Lithium, ModernFix, FerriteCore | tested alongside | all fine, on both loaders |
+| Worldgen Accelerator (0.63.4; 0.70.3 on NeoForge), C2ME, Lithium, ModernFix, FerriteCore | tested alongside | all fine, on both loaders |
 | Streams Reflowing (2.17.5) | tested alongside | set `allWaterBanks=0` in `config/streamsreflowing.properties`: with its default 1 it restyles other mods' water as its banks, which removes the bridge's salt lake and wetland pools and leaves mud rings |
 
 **Not together with** Lithosphere, MoreDensityFunctions or the normal Still Life jar: the FTF edition replaces Still Life,
@@ -110,7 +113,7 @@ and FTF replaces Lithosphere's terrain.
    python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar
    ```
    and put the resulting `still_life-0.3.6-ftf-1.21.1.jar` in `mods/` (remove the normal Still Life jar).
-3. Put `stilllife_ftf_bridge-5.5.0-neoforge.jar` or `stilllife_ftf_bridge-5.5.0-fabric.jar` in `mods/` (client and
+3. Put `stilllife_ftf_bridge-5.6.0-neoforge.jar` or `stilllife_ftf_bridge-5.6.0-fabric.jar` in `mods/` (client and
    server; on a server only the server needs it, but single player runs a server too).
 4. Start the game once: `config/stilllife_ftf_bridge.properties` is written with every option, its explanation, its
    default and the values it accepts.
@@ -165,6 +168,7 @@ and the values it accepts (a value outside them is logged and the default used).
 | `snow_cliff_steepness` | `0` | Slope above which snow is cleared; 0 = FTF's rock steepness from the preset. |
 | `peak_line_variation` | `40` | Blocks by which the height where the mountain biome bands start (alpine, then snowy peaks) wanders: up and down across a range, lower in gullies, higher on ridges; 0 = a level line. |
 | `snow_cap_fade` | `24` | The lowest this many blocks of a snowy peaks cap keep snow only in patches that thin out downwards, with bare rock between; 0 = solid snow down to the cap's edge. Needs `snow_caps`. |
+| `mountain_cooling` | `0` | How much cooler the climate gets (on Still Life's temperature scale, -1 to 1; allowed 0 to 1) from the highlands up to the snowy peaks band, for choosing biomes only, so mountains get montane and alpine belts below their caps. The peaks band, polar caps and cave biomes are unchanged. Tested: 0.25. 0 = Still Life's own bands. |
 | `cave_floor_guard` | `exact` | Where Still Life's ground blocks (snow blocks, sand, mud ...) may go, for the caves FTF leaves in a surface biome. `exact` = only on ground open to the sky or under standing water; `vanilla` = Minecraft's own `above_preliminary_surface` check (small pockets near the surface keep them); `off` = Still Life's own rules (cave floors get them too). |
 | `column_depth` | `true` | Cave biome depth as the share of the column below the surface (FTF's own measure), mapped onto Still Life's Lithosphere scale. `false` = bridge 5.0-5.4: cave biomes start deeper under high ground and Still Life's deepest cave biomes never appear. |
 | `uplift_smoothing` | `1600` | Blocks over which FTF's continental uplift climbs back from its coastal band (instead of a cliff); 0 = FTF's cliff. |
@@ -226,7 +230,7 @@ The Still Life FTF edition is not built here; see [installation](#installation) 
 
 ## Version history
 
-[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.5.0) and the Still Life FTF edition (0.3-ftf to
+[`CHANGELOG.md`](CHANGELOG.md): every version of the bridge (3.0.1 to 5.6.0) and the Still Life FTF edition (0.3-ftf to
 0.3.6-ftf), with what changed and why.
 
 ## Credits and licence
