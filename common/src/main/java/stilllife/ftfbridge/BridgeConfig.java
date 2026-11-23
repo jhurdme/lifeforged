@@ -82,6 +82,7 @@ final class BridgeConfig {
       double biomeSetRegionSize = number(p, "biome_set_region_size", d.biomeSetRegionSize(), 1.0, 100.0);
       double peakLineVariation = number(p, "peak_line_variation", d.peakLineVariation(), 0.0, 160.0);
       double snowCapFade = number(p, "snow_cap_fade", d.snowCapFade(), 0.0, 64.0);
+      double mountainCooling = number(p, "mountain_cooling", d.mountainCooling(), 0.0, 1.0);
       boolean columnDepth = bool(p, "column_depth", d.columnDepth());
       LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
@@ -94,7 +95,7 @@ final class BridgeConfig {
          stillLife, pole, share, swamps, swampHumidity, swampMaxHeight, snowCaps, snowCliff, pale, dappled, sulfur,
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, sulfurRock, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
-         caveFloorGuard, columnDepth
+         caveFloorGuard, columnDepth, mountainCooling
       );
 
       String text = String.format(
@@ -193,6 +194,13 @@ final class BridgeConfig {
          # the lowest this many blocks of a snowy peaks cap get snow only in patches that thin out downwards, with bare
          # rock between, so the cap fades in instead of starting with a solid edge (needs snow_caps). 0 = solid snow
          snow_cap_fade=%s
+         # Still Life picks the biome of each mountain band (highlands, alpine, snowy peaks) by temperature, and in warm, dry
+         # climates its highland and alpine bands hold the same shrubland as the lowland, which then runs straight up to the
+         # snow. This makes the climate up to this much cooler (Still Life's temperature scale, -1 to 1) from the highlands up
+         # to the snowy peaks band, for choosing biomes only, so mountains get montane and alpine belts (meadows, prairie
+         # highlands, alpine tundra, cold barren highlands) below their caps. The snowy peaks band, polar caps and cave
+         # biomes are unchanged. 0 = Still Life's own bands.
+         mountain_cooling=%s
 
          # --- Caves --------------------------------------------------------------------------------------------
          # FreeTerraForged leaves many caves in the biome of the ground above them (all caves outside the cells its
@@ -256,6 +264,7 @@ final class BridgeConfig {
          plain(snowCliff),
          plain(peakLineVariation),
          plain(snowCapFade),
+         plain(mountainCooling),
          caveFloorGuard,
          columnDepth,
          plain(upliftSmoothing),

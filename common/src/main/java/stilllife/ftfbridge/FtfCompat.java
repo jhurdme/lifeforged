@@ -32,6 +32,7 @@ final class FtfCompat {
          {"cell.heightmap.Levels", "field", "waterY"},
          {"cell.heightmap.Levels", "field", "waterLevel"},
          {"cell.heightmap.Levels", "field", "worldHeight"},
+         {"cell.heightmap.Levels", "field", "worldDepth"},
          {"cell.Cell", "method", "reset"},
          {"cell.Cell", "field", "height"},
          {"cell.Cell", "field", "gradient"},

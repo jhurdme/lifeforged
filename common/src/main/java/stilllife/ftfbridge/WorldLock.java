@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 14;
+   private static final int FORMAT = 15;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -94,7 +94,9 @@ final class WorldLock {
                   format >= 14 ? Settings.caveFloorGuardMode(o.has("cave_floor_guard") ? o.get("cave_floor_guard").getAsString() : d.caveFloorGuard())
                      : Settings.GUARD_OFF,
                   // depth as a share of the column came with bridge 5.5 too; older worlds keep 1/128 per block
-                  bool(o, "column_depth", format >= 14 && d.columnDepth())
+                  bool(o, "column_depth", format >= 14 && d.columnDepth()),
+                  // mountain belts came with bridge 5.6 (format 15); older worlds keep Still Life's own bands
+                  num(o, "mountain_cooling", format >= 15 ? d.mountainCooling() : 0.0)
                );
             }
 
@@ -194,6 +196,10 @@ final class WorldLock {
          if (lock.format >= 14) {
             o.addProperty("cave_floor_guard", s.caveFloorGuard());
             o.addProperty("column_depth", s.columnDepth());
+         }
+
+         if (lock.format >= 15) {
+            o.addProperty("mountain_cooling", s.mountainCooling());
          }
       }
 

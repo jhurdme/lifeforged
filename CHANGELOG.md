@@ -6,6 +6,18 @@ earlier version keep them off.
 
 ## Still Life x FreeTerraForged Bridge
 
+### 5.6.0
+**Mountain belts** (`mountain_cooling`, saved per world, format 15; off by default, older worlds off). In warm, dry
+country Still Life's shrublands (cacti savanna, painted xeric shrubland, yucca scrubland) ran straight up to snowy painted
+and snowy barren peaks: its table has no cold belt for warm, dry climates, and its peaks band turns snowy below
+temperature 0.23. With `mountain_cooling` above 0 the climate the biome lookup sees gets gradually cooler from the
+highlands up to the peaks band, by that much at the top, so mountains pass Still Life's montane and alpine biomes
+(meadows, prairie highlands, alpine tundra, cold barren highlands) below their caps. The peaks band itself, polar caps,
+cave biomes and all land below the highlands are unchanged. With 0.25 in the tester's world: shrubland next to a snow cap
+on 18.6% / 7.7% of the caps' edge in its two warmest mountain regions -> 0%, the same snow cover as before, under 0.2% of
+the land below Y 300 changed. Works with both `latitude` settings. Tested with FreeTerraForged 1.0.0032 and 1.0.0033 and
+Still Life 0.3.6-ftf.
+
 ### 5.5.0
 **No snow or sand on cave floors.** FreeTerraForged leaves many caves in the biome of the ground above them (every cave
 outside the cells its `undergroundBiomeCoverage` gives cave biomes, and near the surface everywhere), and Still Life laid
@@ -26,7 +38,7 @@ deepest ones sit near bedrock under high ground.
 Works with Still Life 0.3.6-ftf as it is; no new Still Life edition needed. No measurable cost: on the test server, with the
 tester's 1024-high preset, surface rules took 24.0 ms per chunk without the guard and 23.5 ms with `exact`.
 
-
+### 5.4.0
 **Both biome sets on one continent.** New setting `biome_sets` (saved per world, format 13):
 - `continents` (default): one Still Life biome set per FreeTerraForged continent, as before.
 - `regions`: every continent divided into irregular regions, each American or Afro-Eurasian, like Still Life's own worlds.

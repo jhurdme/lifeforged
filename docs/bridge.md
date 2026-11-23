@@ -2,7 +2,7 @@
 
 Each section says what was wrong, why, what the bridge changes (with the FreeTerraForged code it hooks into) and how it was
 checked, with a bridge-on / bridge-off image (same seed, preset and settings, only the one option changed; see "How the
-images were made" at the end). FreeTerraForged (FTF) class names are from FTF 1.0.0027-1.0.0032 (bridge 5.x; bridge 4.x
+images were made" at the end). FreeTerraForged (FTF) class names are from FTF 1.0.0027-1.0.0033 (bridge 5.x; bridge 4.x
 was built on 1.0.0025); the bridge's own classes are in `common/src/main/java/stilllife/ftfbridge`. Version numbers say
 when a feature came in (see `CHANGELOG.md`).
 
@@ -312,8 +312,8 @@ to 2,300 columns.
 
 ## 7. Snow on peaks
 
-*4.0; snow line 5.2. `snow_caps`, `snow_cliff_steepness`, `peak_line_variation`, `snow_cap_fade`. `SnowCaps`,
-`mixin/ScreeFeatureMixin`, `mixin/DecorateSnowFeatureMixin`.*
+*4.0; snow line 5.2; mountain belts 5.6. `snow_caps`, `snow_cliff_steepness`, `peak_line_variation`, `snow_cap_fade`,
+`mountain_cooling`. `SnowCaps`, `mixin/ScreeFeatureMixin`, `mixin/DecorateSnowFeatureMixin`.*
 
 **Problem.** Still Life puts snow blocks on its snowy peaks with surface rules. FTF's erosion decorator erodes snow, powder
 snow and gravel (its `erodible` tag): above its rock line it turned that snow into stone, on slopes into tuff, in its dirt
@@ -369,6 +369,54 @@ at 384. Measured inward from the cap's edge, snow covers 20% of the first 4 bloc
 
 ![snow line map](images/snow-line-map.png)
 *The edge of the same cap from above (512 x 512 blocks, contours every 20 blocks, red at Y 300 and 400). Left: 5.1, the edge follows a contour; right: 5.2.*
+
+### Mountain belts (5.6)
+
+*`mountain_cooling` (off by default). `StillLifeClimateBridge.apply`.*
+
+**Problem.** In warm, dry country the shrubland ran straight up to the snow: cacti savanna, painted xeric shrubland and
+yucca scrubland right below snowy painted or snowy barren peaks, with nothing between. The bridge picks each mountain band
+by height (section 1: highlands, then alpine from Still Life height 203, then the peaks from 242, about Y 351 and 409 in
+the tester's world) and the biome inside the band by temperature. Still Life's own table has no cold belt for warm, dry
+climates: at temperatures from about 0.1 to 0.4 its highland and alpine bands hold the same dry shrublands as the lowland
+(dry warm shrubland from 0.095, painted xeric shrubland, yucca scrubland), while its peaks band is snowy below 0.23 (snowy
+peaks below 0.17, snowy painted and snowy barren peaks up to 0.23) and bare rock above. With `latitude=ftf`, FTF's altitude
+cooling takes such a mountain from about 0.3-0.4 at its foot to just under 0.23 at the cap; with `latitude=still_life`
+the temperature doesn't change with height, and mountains at 0.1-0.23 do the same. In the two warmest mountain regions of
+the tester's world (16 x 16 km each, `latitude=ftf`), 18.6% and 7.7% of the snow caps' edge touched one of these warm
+biomes; in a `latitude=still_life` test region 14.1%. Savanna proper (temperature 0.57 and up) never meets snow: its
+mountains get bare painted or barren peaks.
+
+FTF's climate settings can't target this. `altitudeCoolingStrength` (`latitude=ftf` only) cools from sea level up: at 3.0
+(the tester's preset has 1.81) the share went down only to 12.9% and 4.9%, and 23-48% of the land below Y 300 changed
+biome; at 1.0 it went up to 28.9% in one region. Moving the mountain bands up 40 blocks made it worse (36% and 18%): the
+alpine band it lifts is the same shrubland. A belt of bare rock under warm caps (snow starting higher, the higher the
+temperature) also removed the edges, but took about a fifth of the snow.
+
+**Change.** With `mountain_cooling` above 0, the temperature the biome lookup sees drops gradually from the highlands
+(Still Life height 160, about Y 290 in the tester's world) up to the start of the peaks band, by `mountain_cooling` at the
+top (on Still Life's temperature scale, -1 to 1). The heights include the `peak_line_variation` shift, so the belts wander
+with the snow line. On the way up, a warm mountain now passes Still Life's cooler highland and alpine biomes (montane
+meadows, prairie highlands, alpine tundra, cold barren highlands) below its cap. What stays as it was:
+- the peaks band keeps its own temperature, so the snow caps (snowy, snowy painted, snowy barren) and the bare painted and
+  barren peaks of hot mountains are unchanged;
+- no column is cooled across -0.56, Still Life's polar line, so polar caps (which start at the alpine band) don't grow;
+- only biomes up to 24 blocks below the surface are cooled (FTF never puts cave biomes that close to the ground), so cave
+  biomes, several of which depend on temperature, keep the column's climate;
+- rivers, lakes and the sea, and all land below the highlands.
+
+**Checked** with the tester's seed, preset and settings (biome maps of the game's biome source, 8-block steps; and chunks
+generated on FTF 1.0.0033 with Worldgen Accelerator 0.70.3, whose surface biomes matched the map 99.1%). With 0.25: snow
+cap edges next to a warm biome 18.6% / 7.7% -> 0.0% / 0.0% (`latitude=still_life` region: 14.1% -> 0.0%); snow caps cover
+the same land as before (3.34% / 2.89%); land below Y 300 changed 0.1-0.2% (edge dither); above Y 300 22-30% changed, to
+the belts. Over 192 x 192 km at 64-block steps: 2.4% of all land changed (26% of land above Y 300), mostly alpine tundra to
+boreal alpine tundra in cold ranges and tropical highlands to savanna highlands or tropical thorn clearings in hot ones.
+Cave biomes at Y 250 under the mountains of the first region: 100% unchanged. Worlds made before 5.6 (and new worlds with
+the default 0) generate exactly as with 5.5 (biome maps 100.000% identical). 0.25 is the tested value; less cools the
+alpine band less, so the warmest dry mountains may keep shrubland up to their caps.
+
+![mountain belts](images/mountain-belts.png)
+*1.5 x 1.5 km biome maps (black lines: Y 351 and Y 409, where the alpine and peaks bands start before the wander). Top: the tester's world (`latitude=ftf`) at -63632,-25560; bottom: `latitude=still_life` at 21376,3616. Left: `mountain_cooling=0`; right: 0.25.*
 
 ## 8. Wetlands stay off hillsides
 
@@ -604,7 +652,8 @@ Fabric API 0.116.18 and the Fabric jars of the same mods) with Worldgen Accelera
 beds): FTF 1.0.0030 or 1.0.0032 and Still Life 0.3.6-ftf, with the test preset (salt flats map, bayou) or the in-game
 tester's preset (the rest); the "5.0 rule" and "0.3.5-ftf" panels were read from the tester's own world. Images new in 5.2
 (snow line): FTF 1.0.0032, Still Life 0.3.6-ftf, the tester's preset and world settings. Images new in 5.5 (cave floors): the
-same with the tester's newer seed (-4620324235953065567), preset and settings.
+same with the tester's newer seed (-4620324235953065567), preset and settings. Images new in 5.6 (mountain belts): biome
+maps with that seed, preset and settings (FTF 1.0.0032; the bottom row with `latitude=still_life`).
 - **Raw terrain** (hillshaded heights, blue = water): a debug build of the bridge dumps FreeTerraForged's terrain cells over
   an area in seconds, without generating chunks.
 - **Biome maps**: the same debug build asks the game's biome source for the biome at the surface (or a given Y) of every
