@@ -30,8 +30,9 @@ shape of the land. This guide is for players and server owners. The technical de
 | Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.3.1-ftf (ready-made, no patching) |
 | Create | optional | tested 6.0.10 |
 
-Do **not** install Lithosphere, MoreDensityFunctions or the normal Still Life jar. The 6.0 Fabric jar has not been built
-or tested.
+Do **not** install Lithosphere, MoreDensityFunctions or the normal Still Life jar. The 6.0 Fabric jar has only been
+tested on a dedicated server, not played on a client; it needs Fabric API, and Still Life Naturalized's FTF build is
+NeoForge only.
 
 ## 2. Install
 

@@ -47,7 +47,8 @@ places every biome where it belongs and makes the ground, rock, snow and plants 
 | Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.3.1-ftf (ready-made, no patching) |
 | Create | optional | tested 6.0.10 |
 
-The 6.0 Fabric jar has not been built or tested (Lifeforged declares Fabric Loader 0.15+, VanillaBackport needs 0.16.12+).
+The 6.0 Fabric jar has only been tested on a dedicated server (Fabric Loader 0.20.1, Fabric API 0.116.18), not played on
+a client. It needs Fabric API. Still Life Naturalized's FTF build is NeoForge only.
 
 Not together with Lithosphere, MoreDensityFunctions or the normal Still Life jar. Exactly what changes with Nature's Spirit, Still Life
 Naturalized, Create and other mods: [guide, section 6](docs/guide.md#6-compatibility-with-other-mods).

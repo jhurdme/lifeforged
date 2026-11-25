@@ -9,7 +9,8 @@ earlier version keep them off.
 ### 6.0.0
 The mod is now called **Lifeforged**. New worlds save their settings as format 19; worlds made with 5.x keep generating
 as before (new features off), except where noted under "Existing worlds". Tested on NeoForge with FreeTerraForged
-1.0.0034 and Still Life FTF edition 0.3.7-ftf; the Fabric jar has not been built or tested. New guide:
+1.0.0034 and Still Life FTF edition 0.3.7-ftf; the Fabric jar has only been tested on a dedicated server, not played on a
+client. New guide:
 [`docs/guide.md`](docs/guide.md).
 
 **Biomes and climate**
