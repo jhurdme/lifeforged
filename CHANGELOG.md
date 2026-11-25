@@ -238,7 +238,7 @@ rivers as its developer intends. Tested with FreeTerraForged 1.0.0027, 1.0.0030 
   be run on add-ons such as Still Life Naturalized's FTF jar. It also removes Still Life's hidden obsidian monoliths (a
   giant pillar at 20000, 20000 and eight small ones around it, listed in nearly every biome). Palm crowns carry no
   filter (so palms keep their crowns), and in bridge 6.0 worlds Still Life's stone-cliff and snow disks leave the
-  bridge's snow alone.
+  bridge's snow alone. River beds follow the water level at any height; no Dappled Forest rule.
 - **0.3.6-ftf**: river beds at sea level follow the water depth: mud and packed mud in the shallows, gravel and some clay
   in the deep channel (arid rivers: coarse dirt, packed mud, clay). Before, a whole river ran one material for hundreds of
   blocks and then switched across its full width. The jar's Fabric/Quilt metadata now also carries the version (launchers
