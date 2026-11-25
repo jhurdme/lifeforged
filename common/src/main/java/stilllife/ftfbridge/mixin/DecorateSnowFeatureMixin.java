@@ -29,13 +29,14 @@ abstract class DecorateSnowFeatureMixin {
 
    @ModifyExpressionValue(
       method = "place",
-      at = @At(value = "FIELD", target = "Letcodehome/freeterraforged/world/worldgen/feature/DecorateSnowFeature$Config;smooth:Z")
+      at = @At(value = "FIELD", target = "Letcodehome/freeterraforged/world/worldgen/feature/DecorateSnowFeature$Config;smooth:Z", remap = false),
+      remap = true
    )
    private boolean stilllife$skipFtfSmoothing(boolean smooth) {
       return smooth && !BridgeHooks.naturalSnowLayers();
    }
 
-   @Inject(method = "place", at = @At("RETURN"))
+   @Inject(method = "place", at = @At("RETURN"), remap = true)
    private void stilllife$naturalSnow(FeaturePlaceContext<DecorateSnowFeature.Config> context, CallbackInfoReturnable<Boolean> cir) {
       DecorateSnowFeature.Config config = context.config();
       if (cir.getReturnValueZ() && config.smooth()) {
