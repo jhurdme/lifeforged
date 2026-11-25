@@ -44,7 +44,7 @@ places every biome where it belongs and makes the ground, rock, snow and plants 
 | Platform | required (by VanillaBackport) | tested 1.4.2 |
 | Lifeforged | required | 6.0.0 (`stilllife_ftf_bridge-6.0.0-neoforge.jar`) |
 | Nature's Spirit | optional | tested 2.3.2 |
-| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.2.3-ftf, patched with `patch_terrain.py` |
+| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.2.4-ftf (ready-made, no patching) |
 | Create | optional | tested 6.0.10 |
 
 The 6.0 Fabric jar has not been built or tested (Lifeforged declares Fabric Loader 0.15+, VanillaBackport needs 0.16.12+).
@@ -55,7 +55,7 @@ Naturalized, Create and other mods: [guide, section 6](docs/guide.md#6-compatibi
 ## Install
 
 1. `python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar` writes `still_life-0.3.7-ftf-1.21.1.jar`.
-   With Still Life Naturalized, also run `python3 still-life-patch/patch_terrain.py <its jar> <output jar>`.
+   Still Life Naturalized: use its FTF build 1.2.4-ftf as it is.
 2. Put FreeTerraForged, VanillaBackport, Platform, the Still Life FTF edition and
    `stilllife_ftf_bridge-6.0.0-neoforge.jar` in `mods/` (on a server, the server's `mods/`).
 3. Start the game once: `config/stilllife_ftf_bridge.properties` is written, with every setting explained.

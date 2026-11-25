@@ -27,7 +27,7 @@ shape of the land. This guide is for players and server owners. The technical de
 | Platform | required (by VanillaBackport) | tested 1.4.2 |
 | Lifeforged | required | 6.0.0 (`stilllife_ftf_bridge-6.0.0-neoforge.jar`) |
 | Nature's Spirit | optional | tested 2.3.2 |
-| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.2.3-ftf, patched with `patch_terrain.py` |
+| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.2.4-ftf (ready-made, no patching) |
 | Create | optional | tested 6.0.10 |
 
 Do **not** install Lithosphere, MoreDensityFunctions or the normal Still Life jar. The 6.0 Fabric jar has not been built
@@ -41,8 +41,8 @@ your own download, with Python 3.8 or newer:
 1. Download **Still Life 0.3 for Minecraft 1.21.1** (the mod jar) from Modrinth.
 2. Run `python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar`. It writes
    `still_life-0.3.7-ftf-1.21.1.jar`. Please don't upload it anywhere.
-3. With Still Life Naturalized, also run `python3 still-life-patch/patch_terrain.py <its FTF jar> <output jar>` and use
-   the output jar.
+3. Still Life Naturalized (optional): use its FTF build 1.2.4-ftf as it is. Older FTF builds lack the treeline and
+   cliff rules.
 4. Put FreeTerraForged, VanillaBackport, Platform, the Still Life FTF edition and Lifeforged in `mods` (on a dedicated
    server: the server's `mods`).
 5. Start the game once. Lifeforged writes `config/stilllife_ftf_bridge.properties`, with every setting explained.
@@ -126,7 +126,7 @@ The other settings are fine-tuning: see [all other settings](#all-other-settings
 |---|---|---|---|
 | VanillaBackport, Platform | required | Nothing from Lifeforged: Still Life uses VanillaBackport's newer blocks (pale oak, bushes, leaf litter...). | Without them the game does not start. |
 | Nature's Spirit | optional | With `ground_cover` on: kaolin clay rock in about half of the dry mountain regions (with `rock_strata` `regional`, `bedded` or `deep`), travertine in the scree of pale regions, sandy soil on dry sandy ground. Above the treeline: fir krummholz and alpine grasses and heathers. With `rock_strata=deep` also: travertine as the main rock of some pale regions and chert under some clay rock. | Without it the same places use vanilla stone (diorite, andesite, calcite, coarse dirt). Tested with 2.3.2. |
-| Still Life Naturalized | optional | Lifeforged adds Naturalized's reed edges around lakes and leaves out its own riverside plants and lake reeds (willows, birches, sugar cane, grass and ferns). Its trees follow the treeline and cliff rules once patched. | Needs its FTF build and Nature's Spirit. Patch the jar: `python3 still-life-patch/patch_terrain.py <Naturalized FTF jar> <output jar>` and use the output jar. Its rock layer under the soil stays; with `rock_strata=deep` it is kept in the top 4 blocks and the regional rock is used below. Tested with 1.2.3-ftf. |
+| Still Life Naturalized | optional | Lifeforged adds Naturalized's reed edges around lakes and leaves out its own riverside plants and lake reeds (willows, birches, sugar cane, grass and ferns). Its trees follow the treeline and cliff rules. | Needs its FTF build 1.2.4-ftf and Nature's Spirit. The build is ready-made: no patching. Its rock layer under the soil stays; with `rock_strata=deep` it is kept in the top 4 blocks and the regional rock is used below. Tested with 1.2.4-ftf. |
 | Create | optional | Only with `rock_strata=deep`: Create's limestone (`create:limestone`) replaces diorite as the main rock of limestone regions. No other Create block is used. | With `off`, `regional` or `bedded` nothing changes. Create's own generated stone is untouched. Without Create those regions use diorite and calcite. Tested in one test world with Create 6.0.10. |
 | Streams Reflowing | optional | Its default restyles other mods' water as its own banks, which removes Lifeforged's pools and leaves mud rings. | Set `allWaterBanks=0` in `config/streamsreflowing.properties`. Tested with 2.17.5. |
 | C2ME, Lithium, ModernFix, FerriteCore | optional | Nothing. | No known problems. |

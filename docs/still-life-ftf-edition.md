@@ -108,8 +108,8 @@ twin of Still Life's stone-cliff feature that leaves snow alone runs instead of 
 mountain snow disks run only in biomes that keep Still Life's own surface, so snow no longer depends on chunk order.
 
 `make_ftf_edition.py` runs it as its last step. It can also be run on its own, on a jar or an extracted folder:
-`python3 patch_terrain.py in.jar [out.jar]` (default output `<name>-terrain.jar`), for example on Still Life Naturalized's
-FTF jar, whose tree features override Still Life's. It is idempotent: the filter it writes replaces any terrain filter a
+`python3 patch_terrain.py in.jar [out.jar]` (default output `<name>-terrain.jar`), for example on an add-on whose
+tree features override Still Life's (Still Life Naturalized 1.2.4-ftf already has it applied). It is idempotent: the filter it writes replaces any terrain filter a
 feature already has, so it can run again on its own output. The bridge adds the features above the treeline itself
 (clumps, krummholz, the subalpine belt, ledge plants).
 
