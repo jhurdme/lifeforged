@@ -1,0 +1,44 @@
+{
+  "feature": "stilllife_ftf_bridge:talus_pioneers",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "talus": [
+        "old",
+        "coarse",
+        "fan"
+      ],
+      "snow": false,
+      "max_snow_line": -6.0,
+      "max_slope": 0.9,
+      "faces": [
+        "open",
+        "ledge"
+      ],
+      "max_temperature": 1.0,
+      "min_talus_position": 0.8
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

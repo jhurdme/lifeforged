@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    {"id": "still_life:snowy_peaks", "required": false},
+    {"id": "still_life:snowy_painted_peaks", "required": false},
+    {"id": "still_life:snowy_barren_peaks", "required": false},
+    "minecraft:snowy_slopes",
+    "minecraft:frozen_peaks",
+    "minecraft:jagged_peaks"
+  ]
+}

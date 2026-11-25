@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:belt_forest",
+  "features": [
+    "stilllife_ftf_bridge:belt_forest_podzol",
+    "stilllife_ftf_bridge:belt_forest_gravel"
+  ],
+  "step": "underground_ores"
+}

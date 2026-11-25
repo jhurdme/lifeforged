@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "still_life:alpine_heathlands",
+      "required": false
+    },
+    {
+      "id": "still_life:alpine_plains",
+      "required": false
+    }
+  ]
+}

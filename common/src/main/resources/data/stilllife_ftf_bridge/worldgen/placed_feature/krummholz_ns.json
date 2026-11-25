@@ -17,7 +17,7 @@
   "placement": [
     {
       "type": "minecraft:count",
-      "count": 4
+      "count": 2
     },
     {
       "type": "minecraft:in_square"
@@ -32,28 +32,41 @@
     },
     {
       "type": "stilllife_ftf_bridge:terrain",
-      "min_snow_line": -45.0,
-      "max_snow_line": -6.0,
-      "max_slope": 0.6,
-      "max_temperature": 0.5,
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
       "requires_rain": true,
-      "prefer_facing": "north",
-      "facing_bias": 0.3
+      "max_temperature": 0.6,
+      "max_climate": 0.45,
+      "treeline": [
+        -44.0,
+        -22.0
+      ],
+      "fade_in": [
+        -96.0,
+        -70.0
+      ],
+      "wind_thinning": 0.6,
+      "min_shelter": 0.05,
+      "max_slope": 0.6,
+      "treeline_shelter": 30.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0,
+      "avoid_talus": [
+        "fresh",
+        "rock"
+      ],
+      "faces": [
+        "open",
+        "ledge"
+      ],
+      "snow": false
     },
     {
       "type": "minecraft:biome"
-    },
-    {
-      "type": "minecraft:block_predicate_filter",
-      "predicate": {
-        "type": "minecraft:would_survive",
-        "state": {
-          "Name": "minecraft:spruce_sapling",
-          "Properties": {
-            "stage": "0"
-          }
-        }
-      }
     }
   ]
 }

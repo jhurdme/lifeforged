@@ -1,0 +1,46 @@
+{
+  "feature": "stilllife_ftf_bridge:belt_moss_ground",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 4
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "fade_in": [
+        -80.0,
+        -56.0
+      ],
+      "treeline": [
+        -24.0,
+        -8.0
+      ],
+      "snow": false,
+      "treeline_shelter": 25.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0,
+      "min_shelter": 0.35,
+      "min_wetness": 0.3
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

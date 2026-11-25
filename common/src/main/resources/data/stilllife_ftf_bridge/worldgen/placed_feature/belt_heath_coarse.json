@@ -1,0 +1,40 @@
+{
+  "feature": "still_life:cf_terrain/forest/coarse_dirt_patches",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "fade_in": [
+        -80.0,
+        -56.0
+      ],
+      "treeline": [
+        -24.0,
+        -8.0
+      ],
+      "snow": false,
+      "treeline_shelter": 25.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

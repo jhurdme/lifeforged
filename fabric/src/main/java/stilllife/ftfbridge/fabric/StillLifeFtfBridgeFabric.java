@@ -38,6 +38,7 @@ public final class StillLifeFtfBridgeFabric implements ModInitializer {
       });
       Registry.register(BuiltInRegistries.FEATURE, StillLifeFtfBridge.WETLAND_POOLS, StillLifeFtfBridge.wetlandPoolsFeature());
       Registry.register(BuiltInRegistries.MATERIAL_CONDITION, StillLifeFtfBridge.SURFACE_LAYER, StillLifeFtfBridge.surfaceLayerCodec());
+      Registry.register(BuiltInRegistries.MATERIAL_CONDITION, StillLifeFtfBridge.TERRAIN, StillLifeFtfBridge.terrainConditionCodec());
       Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, StillLifeFtfBridge.TERRAIN, stilllife.ftfbridge.TerrainFilter.TYPE);
       java.util.List<net.minecraft.resources.ResourceLocation> vegetation = new java.util.ArrayList<>(StillLifeFtfBridge.RIVERSIDE);
       if (StillLifeFtfBridge.isLoaded("natures_spirit")) {
@@ -52,6 +53,15 @@ public final class StillLifeFtfBridgeFabric implements ModInitializer {
             GenerationStep.Decoration.VEGETAL_DECORATION,
             StillLifeFtfBridge.placed(riverside)
          );
+      }
+      // the subalpine belt per biome group: Still Life's ground features in its own step, then its plants
+      for (StillLifeFtfBridge.BeltGroup group : StillLifeFtfBridge.BELT_GROUPS) {
+         for (net.minecraft.resources.ResourceLocation f : group.ground()) {
+            BiomeModifications.addFeature(BiomeSelectors.tag(group.biomes()), GenerationStep.Decoration.UNDERGROUND_ORES, StillLifeFtfBridge.placed(f));
+         }
+         for (net.minecraft.resources.ResourceLocation f : group.plants()) {
+            BiomeModifications.addFeature(BiomeSelectors.tag(group.biomes()), GenerationStep.Decoration.VEGETAL_DECORATION, StillLifeFtfBridge.placed(f));
+         }
       }
       BiomeModifications.addFeature(
          BiomeSelectors.tag(StillLifeFtfBridge.HAS_WETLAND_POOLS),

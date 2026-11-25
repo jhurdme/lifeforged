@@ -2,8 +2,16 @@
   "type": "neoforge:add_features",
   "biomes": "#stilllife_ftf_bridge:has_riverside_plants",
   "features": [
+    "stilllife_ftf_bridge:treeline_clumps",
+    "stilllife_ftf_bridge:treeline_singles",
     "stilllife_ftf_bridge:krummholz",
-    "stilllife_ftf_bridge:alpine_flowers"
+    "stilllife_ftf_bridge:talus_pioneers",
+    "stilllife_ftf_bridge:talus_pioneers_toe",
+    "stilllife_ftf_bridge:ledge_shrubs",
+    "stilllife_ftf_bridge:alpine_flowers",
+    "stilllife_ftf_bridge:ledge_turf",
+    "stilllife_ftf_bridge:ledge_moss_dark",
+    "stilllife_ftf_bridge:ledge_plants"
   ],
   "step": "vegetal_decoration"
 }

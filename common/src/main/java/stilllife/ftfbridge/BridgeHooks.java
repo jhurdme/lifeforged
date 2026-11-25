@@ -25,10 +25,34 @@ public final class BridgeHooks {
       if (!naturalSnowLayers()) {
          return;
       }
+      if (MountainSnow.active(WorldLock.activeSettings()) && !StillLifeClimateBridge.screeDecorator()) {
+         // presets with FreeTerraForged's erosion decorator off: mountain_snow's pass (normally at the end of that
+         // decorator) runs here instead, before the layers; without the decorator there is no scree under bared snow
+         GroundCover.begin(level);
+         try {
+            MountainSnow.chunk(level, level.getChunk(origin.getX() >> 4, origin.getZ() >> 4));
+         } catch (RuntimeException | LinkageError e) {
+            logOnce("mountain snow", e);
+         } finally {
+            GroundCover.end();
+         }
+      }
       try {
          NaturalSnow.decorate(level, origin, coverPlants, config);
       } catch (RuntimeException | LinkageError e) {
          logOnce("natural snow layers", e);
+      }
+   }
+
+   /** rock_strata=deep (prototype): the regional rock through the chunk's body, at the start of its LIGHT step. */
+   public static void deepRock(net.minecraft.server.level.ServerLevel level, net.minecraft.world.level.chunk.ChunkAccess chunk) {
+      if (!BridgeConfig.enabled()) {
+         return;
+      }
+      try {
+         DeepRock.lightStep(level, chunk);
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("deep rock", e);
       }
    }
 
@@ -63,6 +87,11 @@ public final class BridgeHooks {
       } catch (RuntimeException | LinkageError e) {
          logOnce("mountain snow", e);
       }
+   }
+
+   /** The erosion decorator's settings and noise for the column it is about to do (kept for the snow pass after it). */
+   public static void erosionPass(ScreeFeature.Config config, Levels levels, etcodehome.freeterraforged.world.worldgen.noise.module.Noise rand) {
+      GroundCover.pass(config, levels, rand);
    }
 
    /** True when ground_cover took over this column of FTF's erosion decorator. */
@@ -129,6 +158,11 @@ public final class BridgeHooks {
             CaveFloorGuard.layout(out.entries());
          } catch (Throwable t) {
             StillLifeFtfBridge.LOG.error("[{}] could not read the biome layout for the cave floor guard", StillLifeFtfBridge.MOD_ID, t);
+         }
+         try {
+            AlpineCooling.layout(out.entries(), lookups);
+         } catch (Throwable t) {
+            StillLifeFtfBridge.LOG.error("[{}] could not read the biome layout for mountain cooling; format 18 worlds get no cooling", StillLifeFtfBridge.MOD_ID, t);
          }
       }
 

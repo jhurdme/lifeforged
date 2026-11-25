@@ -36,6 +36,7 @@ abstract class ScreeFeatureMixin {
       int surfaceY,
       CallbackInfo ci
    ) {
+      BridgeHooks.erosionPass(config, levels, rand);
       if (BridgeHooks.keepSnow(config, chunk, pos.getX(), surfaceY, pos.getZ(), cell.gradient + rand.compute(pos.getX(), pos.getZ(), 1) * config.slopeModifier())) {
          ci.cancel();
          return;

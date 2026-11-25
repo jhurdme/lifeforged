@@ -33,7 +33,11 @@
       "max_slope": 0.45,
       "max_temperature": 0.9,
       "prefer_facing": "south",
-      "facing_bias": 0.5
+      "facing_bias": 0.5,
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ]
     },
     {
       "type": "minecraft:biome"

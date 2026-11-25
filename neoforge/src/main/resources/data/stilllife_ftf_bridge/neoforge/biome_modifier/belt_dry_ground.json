@@ -1,0 +1,8 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:belt_dry",
+  "features": [
+    "stilllife_ftf_bridge:belt_dry_gravel"
+  ],
+  "step": "underground_ores"
+}

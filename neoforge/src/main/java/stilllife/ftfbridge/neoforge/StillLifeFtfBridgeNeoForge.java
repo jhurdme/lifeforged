@@ -32,6 +32,7 @@ public final class StillLifeFtfBridgeNeoForge {
    static {
       FEATURES.register(StillLifeFtfBridge.WETLAND_POOLS.getPath(), StillLifeFtfBridge::wetlandPoolsFeature);
       CONDITIONS.register(StillLifeFtfBridge.SURFACE_LAYER.getPath(), StillLifeFtfBridge::surfaceLayerCodec);
+      CONDITIONS.register(StillLifeFtfBridge.TERRAIN.getPath(), StillLifeFtfBridge::terrainConditionCodec);
       PLACEMENTS.register(StillLifeFtfBridge.TERRAIN.getPath(), () -> stilllife.ftfbridge.TerrainFilter.TYPE);
    }
 

@@ -1,0 +1,11 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:belt_heath",
+  "features": [
+    "stilllife_ftf_bridge:belt_heath_heather",
+    "stilllife_ftf_bridge:belt_heath_berries",
+    "stilllife_ftf_bridge:belt_heath_dwarf_shrubs",
+    "stilllife_ftf_bridge:belt_heath_allium"
+  ],
+  "step": "vegetal_decoration"
+}

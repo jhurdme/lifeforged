@@ -1,0 +1,11 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:belt_tundra",
+  "features": [
+    "stilllife_ftf_bridge:belt_tundra_berries",
+    "stilllife_ftf_bridge:belt_tundra_heather",
+    "stilllife_ftf_bridge:belt_tundra_bushes",
+    "stilllife_ftf_bridge:belt_tundra_dwarf_shrubs"
+  ],
+  "step": "vegetal_decoration"
+}

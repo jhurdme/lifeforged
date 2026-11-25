@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import etcodehome.freeterraforged.data.worldgen.preset.settings.Preset;
 import etcodehome.freeterraforged.world.worldgen.GeneratorContext;
+import etcodehome.freeterraforged.world.worldgen.biome.ClimateQueryPolicy;
 import etcodehome.freeterraforged.world.worldgen.biome.ClimateQuerySemantics;
 import etcodehome.freeterraforged.world.worldgen.biome.FTFClimateSampler;
 import etcodehome.freeterraforged.world.worldgen.cell.Cell;
@@ -87,11 +88,18 @@ public final class StillLifeClimateBridge {
    // Still Life heights (Lithosphere's scale) where its alpine bands (weirdness 0.4) and its snowy peaks cap (0.5667) start
    static final double YL_ALPINE = bandStart(0.4);
    static final double YL_PEAKS = bandStart(0.56666666);
+   // and where its highland band (weirdness 0.267) starts
+   static final double YL_HIGH = bandStart(0.26666668);
    // peak_line_variation acts from here up (full from PEAK_SHIFT_FULL), so lowland bands, beaches and wetlands never move
    private static final double PEAK_SHIFT_FROM = 140.0;
    private static final double PEAK_SHIFT_FULL = 175.0;
-   // mountain_cooling ramps in from this Still Life height (the highland band) to the snowy peaks band (YL_PEAKS)
-   private static final double COOL_FROM = 160.0;
+   // mountain_cooling ramps in from the alpine band (YL_ALPINE) to the snowy peaks band (YL_PEAKS). Worlds saved by 5.6
+   // (format 15) ramp from this Still Life height inside the highland band instead. Still Life's highland band holds forests
+   // at its cold end (coniferous, larch, spruce-fir, wooded highlands) and open biomes at its warm end, so cooling it turned
+   // the top of every open highland into a thin forest strip just under the alpine band; the alpine band has no forests.
+   private static final double COOL_FROM_5_6 = 160.0;
+   // -Dstilllife_ftf_bridge.legacyCooling=true: the 5.6 ramp in every world, for comparisons only
+   private static final boolean LEGACY_COOLING = Boolean.getBoolean("stilllife_ftf_bridge.legacyCooling");
    // and only near the surface: FTF never gives the first ~29 blocks below the ground a cave biome, so this covers every
    // surface biome while cave biomes below keep the climate of the column
    private static final double COOL_MAX_BELOW = 24.0;
@@ -101,9 +109,14 @@ public final class StillLifeClimateBridge {
    private static final double PEAK_NOISE_RANGE = 0.375;
    // standard deviation of the dither noise (Still Life's surface_dithered settings; measured)
    private static final double CAP_DITHER_STD = 0.365;
-   private static volatile Sampler lastSampler;
    private static final Map<GeneratorContext, StillLifeClimateBridge.World> WORLDS = new WeakHashMap<>();
    private static volatile StillLifeClimateBridge.World last;
+   /**
+    * The world being generated: set only by climate queries of real world generation (FTF's WORLDGEN query policy), never by
+    * a seed preview or a preview world's sampler (seed viewers run those mid-game), so every in-world read below (humidity,
+    * snow line, latitude) is about the world actually being generated.
+    */
+   private static volatile StillLifeClimateBridge.World active;
    private static final Map<String, CompletableFuture<StillLifeClimateBridge.Survey>> SURVEYS = new ConcurrentHashMap<>();
 
    private StillLifeClimateBridge() {
@@ -157,6 +170,20 @@ public final class StillLifeClimateBridge {
          new XoroshiroRandomSource(seed ^ 2117770257L), -13, new double[]{1.25, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5}
       );
       double equatorZ = (temperature.getValue(0.0, 0.0, 0.0) * 0.25 - 0.5) * 43000.0;
+      // format 18 band placement, in blocks of this world: where the bands may start to move (Still Life height 140, as
+      // peak_line_variation), today's highland start, the alpine band's thickness, the least highland belt kept (80% of
+      // today's) and so the lowest the line of the mountain biomes goes
+      double lowY = fromLitho(s.heights, PEAK_SHIFT_FROM);
+      double highY = fromLitho(s.heights, YL_HIGH);
+      double alpThick = fromLitho(s.heights, YL_PEAKS) - fromLitho(s.heights, YL_ALPINE);
+      double highMin = 0.8 * (fromLitho(s.heights, YL_ALPINE) - highY);
+      double[] snow = snowLines(settings, lock, s.heights);
+      if (EQUATOR_LOGGED.add(seed) && (settings.stillLifeLatitude() || settings.snowCurve())) {
+         StillLifeFtfBridge.LOG.info("[{}] {}{}", StillLifeFtfBridge.MOD_ID,
+            settings.stillLifeLatitude() ? "Still Life's equator lies at z = " + Math.round(-equatorZ) : "latitude=ftf",
+            settings.snowCurve() ? String.format(Locale.ROOT, "; snow line from Y %.0f (equator) to Y %.0f (warm edge of the tundra), vertical scale %.3f; mountain biome line at least Y %.0f",
+               snow[0], snow[1], snow[2], lowY + alpThick + highMin) : "");
+      }
       NormalNoise dryWetlands = NormalNoise.create(new XoroshiroRandomSource(seed ^ 7640891576956012809L), -9, new double[]{1.0, 1.0, 0.5});
       NormalNoise setWarpX = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x2545F4914F6CDD1DL), -8, new double[]{1.0, 0.6, 0.35});
       NormalNoise setWarpZ = NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x9E3779B97F4A7C15L), -8, new double[]{1.0, 0.6, 0.35});
@@ -170,7 +197,7 @@ public final class StillLifeClimateBridge {
       } catch (Throwable t) {
          StillLifeFtfBridge.LOG.warn("[{}] could not read FreeTerraForged's continent settings; biome sets by regions/halves use averages", StillLifeFtfBridge.MOD_ID);
       }
-      if (!settings.biomeSets().equals(Settings.SETS_CONTINENTS)) {
+      if (settings.biomeSets().equals(Settings.SETS_REGIONS) || settings.biomeSets().equals(Settings.SETS_HALVES)) {
          landArea = lock != null && lock.landArea > 0.0 ? lock.landArea : measureLandArea(ctx);
          if (lock != null && !(lock.landArea > 0.0)) {
             WorldLock.storeLandArea(lock, landArea);
@@ -189,15 +216,52 @@ public final class StillLifeClimateBridge {
       NormalNoise capDither = NormalNoise.create(
          new XoroshiroRandomSource(seed ^ 0x2F7A3C5B1D9E4F61L), -6, new double[]{1.0, 1.25, 1.5, 1.5, 1.5, 1.75, 1.75, 1.75, 2.0, 1.75, 1.5}
       );
-      return new StillLifeClimateBridge.World(
+      StillLifeClimateBridge.World made = new StillLifeClimateBridge.World(
          ctx, seed, lock, settings, variant, temperature, equatorZ, s.heights, s.edge, dryWetlands,
          maskThreshold(settings.aspenSwamps()), maskThreshold(settings.saltLakes()), setWarpX, setWarpZ,
          peakBig, peakMid, capDither, fromLitho(s.heights, YL_PEAKS), fromLitho(s.heights, YL_ALPINE),
+         lowY, highY, alpThick, highMin, lowY + alpThick + highMin,
          Math.sqrt(settings.biomeSetRegionSize() / 100.0 * landArea), Math.sqrt(landArea), continentSpacing, landControlPoint,
          NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x3C6EF372FE94F82BL), -10, new double[]{1.0, 0.5}),
-         new ConcurrentHashMap<>()
+         new ConcurrentHashMap<>(), snow[0], snow[1], snow[2], ftfCooling(ctx), screeDecorator(ctx, settings, seed)
       );
+      devSurvey(made);
+      return made;
    }
+
+   /**
+    * Test tool, off unless the JVM is started with -Dstilllife_ftf_bridge.survey=x0,z0,x1,z1,step,file: writes FTF's
+    * terrain height, humidity and terrain category and Still Life's latitude temperature on a grid to a CSV, for finding
+    * test mountains in given climates. Never part of world generation.
+    */
+   private static void devSurvey(StillLifeClimateBridge.World w) {
+      String spec = System.getProperty("stilllife_ftf_bridge.survey");
+      if (spec == null || !DEV_SURVEYED.add(w.seed)) {
+         return;
+      }
+      try {
+         String[] p = spec.split(",", 6);
+         int x0 = Integer.parseInt(p[0]), z0 = Integer.parseInt(p[1]), x1 = Integer.parseInt(p[2]), z1 = Integer.parseInt(p[3]), step = Integer.parseInt(p[4]);
+         StringBuilder sb = new StringBuilder("x,z,y,t,h,cat,ft").append(System.lineSeparator());
+         Cell cell = new Cell();
+         for (int z = z0; z <= z1; z += step) {
+            for (int x = x0; x <= x1; x += step) {
+               w.ctx.heightmap.apply(cell.reset(), x, z, true);
+               double t = 0.2 * w.temperature.getValue(x * 1.1, 0.0, z * 1.1) + 1.0 - 2.0 * Math.abs(z + w.equatorZ) / w.settings.poleDistance();
+               sb.append(x).append(',').append(z).append(',').append(Math.round(cell.height * w.ctx.levels.terrainScaleFactor)).append(',')
+                  .append(String.format(Locale.ROOT, "%.3f,%.3f", t, cell.moisture)).append(',').append(cell.terrain.getDelegate())
+                  .append(String.format(Locale.ROOT, ",%.3f", ftfSeaTemperature(w, x, z))).append(System.lineSeparator());
+            }
+         }
+         java.nio.file.Files.writeString(java.nio.file.Path.of(p[5]), sb.toString());
+         StillLifeFtfBridge.LOG.info("[{}] survey written to {}", StillLifeFtfBridge.MOD_ID, p[5]);
+      } catch (Exception e) {
+         StillLifeFtfBridge.LOG.error("[{}] survey failed", StillLifeFtfBridge.MOD_ID, e);
+      }
+   }
+
+   private static final java.util.Set<Long> DEV_SURVEYED = ConcurrentHashMap.newKeySet();
+   private static final java.util.Set<Long> EQUATOR_LOGGED = ConcurrentHashMap.newKeySet();
 
    private static StillLifeClimateBridge.Survey survey(String key, GeneratorContext ctx) {
       CompletableFuture<StillLifeClimateBridge.Survey> f = SURVEYS.get(key);
@@ -237,7 +301,28 @@ public final class StillLifeClimateBridge {
       }
    }
 
+   /**
+    * True on a thread while it answers a climate query that is not real world generation (the preset screen's preview, a
+    * seed viewer): terrain heights then come from FTF's quick cell lookup. The eroded height model builds a whole region
+    * of chunks for one lookup, which is fine while those chunks are being generated anyway but, for a preview that samples
+    * points far apart, means eroding a region per sample: the preview never finished and kept every core busy.
+    */
+   private static final ThreadLocal<Boolean> QUICK_HEIGHTS = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
    public static TargetPoint apply(Sampler sampler, TargetPoint target, int qx, int qy, int qz) {
+      if (BridgeConfig.enabled() && ((Object)sampler) instanceof FTFClimateSampler ftf
+         && ftf.climateQuerySemantics().policy() != ClimateQueryPolicy.WORLDGEN) {
+         QUICK_HEIGHTS.set(Boolean.TRUE);
+         try {
+            return apply0(sampler, target, qx, qy, qz);
+         } finally {
+            QUICK_HEIGHTS.set(Boolean.FALSE);
+         }
+      }
+      return apply0(sampler, target, qx, qy, qz);
+   }
+
+   private static TargetPoint apply0(Sampler sampler, TargetPoint target, int qx, int qy, int qz) {
       if (BridgeConfig.enabled() && ((Object)sampler) instanceof FTFClimateSampler ftf) {
          ClimateQuerySemantics semantics = ftf.climateQuerySemantics();
          GeneratorContext ctx = semantics.surfaceContext();
@@ -246,12 +331,12 @@ public final class StillLifeClimateBridge {
          }
 
          StillLifeClimateBridge.World w = world(semantics.seed(), semantics.preset(), ctx);
+         if (semantics.policy() == ClimateQueryPolicy.WORLDGEN && active != w) {
+            active = w;
+         }
          int bx = QuartPos.toBlock(qx);
          int bz = QuartPos.toBlock(qz);
          Cell cell = CellSampler.getCachedOrLookup(ctx.lookup, bx, bz, false);
-         if (lastSampler != sampler) {
-            lastSampler = sampler;
-         }
          Levels levels = ctx.levels;
          double[] heights = w.heights;
          Terrain terrain = cell.terrain;
@@ -266,10 +351,34 @@ public final class StillLifeClimateBridge {
          // the cell's values are read before the neighbour lookups below, which may reuse it
          final float cellHeight = cell.height;
          final float cellContinent = cell.continentId;
+         final int cellContinentX = cell.continentX;
+         final int cellContinentZ = cell.continentZ;
          final float cellControl = cell.controlPoint;
          // peak_line_variation: the high-mountain bands start at a wandering height instead of a level line
+         long temperature = target.temperature();
+         double tLat = Double.NaN;
+         if (w.settings.stillLifeLatitude()) {
+            tLat = 0.2 * w.temperature.getValue(bx * 1.1, 0.0, bz * 1.1) + 1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance();
+            temperature = Climate.quantizeCoord((float)tLat);
+         }
+         boolean curve = w.settings.snowCurve();
+         if (curve && !w.settings.stillLifeLatitude()) {
+            // latitude=ftf (format 19): the curve reads FreeTerraForged's temperature at sea level (its own altitude cooling
+            // taken out); the biome lookup keeps FTF's temperature as it is
+            tLat = quartTemperature(w, qx, qz);
+         }
          double yBand = yL;
-         if (!submerged && (w.settings.peakLineVariation() > 0.0 || w.settings.snowLineClimate() > 0.0) && yL > PEAK_SHIFT_FROM) {
+         if (curve) {
+            // format 18: Still Life's bands placed under this column's own line (the snow-line curve, never below the floor,
+            // minus the rock belt where the peaks are bare rock), which wanders with peak_line_variation; land below the
+            // fade-in height keeps its band
+            if (!submerged && y > w.lowY) {
+               float snowiness = MountainSnow.snowiness(Climate.unquantizeCoord(target.humidity()), GroundCover.patch(w.seed, bx, bz, 131, 1100.0F),
+                  w.settings.stillLifeLatitude() ? (float)clamp(1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance(), -1.0, 1.0) : 0.0F);
+               double line = Math.max(bandLine(w, tLat, snowiness) - peakNoiseShift(w, ctx, qx, qz), w.lowY + w.alpThick + 10.0 * w.vs);
+               yBand = bandHeight(w, y, line);
+            }
+         } else if (!submerged && (w.settings.peakLineVariation() > 0.0 || w.settings.snowLineClimate() > 0.0) && yL > PEAK_SHIFT_FROM) {
             double ramp = clamp((yL - PEAK_SHIFT_FROM) / (PEAK_SHIFT_FULL - PEAK_SHIFT_FROM), 0.0, 1.0);
             yBand = toLitho(heights, y + ramp * peakShift(w, ctx, qx, qz));
          }
@@ -288,7 +397,7 @@ public final class StillLifeClimateBridge {
             magnitude = SHORE_W;
          }
          long weirdness = Climate.quantizeCoord((float)(w.variant.getValue(bx, 0.0, bz) >= 0.0 ? magnitude : -magnitude));
-         double group = biomeSetGroup(w, ctx, cellContinent, bx, bz);
+         double group = biomeSetGroup(w, ctx, cellContinent, cellContinentX, cellContinentZ, bx, bz);
          double topo = (yL - 136.16) / 144.0;
          double aboveLowland = topo > -0.3 ? 1.0 : 0.0;
          boolean highland = terrain.getDelegate() == TerrainCategory.HIGHLAND;
@@ -305,12 +414,6 @@ public final class StillLifeClimateBridge {
             && inland >= CONT[3]
             && yL <= w.settings.swampMaxHeight()
             && humidity >= w.settings.swampHumidity();
-         long temperature = target.temperature();
-         if (w.settings.stillLifeLatitude()) {
-            double t = 0.2 * w.temperature.getValue(bx * 1.1, 0.0, bz * 1.1) + 1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance();
-            temperature = Climate.quantizeCoord((float)t);
-         }
-
          // Dry wetlands: Still Life's aspen swamps and salt lakes need its wetland climate together with fairly dry air, which
          // the humid-swamp rule never gives. On American-set continents, inland FLAT low ground whose climate falls in one of
          // their niches gets the wetland climate in patches (a few hundred blocks across) of the configured share.
@@ -328,8 +431,7 @@ public final class StillLifeClimateBridge {
                double lo = y;
                double hi = y;
                for (int k = 0; k < 4; k++) {
-                  Cell n = CellSampler.getCachedOrLookup(ctx.lookup, bx + FLAT_DX[k], bz + FLAT_DZ[k], false);
-                  double ny = n.height * levels.terrainScaleFactor;
+                  double ny = terrainHeight(ctx, bx + FLAT_DX[k], bz + FLAT_DZ[k]);
                   lo = Math.min(lo, ny);
                   hi = Math.max(hi, ny);
                }
@@ -358,14 +460,25 @@ public final class StillLifeClimateBridge {
             depth = Climate.quantizeCoord((float)lithoDepth);
          }
 
-         // mountain_cooling: cooler climate up through the highland and alpine bands, so warm lowland biomes give way to montane
-         // and alpine ones below the snow instead of running up to it. The snowy peaks band keeps its own temperature (its snowy,
+         // mountain_cooling: cooler climate up through the alpine band, so warm biomes give way to alpine ones below the snow
+         // instead of running up to it (the highland band keeps Still Life's own biome for the climate). The snowy peaks band keeps its own temperature (its snowy,
          // bare and painted caps stay as they are), and no column is cooled across the polar line (polar caps stay too).
          double cooling = w.settings.mountainCooling();
-         if (cooling > 0.0 && !submerged && yBand > COOL_FROM && yBand < YL_PEAKS
+         double coolFrom = LEGACY_COOLING || w.lock != null && w.lock.format <= 15 ? COOL_FROM_5_6 : YL_ALPINE;
+         if (curve) {
+            // format 18: the whole alpine band at once, only under a snow cap and only into a cold alpine biome (AlpineCooling);
+            // not with latitude=ftf, whose temperature already falls with height (FTF's altitude cooling)
+            if (cooling > 0.0 && w.settings.stillLifeLatitude() && !submerged && yBand > YL_ALPINE && yBand <= YL_PEAKS
+               && (ftfDepth <= 0.0F ? 0.0 : ftfDepth / 1.5 * (y + levels.worldDepth)) < COOL_MAX_BELOW) {
+               float t = Climate.unquantizeCoord(temperature);
+               if (AlpineCooling.cools(t, humidity, Climate.unquantizeCoord(continentalness), (float)erosion, Climate.unquantizeCoord(weirdness) >= 0.0F, cooling)) {
+                  temperature = Climate.quantizeCoord((float)(t - cooling));
+               }
+            }
+         } else if (cooling > 0.0 && !submerged && yBand > coolFrom && yBand < YL_PEAKS
             && (ftfDepth <= 0.0F ? 0.0 : ftfDepth / 1.5 * (y + levels.worldDepth)) < COOL_MAX_BELOW) {
             float t = Climate.unquantizeCoord(temperature);
-            double cooled = t - cooling * (yBand - COOL_FROM) / (YL_PEAKS - COOL_FROM);
+            double cooled = t - cooling * (yBand - coolFrom) / (YL_PEAKS - coolFrom);
             if (t >= POLAR_T) {
                cooled = Math.max(cooled, POLAR_T + 0.005);
             }
@@ -381,6 +494,93 @@ public final class StillLifeClimateBridge {
    private static boolean isSea(Cell cell, Levels levels) {
       Terrain t = cell.terrain;
       return t.isDeepOcean() || t.isShallowOcean() || t.getDelegate() == TerrainCategory.COAST && cell.height <= levels.water;
+   }
+
+   /**
+    * Format 19: how tall this world's mountains are against the preset the snow numbers were tuned on (the owner's tall
+    * preset): the mean height above the sea of the 97th to 99.5th percentile of land (the calibrated height table), over
+    * REF_MOUNTAINS. Within SCALE_DEAD_BAND of 1 it is exactly 1 (that preset measures 0.93 to 1.05 over four seeds), eased
+    * to the measured value over the next SCALE_DEAD_BAND, the measured value beyond; clamped to 0.2..3.
+    */
+   static double autoScale(double[] heights) {
+      double m = (heights[7] + heights[8] + heights[9] + heights[10]) / 4.0 - heights[0];
+      double v = m / REF_MOUNTAINS;
+      double off = Math.abs(v - 1.0);
+      if (off <= SCALE_DEAD_BAND) {
+         return 1.0;
+      }
+      if (off < 2.0 * SCALE_DEAD_BAND) {
+         // eased from 1 to the measured value over the next 8%, so the scale has no jump
+         v = 1.0 + (v - 1.0) * (off - SCALE_DEAD_BAND) / SCALE_DEAD_BAND;
+      }
+      return clamp(v, 0.2, 3.0);
+   }
+
+   /** Blocks above the sea of the reference preset's high land (97-99.5th percentile), and the dead band around 1. */
+   static final double REF_MOUNTAINS = 333.0;
+   static final double SCALE_DEAD_BAND = 0.08;
+   /** The reference preset's snow lines above its sea (Y 650 and Y 250 over a sea at Y 63). */
+   static final double REF_EQUATOR = 587.0;
+   static final double REF_TUNDRA = 187.0;
+
+   /**
+    * {snow line at the equator, at the warm edge of the tundra, vertical scale} of a world: format 18 and older as saved
+    * (scale 1); format 19 "auto" lines from the measured heights (sea + reference x scale), typed lines as typed, the scale
+    * from the heights; saved with the world the first time, so it never shifts.
+    */
+   private static double[] snowLines(Settings settings, WorldLock.Lock lock, double[] heights) {
+      double eq = settings.snowLineEquator();
+      double tu = settings.snowLineTundra();
+      if (!settings.snowCurve() || lock != null && lock.format < 19) {
+         return new double[]{eq, tu, 1.0};
+      }
+      double vs = lock != null && lock.snowScale > 0.0 ? lock.snowScale : autoScale(heights);
+      double sea = heights[0];
+      if (eq == Settings.AUTO) {
+         eq = Math.round(sea + REF_EQUATOR * vs);
+      }
+      if (tu == Settings.AUTO) {
+         tu = Math.round(sea + REF_TUNDRA * vs);
+      }
+      tu = Math.min(tu, eq);
+      if (lock != null && (!(lock.snowScale > 0.0) || settings.snowLineEquator() == Settings.AUTO || settings.snowLineTundra() == Settings.AUTO)) {
+         WorldLock.storeSnowScale(lock, eq, tu, vs);
+      }
+      return new double[]{eq, tu, vs};
+   }
+
+   /**
+    * Whether the preset runs FreeTerraForged's erosion decorator (its scree decorator), which mountain_snow, ground_cover
+    * and snow_caps hook into; says once per world in the log what happens without it.
+    */
+   private static boolean screeDecorator(GeneratorContext ctx, Settings settings, long seed) {
+      boolean scree = true;
+      boolean snow = true;
+      try {
+         scree = ctx.preset.miscellaneous().screeDecorator;
+         snow = ctx.preset.miscellaneous().smoothLayerDecorator;
+      } catch (Throwable t) {
+         return true;
+      }
+      if (!scree && (settings.mountainSnow() || settings.groundCover()) && DECORATOR_LOGGED.add(seed)) {
+         StillLifeFtfBridge.LOG.warn("[{}] this FreeTerraForged preset has its erosion decorator off: ground_cover (scree, strata, "
+            + "talus) does nothing{}", StillLifeFtfBridge.MOD_ID, !settings.mountainSnow() ? ""
+            : snow && settings.naturalSnowLayers() ? ", and mountain_snow runs in the snow layer decorator instead (no scree under bared snow)"
+            : ", and mountain_snow does nothing either (it also needs the smooth layer decorator and natural_snow_layers)");
+      }
+      return scree;
+   }
+
+   private static final java.util.Set<Long> DECORATOR_LOGGED = ConcurrentHashMap.newKeySet();
+
+   /** FreeTerraForged's altitude cooling strength (its climate settings), for the sea-level temperature of latitude=ftf. */
+   private static double ftfCooling(GeneratorContext ctx) {
+      try {
+         return ctx.preset.climate().altitudeCoolingStrength;
+      } catch (Throwable t) {
+         StillLifeFtfBridge.LOG.warn("[{}] could not read FreeTerraForged's altitude cooling; latitude=ftf snow lines use its temperature as it is", StillLifeFtfBridge.MOD_ID);
+         return 0.0;
+      }
    }
 
    static double[] calibrateHeights(GeneratorContext ctx) {
@@ -683,7 +883,9 @@ public final class StillLifeClimateBridge {
    /**
     * Still Life's biome set at a point: -0.5 = American, 0.5 = Afro-Eurasian (the sign of Still Life's erosion number).
     * <ul>
-    * <li>continents: each FTF continent rolls one set. Where two continents share land the biomes used to switch along
+    * <li>continents (format 17): each landmass rolls one set, FTF continent cells joined by continent bridges counting as
+    * one (Landmasses), so no set border falls on land; giant landmasses are split as Landmasses describes.</li>
+    * <li>cells: each FTF continent cell rolls one set. Where bridges join two cells the biomes used to switch along
     * their (straight) border; with biome_set_blend the set is read at a point displaced by a smooth warp (up to about
     * biome_set_blend blocks) plus a small per-cell jitter, so the switch becomes an irregular, dithered edge spread over a
     * few hundred blocks, like FTF's other biome edges. Far from a border the warped point is on the same continent.</li>
@@ -694,7 +896,7 @@ public final class StillLifeClimateBridge {
     * line (0.5 = the centre, 1 = all American).</li>
     * </ul>
     */
-   private static double biomeSetGroup(StillLifeClimateBridge.World w, GeneratorContext ctx, float own, int bx, int bz) {
+   private static double biomeSetGroup(StillLifeClimateBridge.World w, GeneratorContext ctx, float own, int ownX, int ownZ, int bx, int bz) {
       Settings s = w.settings;
       double blend = s.biomeSetBlend();
       double wx = bx;
@@ -713,13 +915,15 @@ public final class StillLifeClimateBridge {
 
       switch (s.biomeSets()) {
          case Settings.SETS_REGIONS: {
-            Cell scratch = SET_SCRATCH.get();
+            // reset: FTF's apply leaves continentId alone in skipped (ocean) cells, so a stale id from this thread's last call
+            // would otherwise be read (fixed in 6.0; it made coast and ocean samples depend on generation order)
+            Cell scratch = SET_SCRATCH.get().reset();
             ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
             LandSets land = landSets(w, ctx, scratch);
             return regionRoll(w, wx, wz) < (land != null ? land.threshold() : s.americanShare()) ? -0.5 : 0.5;
          }
          case Settings.SETS_HALVES: {
-            Cell scratch = SET_SCRATCH.get();
+            Cell scratch = SET_SCRATCH.get().reset();
             ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
             LandSets land = landSets(w, ctx, scratch);
             double line = land != null ? land.line() : scratch.continentX + (s.americanShare() - 0.5) * w.landWidth;
@@ -728,16 +932,46 @@ public final class StillLifeClimateBridge {
             line += 0.25 * width * w.halfWander.getValue(0.0, 0.0, wz / Math.max(1.0, width) * 1024.0);
             return wx < line ? -0.5 : 0.5;
          }
-         default: {
-            float id = own;
-            if (blend > 0.0) {
-               Cell scratch = SET_SCRATCH.get();
-               ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
-               id = scratch.continentId;
+         case Settings.SETS_CONTINENTS: {
+            Landmasses lands = own != 0.0F ? landmasses(w, ctx) : null;
+            Landmasses.Mass m = lands != null ? lands.ofCentroid(ownX, ownZ) : null;
+            if (m != null) {
+               // a landmass that is not giant has no set border on land: its own set, no blend. A giant one is split into
+               // block parts; across their borders (bridges on block lines) the part is read at the warped point.
+               if (m.giant() && blend > 0.0) {
+                  Cell scratch = SET_SCRATCH.get().reset();
+                  ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
+                  Landmasses.Mass there = scratch.continentId != 0.0F ? lands.ofCentroid(scratch.continentX, scratch.continentZ) : null;
+                  if (there != null && there.giant()) {
+                     m = there;
+                  }
+               }
+               // a landmass of one cell keeps the set that cell has with biome_sets=cells
+               double roll = m.single() ? continentRoll(own) : Landmasses.roll(m, w.seed);
+               return roll < s.americanShare() ? -0.5 : 0.5;
             }
-            return continentRoll(id) < s.americanShare() ? -0.5 : 0.5;
+            // not UPLIFT, no bridges, or FTF changed: one set per cell
+            return cellSet(w, ctx, own, blend, wx, wz);
          }
+         default:
+            return cellSet(w, ctx, own, blend, wx, wz);
       }
+   }
+
+   /** biome_sets=cells: one set per FTF continent cell (the cell at the warped point with biome_set_blend). */
+   private static double cellSet(StillLifeClimateBridge.World w, GeneratorContext ctx, float own, double blend, double wx, double wz) {
+      float id = own;
+      if (blend > 0.0) {
+         Cell scratch = SET_SCRATCH.get().reset();
+         ctx.heightmap.continent().apply(scratch, (float)wx, (float)wz);
+         id = scratch.continentId;
+      }
+      return continentRoll(id) < w.settings.americanShare() ? -0.5 : 0.5;
+   }
+
+   /** The world's bridged landmasses, or null when sets go per cell (see Landmasses.of). */
+   private static Landmasses landmasses(StillLifeClimateBridge.World w, GeneratorContext ctx) {
+      return w.continentSpacing > 0.0 ? Landmasses.of(ctx.heightmap.continent(), (int)Math.round(w.continentSpacing / 4.0)) : null;
    }
 
    /**
@@ -922,8 +1156,8 @@ public final class StillLifeClimateBridge {
       return climate + peakNoiseShift(w, ctx, qx, qz);
    }
 
-   private static double peakNoiseShift(StillLifeClimateBridge.World w, GeneratorContext ctx, int qx, int qz) {
-      double v = w.settings.peakLineVariation();
+   static double peakNoiseShift(StillLifeClimateBridge.World w, GeneratorContext ctx, int qx, int qz) {
+      double v = w.settings.peakLineVariation() * w.vs;
       if (v <= 0.0) {
          return 0.0;
       }
@@ -938,11 +1172,10 @@ public final class StillLifeClimateBridge {
       int bz = QuartPos.toBlock(qz);
       double n = (0.7 * w.peakBig.getValue(bx, 0.0, bz) + 0.3 * w.peakMid.getValue(bx, 0.0, bz)) / PEAK_NOISE_RANGE;
       double shift = v * clamp(n, -1.3, 1.3);
-      float scale = ctx.levels.terrainScaleFactor;
-      double h0 = CellSampler.getCachedOrLookup(ctx.lookup, bx, bz, false).height * scale;
+      double h0 = terrainHeight(ctx, bx, bz);
       double around = 0.0;
       for (int k = 0; k < 4; k++) {
-         around += CellSampler.getCachedOrLookup(ctx.lookup, bx + RELIEF_DX[k], bz + RELIEF_DZ[k], false).height * scale;
+         around += terrainHeight(ctx, bx + RELIEF_DX[k], bz + RELIEF_DZ[k]);
       }
       shift += clamp(around / 4.0 - h0, -v, v);
       long h = qx * 0x9E3779B97F4A7C15L ^ qz * 0xC2B2AE3D27D4EB4FL ^ w.seed ^ 0x7F4A7C15L;
@@ -974,7 +1207,7 @@ public final class StillLifeClimateBridge {
     * fade does not apply (more than snow_cap_fade blocks above the cap's local edge, or a polar cap, which starts lower).
     */
    static double capSnowShare(int x, int y, int z, float slope) {
-      StillLifeClimateBridge.World w = last;
+      StillLifeClimateBridge.World w = active;
       if (w == null) {
          return 1.0;
       }
@@ -990,8 +1223,7 @@ public final class StillLifeClimateBridge {
          return 1.0;
       }
       // polar caps (Still Life temperature below -0.56) start at the alpine band, well below this edge
-      Sampler sampler = lastSampler;
-      if (sampler != null && Climate.unquantizeCoord(sampler.sample(qx, QuartPos.fromBlock(y), qz).temperature()) < -0.56F) {
+      if (quartClimate(w, qx, qz)[1] < -0.56F) {
          return 1.0;
       }
       double t = clamp(d / fade, 0.0, 1.0);
@@ -1003,64 +1235,157 @@ public final class StillLifeClimateBridge {
 
    /** Still Life's latitude temperature here (1 at the equator, -1 at pole_distance), or 0 without latitude=still_life. */
    static float latitudeTemperature(int z) {
-      StillLifeClimateBridge.World w = last;
+      StillLifeClimateBridge.World w = active;
       if (w == null || !w.settings.stillLifeLatitude()) {
          return 0.0F;
       }
       return (float)clamp(1.0 - 2.0 * Math.abs(z + w.equatorZ) / w.settings.poleDistance(), -1.0, 1.0);
    }
 
-   /** Still Life's humidity (-1 dry to 1 wet) at this block, blended between the 4x4 columns around it (no 4-block steps). */
+   /**
+    * Still Life's temperature (-1..1, the axis its biome table is laid out on) that the biome lookup reads at sea level at
+    * this block: with latitude=still_life the latitude temperature plus its regional variation, exactly as the lookup
+    * computes it (before mountain_cooling, which only cools high ground); otherwise FTF's climate there. NaN before the
+    * world is known. (For mountain_snow's polar snow line, SnowModel.polarLine.)
+    */
+   static float seaLevelTemperature(int x, int z) {
+      StillLifeClimateBridge.World w = active;
+      if (w == null) {
+         return Float.NaN;
+      }
+      if (w.settings.stillLifeLatitude()) {
+         return (float)(0.2 * w.temperature.getValue(x * 1.1, 0.0, z * 1.1) + 1.0 - 2.0 * Math.abs(z + w.equatorZ) / w.settings.poleDistance());
+      }
+      if (w.settings.snowCurve()) {
+         // latitude=ftf with the curve (format 19): at sea level, as the curve reads it
+         return (float)quartTemperature(w, QuartPos.fromBlock(x), QuartPos.fromBlock(z));
+      }
+      return quartClimate(w, QuartPos.fromBlock(x), QuartPos.fromBlock(z))[1];
+   }
+
+   /**
+    * True once the climate bridge knows the running world (its climate sampler and snow line), so {@link #humidity} and
+    * {@link #capLineDistance} return real values rather than their "unknown" answers (0 and NaN).
+    */
+   static boolean known() {
+      return active != null;
+   }
+
+   /** FreeTerraForged's generator context of the world the climate bridge last worked on, or null before any. */
+   static GeneratorContext lastContext() {
+      StillLifeClimateBridge.World w = active;
+      return w == null ? null : w.ctx;
+   }
+
+   /** The seed of that world (FreeTerraForged's random state seed: the world seed). */
+   static long lastSeed() {
+      StillLifeClimateBridge.World w = active;
+      return w == null ? 0L : w.seed;
+   }
+
+   /**
+    * Still Life's humidity (-1 dry to 1 wet) at this block, blended between the 4x4 columns around it (no 4-block steps); 0
+    * before the world is known. The surface climate: y is not used (FTF's humidity is a property of the column, its
+    * underground banding changes nothing).
+    */
    static float humidity(int x, int y, int z) {
+      StillLifeClimateBridge.World w = active;
+      if (w == null) {
+         return 0.0F;
+      }
       double fx = (x - 2) / 4.0;
       double fz = (z - 2) / 4.0;
       int qx = (int)Math.floor(fx);
       int qz = (int)Math.floor(fz);
       float tx = (float)(fx - qx);
       float tz = (float)(fz - qz);
-      float h00 = quartHumidity(qx, y, qz);
-      float h10 = quartHumidity(qx + 1, y, qz);
-      float h01 = quartHumidity(qx, y, qz + 1);
-      float h11 = quartHumidity(qx + 1, y, qz + 1);
+      float h00 = quartClimate(w, qx, qz)[0];
+      float h10 = quartClimate(w, qx + 1, qz)[0];
+      float h01 = quartClimate(w, qx, qz + 1)[0];
+      float h11 = quartClimate(w, qx + 1, qz + 1)[0];
       return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
    }
 
-   /** Still Life's humidity of one 4x4 column, cached; 0 before the world is known. */
-   private static float quartHumidity(int qx, int y, int qz) {
-      Sampler sampler = lastSampler;
-      if (sampler == null) {
-         return 0.0F;
+   /**
+    * FTF's surface climate of one 4x4 column, {humidity, temperature} on Still Life's -1..1 scale: the values FTF's noise
+    * router gives the biome lookup there (its humidity and temperature are the cell's moisture and temperature), computed
+    * from FTF's climate model alone. Cached per thread by world and position.
+    *
+    * <p>It used to come from whichever climate sampler last passed through the biome lookup (any thread's, usually a
+    * chunk's own sampler, whose cell caches answer for that chunk and are not safe to share), read at the caller's y but
+    * cached by x and z only. The same place could so get a different answer in different chunks: kaolin rock regions,
+    * snow amounts and dry ground switched along chunk borders.
+    */
+   private static float[] quartClimate(StillLifeClimateBridge.World w, int qx, int qz) {
+      ClimateCache c = CLIMATE_CACHE.get();
+      int slot = (qx * 31 + qz) & (ClimateCache.SIZE - 1);
+      float[] v = c.value[slot];
+      if (c.world[slot] == w && c.qx[slot] == qx && c.qz[slot] == qz) {
+         return v;
       }
-      HumidityCache c = HUMIDITY_CACHE.get();
-      int slot = (qx * 31 + qz) & (HumidityCache.SIZE - 1);
-      if (c.sampler[slot] == sampler && c.qx[slot] == qx && c.qz[slot] == qz) {
-         return c.value[slot];
-      }
-      float h = Climate.unquantizeCoord(sampler.sample(qx, QuartPos.fromBlock(y), qz).humidity());
-      c.sampler[slot] = sampler;
+      Cell cell = c.cell.reset();
+      w.ctx.heightmap.apply(cell, QuartPos.toBlock(qx), QuartPos.toBlock(qz), true);
+      v[0] = Climate.unquantizeCoord(Climate.quantizeCoord(cell.moisture));
+      v[1] = Climate.unquantizeCoord(Climate.quantizeCoord(cell.temperature));
+      c.world[slot] = w;
       c.qx[slot] = qx;
       c.qz[slot] = qz;
-      c.value[slot] = h;
-      return h;
+      return v;
    }
 
-   private static final ThreadLocal<HumidityCache> HUMIDITY_CACHE = ThreadLocal.withInitial(HumidityCache::new);
+   private static final ThreadLocal<ClimateCache> CLIMATE_CACHE = ThreadLocal.withInitial(ClimateCache::new);
 
-   private static final class HumidityCache {
-      static final int SIZE = 256;
-      final Object[] sampler = new Object[SIZE];
+   private static final class ClimateCache {
+      static final int SIZE = 512;
+      final Object[] world = new Object[SIZE];
       final int[] qx = new int[SIZE];
       final int[] qz = new int[SIZE];
-      final float[] value = new float[SIZE];
+      final float[][] value = new float[SIZE][2];
+      final Cell cell = new Cell();
    }
 
-   /** Blocks above (+) or below (-) the line where snowy peaks begin at this column, or NaN before the world is known. */
+   /**
+    * FTF's terrain height (blocks) at x/z: its eroded height model, the cells the terrain is built from, the same from any
+    * thread at any time. (FTF's shared cell cache answers with the eroded cell when that chunk's region happens to be cached
+    * and with the uneroded one otherwise, which made the snow line and alpine bands depend on generation order.)
+    */
+   static double terrainHeight(GeneratorContext ctx, int x, int z) {
+      if (QUICK_HEIGHTS.get()) {
+         return CellSampler.getCachedOrLookup(ctx.lookup, x, z, false).height * ctx.levels.terrainScaleFactor;
+      }
+      Cell[] cells = ctx.filteredChunkCache.getFilteredChunk(x >> 4, z >> 4);
+      if (cells != null) {
+         return cells[(z & 15) * 16 + (x & 15)].height * ctx.levels.terrainScaleFactor;
+      }
+      Cell c = CLIMATE_CACHE.get().cell.reset();
+      ctx.heightmap.apply(c, x, z, false);
+      return c.height * ctx.levels.terrainScaleFactor;
+   }
+
+   /**
+    * Blocks above (+) or below (-) the mountain line at this column, or NaN before the world is known: where the snowy peaks
+    * begin (formats up to 17), or (format 18) the snow line of the curve, but never below the lowest line of the mountain
+    * biomes (the floor), so the treeline, the alpine ground and every other feature measured from it stay off cold lowland.
+    * The snow itself follows {@link #snowLineDistance}.
+    */
    static double capLineDistance(int x, int y, int z) {
-      StillLifeClimateBridge.World w = last;
+      return lineDistance(x, y, z, false);
+   }
+
+   /**
+    * Blocks above (+) or below (-) the snow line at this column (format 18: the snow-line curve with its wander, which may lie
+    * below the floor of the mountain biomes in cold country; older worlds: the same as {@link #capLineDistance}).
+    */
+   static double snowLineDistance(int x, int y, int z) {
+      return lineDistance(x, y, z, true);
+   }
+
+   private static double lineDistance(int x, int y, int z, boolean snow) {
+      StillLifeClimateBridge.World w = active;
       if (w == null) {
          return Double.NaN;
       }
-      // the shift is worked out per 4x4 column (biome resolution); blend the four around this block, so the line has no
+      // the line is worked out per 4x4 column (biome resolution); blend the four around this block, so the line has no
       // 4-block steps when it decides single blocks (snow ground, snow layers)
       double fx = (x - 2) / 4.0;
       double fz = (z - 2) / 4.0;
@@ -1068,12 +1393,211 @@ public final class StillLifeClimateBridge {
       int qz = (int)Math.floor(fz);
       double tx = fx - qx;
       double tz = fz - qz;
-      double s00 = peakShift(w, w.ctx, qx, qz);
-      double s10 = peakShift(w, w.ctx, qx + 1, qz);
-      double s01 = peakShift(w, w.ctx, qx, qz + 1);
-      double s11 = peakShift(w, w.ctx, qx + 1, qz + 1);
-      double shift = (s00 * (1 - tx) + s10 * tx) * (1 - tz) + (s01 * (1 - tx) + s11 * tx) * tz;
-      return y - (w.peaksHeight - shift);
+      double s00 = lineHeight(w, qx, qz, snow);
+      double s10 = lineHeight(w, qx + 1, qz, snow);
+      double s01 = lineHeight(w, qx, qz + 1, snow);
+      double s11 = lineHeight(w, qx + 1, qz + 1, snow);
+      double line = (s00 * (1 - tx) + s10 * tx) * (1 - tz) + (s01 * (1 - tx) + s11 * tx) * tz;
+      // format 19: in the reference preset's blocks (divided by the world's vertical scale; 1 on that preset), so every
+      // distance measured from the line (the snow zone, treeline windows, frost, alpine ground) scales with the mountains
+      double d = (y - line) / w.vs;
+      if (!snow && w.settings.snowCurve()) {
+         // gentle lowland (standing little above its valley floor) below the zone counts as far below the line, so the
+         // treeline, the alpine ground and every feature measured from this line stay off valley floors and plains however
+         // low the line comes (format 18; the snow has the same rule in SnowModel.coverageCurve)
+         double standing = (terrainHeight(w.ctx, x, z) - ValleyFloor.at(w.ctx, x, z)) / w.vs;
+         d -= GENTLE_DROP * (1.0 - smoothstep(25.0, 70.0, standing)) * (1.0 - smoothstep(-60.0, 20.0, d));
+      }
+      return d;
+   }
+
+   /** Blocks gentle lowland counts as lower for capLineDistance (format 18). */
+   private static final double GENTLE_DROP = 80.0;
+   /**
+    * Blocks the vegetation line lies above the climate-shifted snow line (format 18), so the treeline windows of the
+    * content (conifers -110..-50, broadleaf -145..-80) end 40 and 70 blocks below where the snow zone begins.
+    */
+   static final double VEGETATION_OFFSET = 10.0;
+
+   private static double smoothstep(double a, double b, double v) {
+      double t = clamp((v - a) / (b - a), 0.0, 1.0);
+      return t * t * (3.0 - 2.0 * t);
+   }
+
+   /** The mountain line (snow: the snow line) at a 4x4 column, in blocks, wander included. */
+   private static double lineHeight(StillLifeClimateBridge.World w, int qx, int qz, boolean snow) {
+      if (!w.settings.snowCurve()) {
+         return w.peaksHeight - peakShift(w, w.ctx, qx, qz);
+      }
+      double t = quartTemperature(w, qx, qz);
+      double line = snowLine(w, t);
+      if (!snow) {
+         // the vegetation line: the snow line moved by this climate's snowiness (as the snow zone is), a little above it
+         line += (SnowModel.lineShift((float)quartSnowiness(w, qx, qz)) + VEGETATION_OFFSET) * w.vs;
+      }
+      return line - peakNoiseShift(w, w.ctx, qx, qz);
+   }
+
+   /** Height (blocks) of the running world below which land is lowland (Still Life height 140), or -infinity before it is known. */
+   static double lowlandTop() {
+      StillLifeClimateBridge.World w = active;
+      return w == null ? Double.NEGATIVE_INFINITY : w.lowY;
+   }
+
+   /** True when the running world places its bands and snow from the snow-line curve (format 18). */
+   static boolean snowCurve() {
+      StillLifeClimateBridge.World w = active;
+      return w != null && w.settings.snowCurve();
+   }
+
+   /**
+    * False when the running world's preset has FreeTerraForged's erosion decorator off (mountain_snow then runs in the snow
+    * decorator instead); true otherwise and before the world is known.
+    */
+   static boolean screeDecorator() {
+      StillLifeClimateBridge.World w = active;
+      return w == null || w.screeDecorator;
+   }
+
+   /**
+    * The running world's vertical scale of the snow zone and bands (format 19: how tall its mountains are against the
+    * reference preset; 1 there and in older worlds, and before the world is known).
+    */
+   static double verticalScale() {
+      StillLifeClimateBridge.World w = active;
+      return w == null ? 1.0 : w.vs;
+   }
+
+   /** climateSnow at a 4x4 column (format 18's vegetation line), memoised per thread with the temperature. */
+   private static double quartSnowiness(StillLifeClimateBridge.World w, int qx, int qz) {
+      TempCache c = TEMP_CACHE.get();
+      int slot = (qx * 31 + qz) & (TempCache.SIZE - 1);
+      if (c.sWorld[slot] == w && c.sqx[slot] == qx && c.sqz[slot] == qz) {
+         return c.snow[slot];
+      }
+      int bx = QuartPos.toBlock(qx);
+      int bz = QuartPos.toBlock(qz);
+      double v = MountainSnow.snowiness(quartClimate(w, qx, qz)[0], GroundCover.patch(w.seed, bx, bz, 131, 1100.0F),
+         (float)clamp(1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance(), -1.0, 1.0));
+      c.sWorld[slot] = w;
+      c.sqx[slot] = qx;
+      c.sqz[slot] = qz;
+      c.snow[slot] = v;
+      return v;
+   }
+
+   /** Still Life's latitude temperature (with its regional variation) of a 4x4 column, as the biome lookup computes it. */
+   private static double quartTemperature(StillLifeClimateBridge.World w, int qx, int qz) {
+      TempCache c = TEMP_CACHE.get();
+      int slot = (qx * 31 + qz) & (TempCache.SIZE - 1);
+      if (c.world[slot] == w && c.qx[slot] == qx && c.qz[slot] == qz) {
+         return c.value[slot];
+      }
+      int bx = QuartPos.toBlock(qx);
+      int bz = QuartPos.toBlock(qz);
+      double t = w.settings.stillLifeLatitude()
+         ? 0.2 * w.temperature.getValue(bx * 1.1, 0.0, bz * 1.1) + 1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance()
+         : ftfSeaTemperature(w, bx, bz);
+      c.world[slot] = w;
+      c.qx[slot] = qx;
+      c.qz[slot] = qz;
+      c.value[slot] = t;
+      return t;
+   }
+
+   /**
+    * latitude=ftf: FreeTerraForged's temperature at block x/z with its altitude cooling taken out (its climate module raises
+    * the 0..1 temperature to the power 2^(normalised inland elevation x altitude cooling strength) above its ground level),
+    * on Still Life's -1..1 scale: the temperature the biome lookup would read there at sea level.
+    */
+   private static double ftfSeaTemperature(StillLifeClimateBridge.World w, int x, int z) {
+      Cell cell = CLIMATE_CACHE.get().cell.reset();
+      w.ctx.heightmap.apply(cell, x, z, true);
+      double t01 = clamp((cell.temperature + 1.0) / 2.0, 0.0, 1.0);
+      Levels levels = w.ctx.levels;
+      if (w.ftfCooling != 0.0 && cell.height > levels.ground && t01 > 0.0) {
+         double hn = clamp(levels.getNormalizedInlandElevation(cell.height), 0.0, 1.0);
+         t01 = Math.pow(t01, 1.0 / Math.pow(2.0, hn * w.ftfCooling));
+      }
+      return t01 * 2.0 - 1.0;
+   }
+
+   private static final ThreadLocal<TempCache> TEMP_CACHE = ThreadLocal.withInitial(TempCache::new);
+
+   private static final class TempCache {
+      static final int SIZE = 512;
+      final Object[] world = new Object[SIZE];
+      final int[] qx = new int[SIZE];
+      final int[] qz = new int[SIZE];
+      final double[] value = new double[SIZE];
+      final Object[] sWorld = new Object[SIZE];
+      final int[] sqx = new int[SIZE];
+      final int[] sqz = new int[SIZE];
+      final double[] snow = new double[SIZE];
+   }
+
+   /** Still Life's temperature at the warm edge of its tundra (where its taiga begins), and where its arctic begins. */
+   static final double TUNDRA_T = -0.56;
+   static final double ARCTIC_T = -0.8;
+   /** Blocks the peaks band starts below the snow line where the peaks are bare rock (barren or painted peaks). */
+   static final double ROCK_BELT = 45.0;
+
+   /**
+    * The snow line of the curve (format 18) for Still Life's temperature t, in blocks: snow_line_tundra at the warm edge of the
+    * tundra, rising linearly to snow_line_equator at temperature 1; across the tundra falling linearly to the sea at its cold
+    * edge (-0.8, where Still Life's own arctic begins), and the sea below that.
+    */
+   static double snowLine(StillLifeClimateBridge.World w, double t) {
+      double sea = w.ctx.levels.waterY;
+      if (t >= TUNDRA_T) {
+         return w.snowTundra + (w.snowEquator - w.snowTundra) * Math.min(1.0, (t - TUNDRA_T) / (1.0 - TUNDRA_T));
+      }
+      if (t >= ARCTIC_T) {
+         return sea + (Math.max(sea, w.snowTundra) - sea) * (t - ARCTIC_T) / (TUNDRA_T - ARCTIC_T);
+      }
+      return sea;
+   }
+
+   /**
+    * Where the peaks band starts (before the wander): the snow line, never below the floor of the mountain biomes, and
+    * ROCK_BELT lower where the peaks are bare rock (Still Life's peaks are bare barren or painted peaks from temperature
+    * about 0.23 up; the belt fades in from 0.17 to 0.30), so hot mountains show bare rock below their snow.
+    */
+   static double bandLine(StillLifeClimateBridge.World w, double t, float snowiness) {
+      // the snowy peaks begin where the snow zone's cover reaches 70% (format 18, SnowModel.coverHeight): above the snow
+      // line, the more so where dry; below it the alpine band carries the patchy zone, to the top of lower mountains
+      double above = SnowModel.coverHeight(0.7, snowiness);
+      if (Double.isNaN(above)) {
+         above = SnowModel.ZONE_TOP + SnowModel.lineShift(snowiness);
+      }
+      // (format 19: distances of the snow zone scale with the world's mountains, w.vs; 1 on the reference preset)
+      double line = Math.max(snowLine(w, t) + above * w.vs, w.floorLine);
+      return Math.max(line - ROCK_BELT * w.vs * clamp((t - 0.17) / 0.13, 0.0, 1.0), w.floorLine);
+   }
+
+   /**
+    * Still Life height for the band choice at height y (blocks) under a peaks line at `line` (blocks, wander included): the
+    * alpine band is today's thickness under the line; the highland band runs from today's highland start up to it (on warm
+    * mountains it takes all the extra height); where the line is low the highland start moves down, never below the
+    * fade-in height, so the highland belt keeps at least highMin blocks. Below the fade-in height nothing changes.
+    */
+   static double bandHeight(StillLifeClimateBridge.World w, double y, double line) {
+      double lo = w.lowY;
+      if (y <= lo) {
+         return toLitho(w.heights, y);
+      }
+      double ya = line - w.alpThick;
+      double hs = clamp(ya - w.highMin, lo, w.highY);
+      if (y <= hs) {
+         return hs >= w.highY ? toLitho(w.heights, y) : PEAK_SHIFT_FROM + (YL_HIGH - PEAK_SHIFT_FROM) * (y - lo) / Math.max(1.0E-6, hs - lo);
+      }
+      if (y <= ya) {
+         return YL_HIGH + (YL_ALPINE - YL_HIGH) * (y - hs) / Math.max(1.0E-6, ya - hs);
+      }
+      if (y <= line) {
+         return YL_ALPINE + (YL_PEAKS - YL_ALPINE) * (y - ya) / w.alpThick;
+      }
+      return YL_PEAKS + (y - line) * (YL_PEAKS - YL_ALPINE) / w.alpThick;
    }
 
    /**
@@ -1082,7 +1606,7 @@ public final class StillLifeClimateBridge {
     * towards the cold end. With FTF's temperature bands there are no latitudes: westerly everywhere.
     */
    static int windFromWest(int z) {
-      StillLifeClimateBridge.World w = last;
+      StillLifeClimateBridge.World w = active;
       if (w == null || !w.settings.stillLifeLatitude()) {
          return 1;
       }
@@ -1090,9 +1614,21 @@ public final class StillLifeClimateBridge {
       return lat < 0.3 || lat > 0.65 ? -1 : 1;
    }
 
+   /**
+    * Distance from Still Life's equator in units of pole_distance, signed (+ south of the equator, - north of it), or NaN
+    * without latitude=still_life. For the snow model's smooth wind belts and sun direction.
+    */
+   static double latitudeSigned(int z) {
+      StillLifeClimateBridge.World w = active;
+      if (w == null || !w.settings.stillLifeLatitude()) {
+         return Double.NaN;
+      }
+      return (z + w.equatorZ) / w.settings.poleDistance();
+   }
+
    /** Roughly uniform 0..1 dither value for the cap fade (Still Life's arctic-desert noise, through its normal distribution). */
    static double capDither(int x, int z) {
-      StillLifeClimateBridge.World w = last;
+      StillLifeClimateBridge.World w = active;
       return w == null ? 0.5 : phi(w.capDither.getValue(x, 0.0, z) / CAP_DITHER_STD);
    }
 
@@ -1159,12 +1695,22 @@ public final class StillLifeClimateBridge {
       NormalNoise capDither,
       double peaksHeight,
       double alpineHeight,
+      double lowY,
+      double highY,
+      double alpThick,
+      double highMin,
+      double floorLine,
       double regionSize,
       double landWidth,
       double continentSpacing,
       float landControlPoint,
       NormalNoise halfWander,
-      Map<Float, LandSets> landSets
+      Map<Float, LandSets> landSets,
+      double snowEquator,
+      double snowTundra,
+      double vs,
+      double ftfCooling,
+      boolean screeDecorator
    ) {
    }
 }

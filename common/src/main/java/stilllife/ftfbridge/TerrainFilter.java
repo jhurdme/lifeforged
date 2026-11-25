@@ -1,23 +1,22 @@
 package stilllife.ftfbridge;
 
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import etcodehome.freeterraforged.world.worldgen.GeneratorContext;
 import etcodehome.freeterraforged.world.worldgen.cell.Cell;
-import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.placement.PlacementContext;
 import net.minecraft.world.level.levelgen.placement.PlacementFilter;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 
 /**
  * Placement filter {@code stilllife_ftf_bridge:terrain}: lets a feature through only where FreeTerraForged's terrain at that
- * column matches. Every field is optional; in a world that is not a FreeTerraForged world everything passes.
+ * column matches. Every field is optional; in a world that is not a FreeTerraForged world everything passes. The same
+ * fields (all but {@code faces} and {@code forest_edge}) work as a surface rule condition ({@link TerrainCondition}).
+ * docs/bridge.md, "Terrain data for datapacks", has the table with units and typical values, and worked examples.
  *
  * <pre>
  * { "type": "stilllife_ftf_bridge:terrain",
@@ -34,106 +33,84 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *   "min_snow_line": -45, "max_snow_line": -8, // blocks above (+) / below (-) where the snowy peaks begin here
  *   "treeline": [-110, -45],                  // skipped more and more from the first height to the second (relative to
  *                                             // where the snowy peaks begin), always above it: trees thinning out upwards
+ *   "fade_in": [-70, -40],                    // the other way: never below the first height, more and more up to the
+ *                                             // second (for belts above the trees: krummholz, subalpine shrubs); shifted
+ *                                             // by treeline_shelter / _sun / _wind / _ragged like the treeline
  *   "max_above_water": 2,                     // at most this many blocks above the nearby river's water (river zones only)
  *   "requires_rain": true,                    // only in biomes with rain or snow (not deserts and other dry biomes)
- *   "skip_with_natural_snow": true,
+ *   "skip_with_natural_snow": true,           // not in worlds where the bridge sets snow depth (natural_snow_layers): for
+ *                                             // features that set snow layers themselves, which would cut through the
+ *                                             // bridge's snow along chunk borders
  *   "skip_if_loaded": ["still_life_naturalized"],  // not when one of these mods is installed (it does this job itself)
  *   "terrain_categories": ["lake"],           // FTF terrain category of the column: deep_ocean, shallow_ocean, coast,
  *                                             // beach, river, lake, wetland, flatland, lowland, highland, island
- *   "requires_option": "shores",
+ *   "requires_option": "shores",              // only when this bridge option is on in the world (shores, ground_cover,
+ *                                             // mountain_snow, natural_snow_layers, forest_variety)
  *   "forest_edge": 12,                        // only within this many blocks of where forest meets open land
  *   "clearings": 0.1,                         // (forest_variety) skipped in natural clearings, about this share of the land
- *   "regional_mix": 0.4, "mix_salt": 17 }     // (forest_variety) skipped up to this share of the time, by a slow
- *                                             // regional variation of its own (mix_salt), so tree mixes vary             // only when this bridge option is on in the world (shores, ground_cover,
- *                                             // mountain_snow, natural_snow_layers)          // not in worlds where the bridge sets snow depth (natural_snow_layers): for
- *                                             // features that set snow layers themselves, which would cut through the
- *                                             // bridge's snow along chunk borders
+ *   "regional_mix": 0.4, "mix_salt": 17,      // (forest_variety) skipped up to this share of the time, by a slow
+ *                                             // regional variation of its own (mix_salt), so tree mixes vary
+ *
+ *   // ---- exposure (from FTF's terrain model; needs the climate bridge to know the world, else ignored)
+ *   "min_insolation": 0.0, "max_insolation": 1.0, // sun on the slope: 0.5 flat ground, 0 full shade, 1 = twice flat's light
+ *   "min_wind": -1.0, "max_wind": 1.0,        // wind exposure: + windward slopes and crests (scoured), - lee (loaded)
+ *   "min_shelter": -1.0, "max_shelter": 1.0,  // land shape 2-32 blocks around: + gullies, cirques, benches; - ribs, ridges
+ *   "wind_thinning": 0.5,                     // skipped up to this share of the time, by wind exposure (0 at <= 0, all at 1)
+ *   "shade_thinning": 0.5,                    // skipped up to this share, by shade (0 at insolation >= 0.5, all at 0)
+ *   "treeline_shelter": 30, "treeline_sun": 20, "treeline_wind": 15, // treeline raised by blocks per unit of shelter,
+ *                                             // of sun (2 * insolation - 1) and lowered per unit of wind exposure
+ *   "treeline_ragged": 12, "treeline_ragged_size": 24, // plus smooth noise of +-this many blocks, patches this wide
+ *
+ *   // ---- ground (talus and province fields need ground_cover, rock_suites also rock_strata; else ignored)
+ *   "talus": ["coarse", "old"],               // the talus model's kind here: none, fine, medium, coarse, mossy, overgrown,
+ *                                             // fan, thin_soil, thin_gravel, outcrop, rock (bare rock); groups fresh
+ *                                             // (fine, medium, coarse), old (mossy, overgrown), deposit (fresh + old)
+ *   "avoid_talus": ["fresh", "rock"],         // not these kinds
+ *   "min_talus_position": 0.6, "max_talus_position": 1.0, // 0 apex (below the face) .. 1 toe; fans 1; fails off deposits
+ *   "min_face_distance": 0, "max_face_distance": 12, // blocks up the fall line to the face feeding it (0 on bare rock;
+ *                                             // no face within 15: infinite)
+ *   "faces": ["ledge"],                       // the REAL ground's shape (blocks, 5x5): open, ledge, face, cliff
+ *   "rock_families": ["pale"],                // the province's rock family: grey, dark, pale
+ *   "rock_suites": ["limestone", "dolomite"], // its bedrock suite: grey, andesitic, dark, limestone, dolomite, granitic,
+ *                                             // kaolin_buff, kaolin_ochre (kaolin = both)
+ *   "min_greenness": 0.3, "max_greenness": 1.4, // how readily plants retake its scree (0.3..1.4)
+ *   "min_bare_rock": 0.0, "max_bare_rock": 1.0, // how much bare rock shows through its thin soil (0..1)
+ *
+ *   // ---- snow (needs mountain_snow, else ignored) and moisture (needs the climate bridge to know the world)
+ *   "snow": false,                            // true: the column holds snow (layers or snow ground); false: bare
+ *   "min_snow_depth": 0, "max_snow_depth": 2, // snow depth in layers (8 = a block; 0 bare, up to ~19)
+ *   "min_snow_margin": -0.15, "max_snow_margin": 0.0, // the snow model's score: >= 0 holds snow, deeper inside a
+ *                                             // snowfield; just below 0 = bare but at a snowfield's edge; -1 far below
+ *   "min_humidity": -1, "max_humidity": 1,    // Still Life's humidity (-1 dry .. 1 wet)
+ *   "climates": ["humid", "temperate"],       // ground_cover's climate class: cold, temperate, humid, arid
+ *   "min_wetness": 0.0, "max_wetness": 1.0 }  // how readily plants retake bare ground: 0 cold / dry .. 1 warm and wet
  * </pre>
+ *
+ * <p>What is read where: the FTF cell (slope, sediment, river zone, category, water), the climate bridge (snow line,
+ * humidity), the province, the talus model, the snow model and the exposure fields are pure functions of the world and
+ * the column (FreeTerraForged's terrain model, not blocks): the same from any chunk, in any order. hollow, prefer_facing,
+ * faces, forest_edge and the snow fields' ground height read the real blocks of the terrain within 2 blocks of the
+ * feature ({@link FtfTerrain#ground}, which falls back on FTF's model for chunks not yet at the noise stage); that is safe
+ * during feature placement, which may read the chunks around the one being decorated.
+ *
+ * <p>Cost: one FTF cell copy per attempt; the province, climate and talus facts are kept per column and thread
+ * ({@link TerrainFacts}), the snow and exposure fields per chunk and thread ({@link SnowField}), so each is worked out
+ * once per column (a talus trace, the most expensive, a few microseconds) however many features ask.
  */
 public final class TerrainFilter extends PlacementFilter {
-   private record Ranges(float minSlope, float maxSlope, float minSediment, float maxSediment, float minHollow, float maxHollow,
-                         float minTemperature, float maxTemperature, float minSnowLine, float maxSnowLine) {
-      static final MapCodec<Ranges> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-            Codec.FLOAT.optionalFieldOf("min_slope", Float.NEGATIVE_INFINITY).forGetter(Ranges::minSlope),
-            Codec.FLOAT.optionalFieldOf("max_slope", Float.POSITIVE_INFINITY).forGetter(Ranges::maxSlope),
-            Codec.FLOAT.optionalFieldOf("min_sediment", Float.NEGATIVE_INFINITY).forGetter(Ranges::minSediment),
-            Codec.FLOAT.optionalFieldOf("max_sediment", Float.POSITIVE_INFINITY).forGetter(Ranges::maxSediment),
-            Codec.FLOAT.optionalFieldOf("min_hollow", Float.NEGATIVE_INFINITY).forGetter(Ranges::minHollow),
-            Codec.FLOAT.optionalFieldOf("max_hollow", Float.POSITIVE_INFINITY).forGetter(Ranges::maxHollow),
-            Codec.FLOAT.optionalFieldOf("min_temperature", Float.NEGATIVE_INFINITY).forGetter(Ranges::minTemperature),
-            Codec.FLOAT.optionalFieldOf("max_temperature", Float.POSITIVE_INFINITY).forGetter(Ranges::maxTemperature),
-            Codec.FLOAT.optionalFieldOf("min_snow_line", Float.NEGATIVE_INFINITY).forGetter(Ranges::minSnowLine),
-            Codec.FLOAT.optionalFieldOf("max_snow_line", Float.POSITIVE_INFINITY).forGetter(Ranges::maxSnowLine)
-         ).apply(i, Ranges::new));
-   }
-
-   public static final MapCodec<TerrainFilter> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-         Ranges.CODEC.forGetter(f -> f.ranges),
-         Codec.STRING.listOf().optionalFieldOf("river_zones", List.of()).forGetter(f -> f.riverZones),
-         Codec.STRING.optionalFieldOf("prefer_facing").forGetter(f -> f.preferFacing),
-         Codec.FLOAT.optionalFieldOf("facing_bias", 0.4F).forGetter(f -> f.facingBias),
-         Codec.FLOAT.optionalFieldOf("ridge_thinning", 0.0F).forGetter(f -> f.ridgeThinning),
-         Codec.BOOL.optionalFieldOf("avoid_chutes", false).forGetter(f -> f.avoidChutes),
-         Codec.BOOL.optionalFieldOf("skip_with_natural_snow", false).forGetter(f -> f.skipWithNaturalSnow),
-         Codec.INT.optionalFieldOf("max_above_water", Integer.MAX_VALUE).forGetter(f -> f.maxAboveWater),
-         Codec.BOOL.optionalFieldOf("requires_rain", false).forGetter(f -> f.requiresRain),
-         Codec.FLOAT.listOf().optionalFieldOf("treeline", List.of()).forGetter(f -> f.treeline),
-         Codec.STRING.listOf().optionalFieldOf("skip_if_loaded", List.of()).forGetter(f -> f.skipIfLoaded),
-         Codec.STRING.listOf().optionalFieldOf("terrain_categories", List.of()).forGetter(f -> f.terrainCategories),
-         Codec.STRING.optionalFieldOf("requires_option", "").forGetter(f -> f.requiresOption),
-         Forest.CODEC.forGetter(f -> f.forest)
-      ).apply(i, TerrainFilter::new));
+   public static final MapCodec<TerrainFilter> CODEC = TerrainSpec.CODEC.xmap(TerrainFilter::new, f -> f.spec);
    public static final PlacementModifierType<TerrainFilter> TYPE = () -> CODEC;
 
-   private final Ranges ranges;
-   private final List<String> riverZones;
-   private final Optional<String> preferFacing;
-   private final float facingBias;
-   private final float ridgeThinning;
-   private final boolean avoidChutes;
-   private final boolean skipWithNaturalSnow;
-   private final int maxAboveWater;
-   private final boolean requiresRain;
-   private final List<Float> treeline;
-   private final List<String> skipIfLoaded;
-   private final boolean skipped;
-   private final List<String> terrainCategories;
-   private final String requiresOption;
-   private final Forest forest;
+   private final TerrainSpec spec;
 
-   private record Forest(int edge, float clearings, float regionalMix, int mixSalt) {
-      static final MapCodec<Forest> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-            Codec.INT.optionalFieldOf("forest_edge", 0).forGetter(Forest::edge),
-            Codec.FLOAT.optionalFieldOf("clearings", 0.0F).forGetter(Forest::clearings),
-            Codec.FLOAT.optionalFieldOf("regional_mix", 0.0F).forGetter(Forest::regionalMix),
-            Codec.INT.optionalFieldOf("mix_salt", 0).forGetter(Forest::mixSalt)
-         ).apply(i, Forest::new));
-   }
-
-   private TerrainFilter(Ranges ranges, List<String> riverZones, Optional<String> preferFacing, float facingBias, float ridgeThinning,
-                         boolean avoidChutes, boolean skipWithNaturalSnow, int maxAboveWater, boolean requiresRain,
-                         List<Float> treeline, List<String> skipIfLoaded, List<String> terrainCategories, String requiresOption,
-                         Forest forest) {
-      this.forest = forest;
-      this.terrainCategories = terrainCategories.stream().map(s -> s.toLowerCase(Locale.ROOT)).toList();
-      this.requiresOption = requiresOption;
-      this.treeline = treeline;
-      this.skipIfLoaded = skipIfLoaded;
-      this.skipped = skipIfLoaded.stream().anyMatch(StillLifeFtfBridge::isLoaded);
-      this.skipWithNaturalSnow = skipWithNaturalSnow;
-      this.maxAboveWater = maxAboveWater;
-      this.requiresRain = requiresRain;
-      this.ranges = ranges;
-      this.riverZones = riverZones.stream().map(s -> s.toLowerCase(Locale.ROOT)).toList();
-      this.preferFacing = preferFacing.map(s -> s.toLowerCase(Locale.ROOT));
-      this.facingBias = facingBias;
-      this.ridgeThinning = ridgeThinning;
-      this.avoidChutes = avoidChutes;
+   private TerrainFilter(TerrainSpec spec) {
+      this.spec = spec;
    }
 
    @Override
    protected boolean shouldPlace(PlacementContext context, RandomSource random, BlockPos pos) {
-      if (this.skipped) {
+      TerrainSpec s = this.spec;
+      if (s.skipped) {
          return false;
       }
       WorldGenLevel level = context.getLevel();
@@ -141,102 +118,14 @@ public final class TerrainFilter extends PlacementFilter {
       if (ctx == null) {
          return true;
       }
-      if (this.skipWithNaturalSnow && NaturalSnow.active(WorldLock.activeSettings())) {
-         return false;
-      }
-      if (!this.requiresOption.isEmpty() && !optionOn(this.requiresOption)) {
+      if (!s.enabledHere()) {
          return false;
       }
       int x = pos.getX();
       int z = pos.getZ();
-      Cell cell = FtfTerrain.cell(ctx, level.getChunk(x >> 4, z >> 4), x, z);
-      Ranges r = this.ranges;
-      float slope = cell.gradient;
-      if (slope < r.minSlope || slope > r.maxSlope) {
-         return false;
-      }
-      float sediment = sediment(cell);
-      if (sediment < r.minSediment || sediment > r.maxSediment) {
-         return false;
-      }
-      if (!this.riverZones.isEmpty() && !this.riverZones.contains(riverZone(cell))) {
-         return false;
-      }
-      if (!this.terrainCategories.isEmpty() && !this.terrainCategories.contains(category(cell))) {
-         return false;
-      }
-      if (this.maxAboveWater != Integer.MAX_VALUE) {
-         if (cell.riverWaterLevel <= 0.0F || pos.getY() - ctx.heightmap.levels().scale(cell.riverWaterLevel) > this.maxAboveWater) {
-            return false;
-         }
-      }
-      if (this.requiresRain && !level.getBiome(pos).value().hasPrecipitation()) {
-         return false;
-      }
-      boolean lineRange = r.minSnowLine != Float.NEGATIVE_INFINITY || r.maxSnowLine != Float.POSITIVE_INFINITY;
-      if (lineRange || this.treeline.size() == 2) {
-         double d = StillLifeClimateBridge.capLineDistance(x, pos.getY(), z);
-         if (!Double.isNaN(d)) {
-            if (d < r.minSnowLine || d > r.maxSnowLine) {
-               return false;
-            }
-            if (this.treeline.size() == 2) {
-               float a = this.treeline.get(0);
-               float b = this.treeline.get(1);
-               double t = (d - a) / Math.max(1.0F, b - a);
-               if (t >= 1.0 || t > 0.0 && random.nextFloat() < t) {
-                  return false;
-               }
-            }
-         }
-      }
-
-      boolean needHollow = r.minHollow != Float.NEGATIVE_INFINITY || r.maxHollow != Float.POSITIVE_INFINITY || this.avoidChutes;
-      if (needHollow) {
-         float hollow = FtfTerrain.hollow(level, x, z);
-         if (hollow < r.minHollow || hollow > r.maxHollow) {
-            return false;
-         }
-         if (this.avoidChutes && FtfTerrain.isChute(slope, hollow)) {
-            return false;
-         }
-      }
-
-      if (r.minTemperature != Float.NEGATIVE_INFINITY || r.maxTemperature != Float.POSITIVE_INFINITY) {
-         float t = FtfTerrain.temperature(level, pos);
-         if (t < r.minTemperature || t > r.maxTemperature) {
-            return false;
-         }
-      }
-
-      if (this.preferFacing.isPresent() && this.facingBias > 0.0F) {
-         String facing = FtfTerrain.facing(level, x, z);
-         if (facing.equals(opposite(this.preferFacing.get())) && random.nextFloat() < this.facingBias) {
-            return false;
-         }
-      }
-
-      if (this.ridgeThinning > 0.0F) {
-         float relief = FtfTerrain.relief(ctx, x, z);
-         float exposure = Math.max(0.0F, Math.min(1.0F, (relief - 16.0F) / 32.0F));
-         if (exposure > 0.0F && random.nextFloat() < exposure * this.ridgeThinning) {
-            return false;
-         }
-      }
-      Forest f = this.forest;
-      if (f.edge > 0 && !ForestEdges.nearEdge(level, x, pos.getY(), z, f.edge)) {
-         return false;
-      }
-      if ((f.clearings > 0.0F || f.regionalMix > 0.0F) && optionOn("forest_variety")) {
-         long seed = level.getSeed();
-         if (f.clearings > 0.0F && GroundCover.patch(seed, x, z, 171, 40.0F) > 1.0F - f.clearings) {
-            return false;
-         }
-         if (f.regionalMix > 0.0F && random.nextFloat() < f.regionalMix * GroundCover.patch(seed, x, z, 200 + f.mixSalt, 350.0F)) {
-            return false;
-         }
-      }
-      return true;
+      ChunkAccess chunk = level.getChunk(x >> 4, z >> 4);
+      Cell cell = FtfTerrain.cell(ctx, chunk, x, z);
+      return s.test(level, pos, random, ctx, level.getSeed(), chunk, cell, x, pos.getY(), z);
    }
 
    /** The column's FTF terrain category as a lower-case name (lake, coast, beach, river, ...). */
@@ -248,28 +137,6 @@ public final class TerrainFilter extends PlacementFilter {
          return "lake";
       }
       return String.valueOf(cell.terrain.getDelegate()).toLowerCase(Locale.ROOT);
-   }
-
-   private static boolean optionOn(String option) {
-      Settings s = WorldLock.activeSettings();
-      return switch (option) {
-         case "shores" -> BridgeConfig.enabled() && s.shores();
-         case "ground_cover" -> GroundCover.active(s);
-         case "mountain_snow" -> MountainSnow.active(s);
-         case "natural_snow_layers" -> NaturalSnow.active(s);
-         case "forest_variety" -> BridgeConfig.enabled() && s.forestVariety();
-         default -> true;
-      };
-   }
-
-   private static String opposite(String facing) {
-      return switch (facing) {
-         case "north" -> "south";
-         case "south" -> "north";
-         case "east" -> "west";
-         case "west" -> "east";
-         default -> "";
-      };
    }
 
    /** FTF's sediment on a 0..1 scale (its scree decorator reads cell.sediment * 3/255 the same way). */

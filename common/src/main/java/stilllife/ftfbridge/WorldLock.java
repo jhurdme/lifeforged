@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 16;
+   private static final int FORMAT = 19;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -82,7 +82,8 @@ final class WorldLock {
                   num(o, "biome_set_blend", format >= 11 ? d.biomeSetBlend() : 0.0),
                   num(o, "peak_line_variation", format >= 12 ? d.peakLineVariation() : 0.0),
                   num(o, "snow_cap_fade", format >= 12 ? d.snowCapFade() : 0.0),
-                  Settings.biomeSetsMode(format >= 13 && o.has("biome_sets") ? o.get("biome_sets").getAsString() : null),
+                  // before format 17 "continents" (and no value) meant one set per FTF continent cell: such worlds keep it as "cells"
+                  legacyBiomeSets(format, Settings.biomeSetsMode(format >= 13 && o.has("biome_sets") ? o.get("biome_sets").getAsString() : null)),
                   num(o, "biome_set_region_size", d.biomeSetRegionSize()),
                   // the cave floor guard came with bridge 5.5 (format 14); older worlds keep Still Life's ground on cave floors
                   format >= 14 ? Settings.caveFloorGuardMode(o.has("cave_floor_guard") ? o.get("cave_floor_guard").getAsString() : d.caveFloorGuard())
@@ -97,12 +98,23 @@ final class WorldLock {
                   bool(o, "mountain_snow", false),
                   num(o, "snow_line_climate", 0.0),
                   bool(o, "shores", false),
-                  bool(o, "forest_variety", false)
+                  bool(o, "forest_variety", false),
+                  // rock strata came later in bridge 6.0 (format 16 too): worlds saved without it keep the world's stone
+                  Settings.rockStrataMode(o.has("rock_strata") ? o.get("rock_strata").getAsString() : null),
+                  // the snow-line curve came with format 18: older worlds (no values) keep snow_line_climate and the ramped
+                  // mountain_cooling, so their new chunks match the old ones
+                  num(o, "snow_line_equator", 0.0),
+                  num(o, "snow_line_tundra", 0.0),
+                  // latitude=ftf worlds get the curve from format 19 (bridge 6.0 release); older ftf worlds keep FTF's bands
+                  format >= 19 && !stillLife
                );
             }
 
             lock = new WorldLock.Lock(file, s, doubles(o, "heights"), doubles(o, "coast_edge"), o.has("terrain") ? o.get("terrain").getAsString() : null, format);
             lock.landArea = num(o, "continent_land_area", 0.0);
+            // format 19: the vertical scale of the snow zone and bands, worked out once from the measured heights (format 18
+            // and older: 1, the numbers as they were tuned)
+            lock.snowScale = format >= 19 ? num(o, "snow_scale", Double.NaN) : 1.0;
             StillLifeFtfBridge.LOG.info("[{}] using this world's saved settings: {}", StillLifeFtfBridge.MOD_ID, s);
          } catch (Exception e) {
             throw new IllegalStateException(
@@ -123,9 +135,22 @@ final class WorldLock {
       current = null;
    }
 
+   /** biome_sets of a saved world: "continents" became one set per landmass in format 17; older worlds keep one per cell. */
+   static String legacyBiomeSets(int format, String mode) {
+      return format < 17 && Settings.SETS_CONTINENTS.equals(mode) ? Settings.SETS_CELLS : mode;
+   }
+
    /** The measured land area of an average FTF continent (blocks squared), kept so regions keep their size in this world. */
    static synchronized void storeLandArea(WorldLock.Lock lock, double area) {
       lock.landArea = area;
+      save(lock);
+   }
+
+   /** Format 19: the snow lines and vertical scale this world resolved to (saved, so the world never shifts). */
+   static synchronized void storeSnowScale(WorldLock.Lock lock, double equator, double tundra, double scale) {
+      lock.snowEquator = equator;
+      lock.snowTundra = tundra;
+      lock.snowScale = scale;
       save(lock);
    }
 
@@ -197,9 +222,21 @@ final class WorldLock {
             o.addProperty("natural_snow_layers", s.naturalSnowLayers());
             o.addProperty("ground_cover", s.groundCover());
             o.addProperty("mountain_snow", s.mountainSnow());
-            o.addProperty("snow_line_climate", s.snowLineClimate());
+            if (lock.format < 18) {
+               o.addProperty("snow_line_climate", s.snowLineClimate());
+            }
             o.addProperty("shores", s.shores());
             o.addProperty("forest_variety", s.forestVariety());
+            o.addProperty("rock_strata", s.rockStrata());
+         }
+
+         if (lock.format >= 18) {
+            // format 19: "auto" is saved as the heights it resolved to, once the world's land heights are measured
+            o.addProperty("snow_line_equator", lock.format >= 19 && lock.snowEquator > 0.0 ? lock.snowEquator : s.snowLineEquator());
+            o.addProperty("snow_line_tundra", lock.format >= 19 && lock.snowTundra > 0.0 ? lock.snowTundra : s.snowLineTundra());
+         }
+         if (lock.format >= 19 && lock.snowScale > 0.0) {
+            o.addProperty("snow_scale", lock.snowScale);
          }
       }
 
@@ -267,6 +304,10 @@ final class WorldLock {
       volatile double[] edge;
       volatile String terrain;
       volatile double landArea;
+      /** Format 19: the resolved snow lines (0 = not yet / as in the settings) and the vertical scale (NaN = not yet). */
+      volatile double snowEquator;
+      volatile double snowTundra;
+      volatile double snowScale = Double.NaN;
 
       Lock(Path file, Settings settings, double[] heights, double[] edge, String terrain, int format) {
          this.file = file;

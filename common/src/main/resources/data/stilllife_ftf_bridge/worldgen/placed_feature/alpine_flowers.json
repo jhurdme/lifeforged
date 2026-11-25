@@ -22,6 +22,10 @@
       "facing_bias": 0.5,
       "skip_if_loaded": [
         "natures_spirit"
+      ],
+      "river_zones": [
+        "none",
+        "valley_fadeout"
       ]
     },
     {

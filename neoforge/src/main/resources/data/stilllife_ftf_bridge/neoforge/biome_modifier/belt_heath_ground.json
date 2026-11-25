@@ -1,0 +1,10 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:belt_heath",
+  "features": [
+    "stilllife_ftf_bridge:belt_heath_coarse",
+    "stilllife_ftf_bridge:belt_heath_gravel",
+    "stilllife_ftf_bridge:belt_moss_ground"
+  ],
+  "step": "underground_ores"
+}

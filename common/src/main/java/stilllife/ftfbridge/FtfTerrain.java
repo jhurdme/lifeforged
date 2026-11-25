@@ -122,6 +122,16 @@ final class FtfTerrain {
       return c.terrain.isLake() && c.riverWaterLevel > 0.0F && c.height < c.riverWaterLevel;
    }
 
+   /** True when FreeTerraForged's model has river water (a river cell under its water level, not a lake or sea) over x/z. */
+   static boolean riverWater(WorldGenLevel level, int x, int z) {
+      GeneratorContext ctx = context(level);
+      if (ctx == null) {
+         return false;
+      }
+      Cell c = estimateCell(ctx, level, x, z);
+      return c.terrain.isRiver() && !c.terrain.isLake() && c.riverWaterLevel > 0.0F && c.height < c.riverWaterLevel;
+   }
+
    private static Cell estimateCell(GeneratorContext ctx, WorldGenLevel level, int x, int z) {
       Cell out = ESTIMATE.get();
       net.minecraft.world.level.chunk.ChunkAccess chunk = level.getChunk(x >> 4, z >> 4);
@@ -269,15 +279,13 @@ final class FtfTerrain {
 
    /** Blocks by which this column stands above the average of FTF's terrain 32 blocks around (from FTF's heightmap). */
    static float relief(GeneratorContext ctx, int x, int z) {
-      Cell c = RING.get();
-      Levels levels = ctx.heightmap.levels();
-      ctx.lookup.applyCell(c.reset(), x, z, false, false);
-      int h0 = levels.scale(c.height);
+      // FTF's eroded height model (StillLifeClimateBridge.terrainHeight); applyCell answers with the eroded cell only when
+      // that chunk's region happens to be cached, which made this depend on generation order
+      int h0 = (int)StillLifeClimateBridge.terrainHeight(ctx, x, z);
       float sum = 0.0F;
       for (int i = 0; i < 8; i++) {
          double a = i * Math.PI / 4.0;
-         ctx.lookup.applyCell(c.reset(), x + (int)Math.round(Math.cos(a) * 32.0), z + (int)Math.round(Math.sin(a) * 32.0), false, false);
-         sum += levels.scale(c.height);
+         sum += (int)StillLifeClimateBridge.terrainHeight(ctx, x + (int)Math.round(Math.cos(a) * 32.0), z + (int)Math.round(Math.sin(a) * 32.0));
       }
       return h0 - sum / 8.0F;
    }
@@ -287,7 +295,6 @@ final class FtfTerrain {
       return level.getBiome(pos).value().getBaseTemperature() - Math.max(0, pos.getY() - 80) * 0.05F / 40.0F;
    }
 
-   private static final ThreadLocal<Cell> RING = ThreadLocal.withInitial(Cell::new);
    private static final ThreadLocal<Cell> ESTIMATE = ThreadLocal.withInitial(Cell::new);
 
    static Cell cell(GeneratorContext ctx, ChunkAccess chunk, int x, int z) {

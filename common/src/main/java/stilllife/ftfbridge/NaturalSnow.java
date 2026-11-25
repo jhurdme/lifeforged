@@ -92,28 +92,28 @@ final class NaturalSnow {
       }
 
       float cliff = SnowCaps.active(s) ? SnowCaps.cliffSteepness(s, erodeConfig) : erodeConfig.rockSteepness();
+      long seed = level.getSeed();
+      // mountain_snow's field for this chunk (null without mountain_snow, or before the world is known)
+      SnowField.Chunk field = MountainSnow.active(s) ? SnowField.get(ctx, seed, cp.x, cp.z) : null;
       BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+      int[] trees = new int[256];
+      int treeCount = 0;
       for (int lz = 0; lz < 16; lz++) {
          for (int lx = 0; lx < 16; lx++) {
             int x = x0 + lx;
             int z = z0 + lz;
             int g = ground[(lz + R) * SIZE + lx + R];
             boolean mountainSnow = MountainSnow.active(s);
-            int canopy = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz) - 1;
+            // the column's top block (ChunkAccess.getHeight is already the top block's y, unlike LevelReader.getHeight:
+            // one lower, the snow layer lying on top of a tree was never looked at, so leaf snow was never cleared)
+            int canopy = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz);
             if (canopy > g + 1 && treeTop(chunk, pos, x, canopy, z)) {
-               // under trees (g is the terrain's own top, below trunks and leaves): Minecraft put its snow on the
-               // treetops only. With mountain_snow, treetops keep it only where most of the ground around holds snow,
-               // so trees aren't white over green or bare ground.
-               if (mountainSnow) {
-                  pos.set(x, g, z);
-                  net.minecraft.core.Holder<Biome> h = level.getBiome(pos);
-                  double coverage = MountainSnow.glacier(h) ? 1.0 : MountainSnow.coverage(x, g, z, h, level.getSeed());
-                  if (!Double.isNaN(coverage) && coverage < 0.6) {
-                     pos.setY(canopy);
-                     if (chunk.getBlockState(pos).is(Blocks.SNOW)) {
-                        chunk.setBlockState(pos, Blocks.AIR.defaultBlockState(), false);
-                     }
-                  }
+               // under trees and bushes (g is the terrain's own top, below trunks and leaves): Minecraft put its snow on
+               // the leaves only. With mountain_snow, leaves keep it only where the tree stands in a snowfield: the
+               // ground under it and nearly all of it around holds snow, so trees aren't white over green or bare ground
+               // decided after the ground of the whole chunk is done (below), so it can look at the snow really lying there
+               if (mountainSnow && field != null && !MountainSnow.keepsOwnSurface(level.getBiome(pos.set(x, g, z)))) {
+                  trees[treeCount++] = lz << 4 | lx;
                }
                continue;
             }
@@ -121,8 +121,13 @@ final class NaturalSnow {
             if (top < 0) {
                continue;
             }
-            if (mountainSnow) {
-               top = meltIce(level, chunk, pos, x, top, z, ctx);
+            // the model's column, or null in a keeps_own_surface biome (Still Life's arctic and frozen biomes) off real
+            // faces and cliffs: there its own snow, ice and ground stay, with the layers as without mountain_snow
+            boolean keep = field != null && MountainSnow.keepsOwnSurface(level.getBiome(pos.set(x, top, z)));
+            SnowField.Chunk model = field != null && !(keep && !MountainSnow.steepRock(SnowModel.face(ground, lx + R, lz + R))) ? field : null;
+            if (model != null && !keep) {
+               // (never in those biomes: their ice is Still Life's, at any slope)
+               top = meltIce(level, chunk, pos, x, top, z, model);
             }
             // something stands on the terrain here (a boulder, a log): leave it
             if (Math.abs(top - g) > 1) {
@@ -132,27 +137,37 @@ final class NaturalSnow {
             BlockState above = chunk.getBlockState(pos);
             boolean hasSnow = above.is(Blocks.SNOW);
             boolean plant = !hasSnow && coverPlants && coverable(above);
+            if (model != null && !hasSnow && !plant) {
+               // mountain_snow may want snow where FTF laid none: a ledge on a cliff, the thin edge of a snowfield on
+               // ground the erosion pass bared, a mountain too warm for Minecraft's own freezing
+               net.minecraft.core.Holder<Biome> b = level.getBiome(pos);
+               if (above.isAir() && !MountainSnow.glacier(b) && !MountainSnow.waterBiome(b)) {
+                  mountainLayers(level, chunk, pos, field, ground, drift, lx, lz, top, cliff, ctx, false, seed);
+               }
+               continue;
+            }
             if (!hasSnow && !plant) {
                continue;
             }
             net.minecraft.core.Holder<Biome> holder = level.getBiome(pos);
             Biome biome = holder.value();
+            if (model != null && !MountainSnow.glacier(holder) && !MountainSnow.waterBiome(holder)) {
+               // format 18: the model decides thin snow on plant-topped ground too, whatever Minecraft's warmth test says
+               // (Still Life's temperate forests and highlands are never "cold enough" by it, so their patch edges had no
+               // layers and ended as hard blocks); under trees no snow is laid (the canopy above is skipped earlier)
+               if (!plant || StillLifeClimateBridge.snowCurve() || biome.coldEnoughToSnow(pos)) {
+                  mountainLayers(level, chunk, pos, field, ground, drift, lx, lz, top, cliff, ctx, plant, seed);
+               }
+               continue;
+            }
             if (plant && !biome.coldEnoughToSnow(pos)) {
                continue;
             }
 
             Cell cell = FtfTerrain.cell(ctx, chunk, x, z);
             float slope = cell.gradient;
-            // Minecraft freezes every biome high enough up (its temperature drops with height), so warm and dry lands get
-            // snow over everything above a few hundred blocks. mountain_snow decides instead: no snow where its model
-            // has none (its snow line comes down to the sea in cold latitudes; glaciers keep theirs).
-            if (MountainSnow.active(s) && !MountainSnow.glacier(holder)
-               && MountainSnow.score(level, x, top, z, slope, holder, level.getSeed()) < 0.0) {
-               if (hasSnow) {
-                  clear(chunk, pos);
-               }
-               continue;
-            }
+            // (with mountain_snow, only glaciers, seas, beaches and rivers, Still Life's arctic lowland and a world not
+            // known yet come this way: the layers as before)
             if (slope > cliff) {
                if (hasSnow) {
                   clear(chunk, pos);
@@ -167,7 +182,7 @@ final class NaturalSnow {
             pos.setY(top + 1);
             boolean mountain = MountainSnow.active(s);
             int layers = layers(ground, drift, lx + R, lz + R, top, slope, cliff, temperature(biome, top), rock,
-               mountain ? StillLifeClimateBridge.windFromWest(z) : 0, mountain ? MountainSnow.climateSnow(holder, x, top, z, level.getSeed()) : 1.0F);
+               mountain ? StillLifeClimateBridge.windFromWest(z) : 0, mountain ? MountainSnow.climateSnow(x, top, z, seed) : 1.0F);
             // on snow ground a single layer adds nothing but a seam: only drifts (2+) go on it
             if (snowGround && layers < 2) {
                layers = 0;
@@ -193,6 +208,55 @@ final class NaturalSnow {
             }
          }
       }
+
+      // leaves: their snow stays only where the model has a snowfield AND snow really lies on the open ground around
+      for (int k = 0; k < treeCount; k++) {
+         int lx = trees[k] & 15;
+         int lz = trees[k] >> 4;
+         int x = x0 + lx;
+         int z = z0 + lz;
+         int g = ground[(lz + R) * SIZE + lx + R];
+         pos.set(x, g, z);
+         if (MountainSnow.glacier(level.getBiome(pos))) {
+            continue;
+         }
+         if (!treeSnow(ctx, field, seed, ground, lx, lz) || !snowLiesAround(chunk, pos, x0, z0, lx, lz)) {
+            clearLeafSnow(chunk, pos, x, z, g, chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz));
+         }
+      }
+   }
+
+   /**
+    * True unless the open ground around this column (the spots of treeSnow that lie in this chunk and are not under leaves
+    * themselves) is mostly bare in the blocks as they now are: whatever the model says, leaves never stay white over
+    * ground that shows no snow.
+    */
+   private static boolean snowLiesAround(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x0, int z0, int lx, int lz) {
+      int open = 0;
+      int snowy = 0;
+      for (int k = 0; k < TREE_DX.length; k++) {
+         int sx = lx + TREE_DX[k];
+         int sz = lz + TREE_DZ[k];
+         if (sx < 0 || sx > 15 || sz < 0 || sz > 15) {
+            continue;
+         }
+         int y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, sx, sz);
+         BlockState top = chunk.getBlockState(pos.set(x0 + sx, y, z0 + sz));
+         if (top.is(net.minecraft.tags.BlockTags.LEAVES) || top.is(net.minecraft.tags.BlockTags.LOGS)) {
+            continue; // under a tree: tells nothing
+         }
+         if (top.is(Blocks.SNOW)) {
+            BlockState under = chunk.getBlockState(pos.setY(y - 1));
+            if (under.is(net.minecraft.tags.BlockTags.LEAVES) || under.is(net.minecraft.tags.BlockTags.LOGS)) {
+               continue;
+            }
+         }
+         open++;
+         if (top.is(Blocks.SNOW) || SnowCaps.isSnow(top)) {
+            snowy++;
+         }
+      }
+      return open == 0 || snowy * 2 > open;
    }
 
    /**
@@ -267,6 +331,111 @@ final class NaturalSnow {
       return Math.max(rock ? 2 : 1, Math.min(7, Math.round(depth)));
    }
 
+   /**
+    * mountain_snow's layers on one column (pos at top + 1): the snow depth of the model, shaped by the real ground (drifts
+    * at the foot of steps, thin on edges, only ledges on rock faces). Clears the snow where the model has none.
+    */
+   private static void mountainLayers(WorldGenLevel level, ChunkAccess chunk, BlockPos.MutableBlockPos pos, SnowField.Chunk field,
+                                      int[] ground, int[] drift, int lx, int lz, int top, float cliff, GeneratorContext ctx,
+                                      boolean plant, long seed) {
+      int x = pos.getX();
+      int z = pos.getZ();
+      boolean hasSnow = chunk.getBlockState(pos).is(Blocks.SNOW);
+      int i = lz * 16 + lx;
+      double score = field.score(i, top);
+      if (!(score >= 0.0)) {
+         if (hasSnow) {
+            clear(chunk, pos);
+         }
+         return;
+      }
+      float slope = FtfTerrain.cell(ctx, chunk, x, z).gradient;
+      float steep = cliff > 0.0F ? slope / cliff : 0.0F;
+      // the smoothed ground's height above this column (not the step-filled drift surface: on a slope every column has a
+      // higher neighbour, so that lifted every tread by a block's worth and the snow kept the stairs)
+      float fill = SnowModel.fill(ground, lx + R, lz + R, top);
+      int face = SnowModel.face(ground, lx + R, lz + R);
+      // a stepped slope where the snow is thin is rock, as the erosion pass decided from the same heights: no layers on
+      // its narrow treads (they made white lines over grey risers)
+      int g = ground[(lz + R) * SIZE + lx + R];
+      double gScore = field.score(i, g);
+      if (SnowModel.step(seed, x, z, ground, lx + R, lz + R, face, gScore, field.depth(i, g)) == SnowModel.STEP_BARE) {
+         if (hasSnow) {
+            clear(chunk, pos);
+         }
+         return;
+      }
+      int layers = SnowModel.layers(field.depth(i, top), fill, face, steep, SnowModel.ledge(seed, x, z));
+      if (layers == 0 || plant && layers < 2) {
+         if (hasSnow) {
+            clear(chunk, pos);
+         }
+         return;
+      }
+      BlockState snow = Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, layers);
+      if (!snow.canSurvive(level, pos)) {
+         return;
+      }
+      chunk.setBlockState(pos, snow, false);
+      pos.setY(top);
+      BlockState below = chunk.getBlockState(pos);
+      if (below.hasProperty(BlockStateProperties.SNOWY) && !below.getValue(BlockStateProperties.SNOWY)) {
+         chunk.setBlockState(pos, below.setValue(BlockStateProperties.SNOWY, true), false);
+      }
+      pos.setY(top + 1);
+   }
+
+   /** Snow depth (layers) the ground under a tree needs for its leaves to keep their snow. */
+   static final float TREE_DEPTH = 2.0F;
+
+   /** Offsets of the ground sampled around a tree: 8 points 3 blocks out. */
+   private static final int[] TREE_DX = {3, -3, 0, 0, 2, 2, -2, -2};
+   private static final int[] TREE_DZ = {0, 0, 3, -3, 2, -2, 2, -2};
+
+   /**
+    * mountain_snow: true when the leaves over this column may keep their snow: the ground under them holds a real snow cover
+    * (at least TREE_DEPTH layers deep, and not a cliff the layer pass leaves bare) and the model has snow on at least 7 of 8
+    * spots 2-3 blocks around (ground heights from the chunk's ground window; neighbouring chunks' fields where the spots
+    * lie outside). So a tree is white only standing in a snowfield, and a crown at a snowfield's edge goes bare as a whole
+    * rather than half.
+    */
+   static boolean treeSnow(GeneratorContext ctx, SnowField.Chunk field, long seed, int[] ground, int lx, int lz) {
+      int g = ground[(lz + R) * SIZE + lx + R];
+      float depth = field.depth(lz * 16 + lx, g);
+      int face = SnowModel.face(ground, lx + R, lz + R);
+      if (depth < TREE_DEPTH || face == SnowModel.CLIFF || face == SnowModel.FACE && depth < SnowModel.BLOCK_DEPTH) {
+         return false; // too thin, or ground the layer pass leaves bare
+      }
+      int x0 = field.cx << 4;
+      int z0 = field.cz << 4;
+      int snowy = 0;
+      for (int k = 0; k < TREE_DX.length; k++) {
+         int sx = lx + TREE_DX[k];
+         int sz = lz + TREE_DZ[k];
+         int y = ground[(sz + R) * SIZE + sx + R];
+         SnowField.Chunk f = sx >= 0 && sx < 16 && sz >= 0 && sz < 16 ? field : SnowField.get(ctx, seed, (x0 + sx) >> 4, (z0 + sz) >> 4);
+         if (f != null && f.score(((z0 + sz) & 15) * 16 + ((x0 + sx) & 15), y) >= 0.0) {
+            snowy++;
+         }
+         if (k + 1 - snowy > TREE_DX.length - 7) {
+            return false; // a second spot without snow
+         }
+      }
+      return snowy >= 7;
+   }
+
+   /** Removes snow layers lying on leaves or logs anywhere in the column above the ground (overhangs included). */
+   private static void clearLeafSnow(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int z, int g, int canopy) {
+      BlockState below = chunk.getBlockState(pos.set(x, canopy, z));
+      for (int y = canopy; y > g + 1; y--) {
+         BlockState here = below;
+         below = chunk.getBlockState(pos.set(x, y - 1, z));
+         if (here.is(Blocks.SNOW) && (below.is(net.minecraft.tags.BlockTags.LEAVES) || below.is(net.minecraft.tags.BlockTags.LOGS))) {
+            chunk.setBlockState(pos.setY(y), Blocks.AIR.defaultBlockState(), false);
+         }
+      }
+   }
+
    /** True when the top of this column is a tree (leaves or a log, or a snow layer on one). */
    private static boolean treeTop(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int y, int z) {
       BlockState state = chunk.getBlockState(pos.set(x, y, z));
@@ -282,17 +451,25 @@ final class NaturalSnow {
     * top after the change.
     */
    private static int meltIce(WorldGenLevel level, ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int top, int z,
-                              GeneratorContext ctx) {
+                              SnowField.Chunk field) {
       pos.set(x, top, z);
       BlockState state = chunk.getBlockState(pos);
       if (!state.is(Blocks.PACKED_ICE) && !state.is(Blocks.BLUE_ICE)) {
          return top;
       }
       net.minecraft.core.Holder<Biome> holder = level.getBiome(pos);
-      if (MountainSnow.glacier(holder)) {
+      if (MountainSnow.glacier(holder) || MountainSnow.waterBiome(holder) || top - level.getSeaLevel() < SEA_ICE_MARGIN
+         || iceToWater(chunk, pos, x, top, z)) {
+         // glaciers, and sea ice, icebergs and ice shelves (in a sea, beach or river biome, near sea level, or standing on
+         // water): ice formations keep their own look
+         pos.set(x, top, z);
          return top;
       }
-      double score = MountainSnow.score(level, x, top, z, FtfTerrain.cell(ctx, chunk, x, z).gradient, holder, level.getSeed());
+      pos.set(x, top, z);
+      double score = field.score((z & 15) * 16 + (x & 15), top);
+      if (Double.isNaN(score)) {
+         return top;
+      }
       BlockState with = score >= 0.0 ? Blocks.SNOW_BLOCK.defaultBlockState() : Blocks.STONE.defaultBlockState();
       int y = top;
       for (int k = 0; k < 6 && y > chunk.getMinBuildHeight(); k++, y--) {
@@ -300,9 +477,26 @@ final class NaturalSnow {
          if (!here.is(Blocks.PACKED_ICE) && !here.is(Blocks.BLUE_ICE) && !here.is(Blocks.ICE)) {
             break;
          }
-         chunk.setBlockState(pos, with, false);
+         chunk.setBlockState(pos, score >= 0.0 ? with : GroundCover.surfaceRock(level.getSeed(), x, y, z, with), false);
       }
       return top;
+   }
+
+   /** Ice whose top is less than this many blocks above sea level is sea ice, an iceberg or an ice shelf: never melted. */
+   private static final int SEA_ICE_MARGIN = 12;
+
+   /** True when the ice under top runs down into water (within 32 blocks): floating ice, not ice on a mountain. */
+   private static boolean iceToWater(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int top, int z) {
+      for (int y = top - 1; y > top - 32 && y > chunk.getMinBuildHeight(); y--) {
+         BlockState s = chunk.getBlockState(pos.set(x, y, z));
+         if (!s.getFluidState().isEmpty()) {
+            return true;
+         }
+         if (!MountainSnow.ice(s) && !SnowCaps.isSnow(s)) {
+            return false;
+         }
+      }
+      return false;
    }
 
    /** Minecraft's temperature at a height: the biome's, cooling by 0.05 every 40 blocks above Y 80. */

@@ -1,56 +1,25 @@
 {
-  "type": "minecraft:tree",
+  "type": "minecraft:random_patch",
   "config": {
-    "ignore_vines": true,
-    "force_dirt": false,
-    "dirt_provider": {
-      "type": "minecraft:simple_state_provider",
-      "state": {
-        "Name": "minecraft:dirt"
-      }
-    },
-    "trunk_provider": {
-      "type": "minecraft:simple_state_provider",
-      "state": {
-        "Name": "minecraft:spruce_log",
-        "Properties": {
-          "axis": "y"
+    "tries": 7,
+    "xz_spread": 3,
+    "y_spread": 2,
+    "feature": {
+      "feature": "stilllife_ftf_bridge:krummholz_bush",
+      "placement": [
+        {
+          "type": "minecraft:block_predicate_filter",
+          "predicate": {
+            "type": "minecraft:would_survive",
+            "state": {
+              "Name": "minecraft:spruce_sapling",
+              "Properties": {
+                "stage": "0"
+              }
+            }
+          }
         }
-      }
-    },
-    "trunk_placer": {
-      "type": "minecraft:straight_trunk_placer",
-      "base_height": 1,
-      "height_rand_a": 1,
-      "height_rand_b": 0
-    },
-    "foliage_provider": {
-      "type": "minecraft:simple_state_provider",
-      "state": {
-        "Name": "minecraft:spruce_leaves",
-        "Properties": {
-          "distance": "7",
-          "persistent": "false",
-          "waterlogged": "false"
-        }
-      }
-    },
-    "foliage_placer": {
-      "type": "minecraft:bush_foliage_placer",
-      "radius": {
-        "type": "minecraft:uniform",
-        "min_inclusive": 1,
-        "max_inclusive": 2
-      },
-      "offset": 0,
-      "height": 2
-    },
-    "minimum_size": {
-      "type": "minecraft:two_layers_feature_size",
-      "limit": 0,
-      "lower_size": 0,
-      "upper_size": 0
-    },
-    "decorators": []
+      ]
+    }
   }
 }

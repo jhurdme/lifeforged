@@ -75,8 +75,10 @@ final class SnowCaps {
       }
       BlockState rock = below.isAir() || !below.getFluidState().isEmpty() || isSnow(below) || below.is(BlockTags.DIRT)
          ? Blocks.STONE.defaultBlockState() : below;
+      // the region's own rock in its beds where ground_cover knows it (during FTF's erosion pass), else as found
+      net.minecraft.world.level.WorldGenLevel level = GroundCover.level();
       for (int dy = y - k + 1; dy <= y; dy++) {
-         chunk.setBlockState(pos.setY(dy), rock, false);
+         chunk.setBlockState(pos.setY(dy), level != null ? GroundCover.surfaceRock(level.getSeed(), x, dy, z, rock) : rock, false);
       }
    }
 

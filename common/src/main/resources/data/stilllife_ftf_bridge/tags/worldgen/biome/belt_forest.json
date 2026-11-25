@@ -1,0 +1,49 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "still_life:taiga_highlands",
+      "required": false
+    },
+    {
+      "id": "still_life:wooded_highlands",
+      "required": false
+    },
+    {
+      "id": "still_life:coniferous_woodlands",
+      "required": false
+    },
+    {
+      "id": "still_life:spruce_fir_forest",
+      "required": false
+    },
+    {
+      "id": "still_life:larch_woodlands",
+      "required": false
+    },
+    {
+      "id": "still_life:temperate_rainforest_highlands",
+      "required": false
+    },
+    {
+      "id": "still_life:taiga_shield",
+      "required": false
+    },
+    {
+      "id": "still_life:evergreen_taiga",
+      "required": false
+    },
+    {
+      "id": "still_life:pine_woods",
+      "required": false
+    },
+    {
+      "id": "still_life:snowy_taiga",
+      "required": false
+    },
+    {
+      "id": "still_life:frozen_taiga",
+      "required": false
+    }
+  ]
+}
