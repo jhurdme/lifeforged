@@ -1,4 +1,4 @@
-// Still Life x FreeTerraForged Bridge (mod id stilllife_ftf_bridge) for NeoForge and Fabric, Minecraft 1.21.1, Java 21.
+// Lifeforged, formerly Still Life x FreeTerraForged Bridge (mod id stilllife_ftf_bridge) for NeoForge and Fabric, Minecraft 1.21.1, Java 21.
 //   neoforge/  NeoForge's ModDevGradle  -> neoforge/build/libs/stilllife_ftf_bridge-<version>-neoforge.jar
 //   fabric/    Fabric Loom              -> fabric/build/libs/stilllife_ftf_bridge-<version>-fabric.jar
 // Both compile common/ in. FreeTerraForged is not on a public Maven: put its jars in libs/ (see libs/README.md).

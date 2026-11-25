@@ -4,109 +4,56 @@ Details and reasons for every item are in [`docs/bridge.md`](docs/bridge.md) and
 [`docs/still-life-ftf-edition.md`](docs/still-life-ftf-edition.md). New options are saved per world: worlds made with an
 earlier version keep them off.
 
-## Still Life x FreeTerraForged Bridge
+## Lifeforged (formerly Still Life x FreeTerraForged Bridge)
 
 ### 6.0.0
-The mod is now called **Lifeforged**: the ground, rock, snow and plants follow the shape of the land. New worlds are saved
-with settings format 19. Worlds made with 5.x keep generating as before (the new options are off, `rock_strata` is
-`off`), except for the consistency fixes and removals below. New plain-language guide: [`docs/guide.md`](docs/guide.md). Tested on NeoForge with FreeTerraForged 1.0.0034
-and Still Life FTF edition 0.3.7-ftf. The Fabric jar has not been built or tested.
+The mod is now called **Lifeforged**. New worlds save their settings as format 19; worlds made with 5.x keep generating
+as before (new features off), except where noted under "Existing worlds". Tested on NeoForge with FreeTerraForged
+1.0.0034 and Still Life FTF edition 0.3.7-ftf; the Fabric jar has not been built or tested. New guide:
+[`docs/guide.md`](docs/guide.md).
+
+**Biomes and climate**
+- One biome set per landmass: continents joined by land bridges share one (`biome_sets=continents`; the old layout is `cells`).
+- New default `pole_distance` 50000 (was 40000) and `humid_swamps` false (was true); old config files keep their values.
 
 **Mountains and snow**
-- **Snow line by climate** (`snow_line_equator`, `snow_line_tundra`, default `auto`): highest at the equator, falling
-  towards the poles and reaching the sea at the cold edge of the tundra. `auto` is worked out from the world's measured
-  mountain heights and saved with the world: Y 650 / 250 where the high mountains stand about 330 blocks above the sea,
-  about Y 375 / 165 on FreeTerraForged's default preset, about Y 200 / 105 on a 320-high preset. The other heights of the
-  snow zone and the bands scale the same way. A typed number sets the line. Works with both `latitude` settings
-  (`latitude=ftf` uses FreeTerraForged's temperature at sea level).
-- **Mountain bands under the snow line**: Still Life's own highland, alpine and peak biomes, with the alpine band just
-  under the line and snowy peaks above it (bare rocky peaks start lower in hot country). The mountain biomes never come
-  below a floor, so lowland, taiga and tundra keep their biomes. Tropical mountains are green far up.
-- **`mountain_cooling` only where needed** (default now 0.25, `latitude=still_life`): only the alpine band under a snow
-  cap is cooled, and only into a cold alpine biome (biome tags `stilllife_ftf_bridge:snow_caps` and `cold_alpine`). No
-  more desert scrub under snow caps, and no other biome changes (test builds made conifer strips under the alpine tundra
-  and could change tropical highlands).
-- **One snow model** (`mountain_snow`, `natural_snow_layers`): snow lies where shelter, sun, wind and climate put it. It
-  comes in gradually: patches and tongues below the line, mostly white high ground with bare cliffs and wind-scoured
-  crests. Dry climates get less, wet ones more. The same model decides snow blocks, snow layers, snow on leaves and
-  mountain ice. Stepped slopes are snowy or rocky as a whole (no white and grey stripes). Snow layers follow the real
-  ground instead of FreeTerraForged's grid-like stripes.
-- **Cold country keeps Still Life's own ground**: gentle taiga and tundra keep their ground; light, soft snow patches in
-  the coldest strip of the tundra; Still Life's arctic and frozen biomes keep their own snow, ice, gravel and mud at every
-  height except on real faces and cliffs (biome tag `stilllife_ftf_bridge:keeps_own_surface`, extendable by datapacks).
-  Sea ice, icebergs and ice shelves are never touched.
-- **Presets with FreeTerraForged's erosion decorator off**: `mountain_snow` runs in the snow layer pass instead (needs
-  `natural_snow_layers` and the Smooth Layer Decorator), without scree. The log says so once per world.
+- The snow line follows the climate, from the equator to the sea at the cold edge of the tundra (`snow_line_equator`, `snow_line_tundra`).
+- `auto` snow lines are scaled to each world's mountain heights and saved with the world, so every preset works.
+- Still Life's mountain biomes sit under the snow line; lowland, taiga and tundra keep their biomes.
+- No desert scrub under snow caps: the alpine band becomes a cold alpine biome (`mountain_cooling`, new default 0.25).
+- Snow lies where weather would put it: gullies, hollows and shade first, cliffs bare (`mountain_snow`).
+- Thin snow follows the real ground, and leaves keep snow only in snowfields (`natural_snow_layers`).
+- Still Life's arctic and frozen biomes keep their own snow and ice; sea ice and icebergs are never touched.
+- With FreeTerraForged's Erosion Decorator off, the snow model still runs (with the Smooth Layer Decorator), without scree.
+- `latitude=ftf` worlds get the same snow line, from FreeTerraForged's sea-level temperature.
 
 **Ground and rock**
-- **Scree where it belongs** (`ground_cover`): takes over FreeTerraForged's erosion decorator. Talus below cliffs in
-  tongues and cones, sorted from gravel to cobblestone, overgrown where mild and wet; frost scree fields and talus on bare
-  high ground; thin rocky soil on steep slopes; a soft fringe around snow patches. Rock regions 600-900 blocks across
-  each have their own scree. Only on real mountains. Sand only where the ground is sand; no terracotta. River banks are
-  left alone.
-- **Rock regions and strata** (`rock_strata`: `off`, `regional`, `bedded`; default `bedded`): bare rock, the rock in
-  scree and the risers of steep grassy slopes are made of their region's rock (dark tuff, grey stone, granitic,
-  andesitic, dolomite, limestone; kaolin clay rock in about half of the dry regions with Nature's Spirit). `bedded` adds
-  tilted and folded beds and rare seams. Regions blend over about 150 blocks.
-- **Experimental: `rock_strata=deep`**, not tested in game: the regional rock through the whole body of the land in
-  stacks of rock types that tilt and fold by region, with Nature's Spirit travertine and chert and Create's limestone
-  when installed. Costs about 5-17% generation time. Its pass runs at the start of the light step, so it is skipped when
-  Worldgen Accelerator's `gpuLight` is on.
+- Scree below cliffs and on bare high ground, thin rocky soil on steep slopes (`ground_cover`).
+- Each mountain region has its own rock, with tilted and folded rock layers (`rock_strata`, default `bedded`).
+- `rock_strata=deep` carries the rock layers through the whole land (about 5-17% slower generation, most in mountains).
+- Optional rock from Nature's Spirit (kaolin, travertine, chert) and Create (limestone).
+- Sand only where the ground is sand already; river banks are left as they are.
 
-**Plants, shores and forests**
-- **Shores** (`shores`): gravel and stone below steep coasts and lake sides, mud flats in warm shallow sea, lake shores
-  with reeds and lily pads. River banks and lakes that are part of a river are left alone.
-- **Forests** (`forest_variety`): bush belts at forest edges, natural clearings, regional tree mixes.
-- **The treeline and above** (no option; needs Still Life FTF edition 0.3.7-ftf): no trees on cliffs, steep faces,
-  fresh scree or in avalanche gullies; a ragged treeline; small spruce clumps and krummholz above it, Still Life's bush
-  groups instead in hot country (biome tag `stilllife_ftf_bridge:belt_hot`); a subtle subalpine belt; plants on cliff
-  ledges; pioneer shrubs on old scree. No azalea plants or moss carpets.
-- **Palms keep their crowns** (content patch): Still Life's palm crown features carry no terrain filter, so a trunk
-  never stands without its crown.
+**Plants**
+- A ragged treeline with small spruces, wind-shaped bushes and alpine plants above it; bush groups in hot country.
+- No trees on cliffs or fresh scree; palms always keep their crowns (Still Life FTF edition 0.3.7-ftf).
+- Forest edges, clearings and regional tree mixes (`forest_variety`).
 
-**Biome sets**
-- **One set per landmass** (`biome_sets=continents`, format 17): continents joined by FreeTerraForged's land bridges
-  share one set, so the set no longer changes along a straight line in the middle of the land. A landmass of more than
-  64 continents is split into parts of up to 4 x 4. The old layout is `biome_sets=cells`; worlds saved before format 17
-  keep it. If a future FreeTerraForged changes what this reads, the log says so and the sets go per cell.
-
-**Datapacks**
-- The placement filter `stilllife_ftf_bridge:terrain` is now also a surface rule condition, and can ask about the snow
-  model, sun, wind and shelter, scree, rock regions and rock types, climate (`min_climate` / `max_climate`), cliff ledges
-  and forest edges ([bridge.md section 15](docs/bridge.md#15-terrain-data-for-datapacks)).
-
-**Consistency fixes** (these can change newly generated chunks of existing worlds)
-- The climate the bridge reads is worked out per position, so rock regions, snow and dry ground no longer switch along
-  chunk borders, and the terrain filter's random choices are per position.
-- Snow on high ground no longer depends on the order chunks are generated in (seams along chunk edges). With the
-  content patch, Still Life's stone-cliff and snow disks no longer erase or add snow across chunk edges in format 18+
-  worlds.
-- With `biome_set_blend`, coast and ocean spots near an empty continent cell could take their biome set from an
-  unrelated lookup; they now read the ocean's own set. In one test world this changed 41 of 40,000 samples, all outside
-  the continents.
+**Water and wetlands**
+- Rocky shores, mud flats and lake reeds (`shores`); river banks are not decorated.
 
 **Compatibility**
-- Worldgen Accelerator 0.70.8 on the GPU path: the same world within normal run-to-run variation, about 2.7-5.7x faster.
-  Its GPU surface step can place wrong blocks (granite where deepslate or stone should be, seen in temperate deep ocean
-  on one seed) and only spot-checks 1 chunk in 64: set `gpuSurface=OFF` (or `CHECK`) for block-exact worlds. Keep
-  `gpuLight=OFF` (default).
-- FreeTerraForged's world preview and seed viewers get a quick height lookup (the full terrain model was far too slow),
-  so their maps can differ slightly from the world on mountains.
+- FreeTerraForged's preview and seed viewers use a quick height lookup, so their maps can differ slightly on mountains.
+- Datapacks: `stilllife_ftf_bridge:terrain` is now also a surface rule condition, with many new fields.
 
 **Removed**
-- The VanillaBackport Pale Garden, Dappled Forest and Sulfur Caves placement and the Sulfur Caves rock (options
-  `pale_garden`, `dappled_forest`, `sulfur_caves`, `sulfur_rock`; ignored in old files, and new chunks of worlds that
-  used them no longer get these biomes). VanillaBackport is still required for Still Life's blocks.
+- The VanillaBackport Pale Garden, Dappled Forest and Sulfur Caves placement (`pale_garden`, `dappled_forest`, `sulfur_caves`, `sulfur_rock`).
 
-**Config**
-- New defaults for new worlds: `pole_distance` 50000 (was 40000), `mountain_cooling` 0.25 (was 0), `humid_swamps`
-  false (was true). A config file written by an older version keeps its values.
-- The config file is grouped by topic, with a short explanation per option and "Advanced:" / "Experimental:" marks.
-  Same keys and values.
-
-**Worlds made with 6.0 test builds** keep what they were made with: format 18 worlds keep their snow-line numbers
-without scaling; formats 16-17 keep `snow_line_climate` and the ramped `mountain_cooling`; `latitude=ftf` worlds before
-format 19 keep FreeTerraForged's bands; worlds saved before `rock_strata` existed load it as `off`.
+**Existing worlds**
+- New chunks no longer get the removed VanillaBackport biomes.
+- Fixes for generation order (biome sets near coasts, snow and rock along chunk edges) can change a few spots in new chunks.
+- Worlds made with 6.0 test builds keep the snow line and mountain biomes they were made with.
+- The config file is regrouped with shorter explanations; same keys and values.
 
 ### 5.6.0
 **Mountain belts** (`mountain_cooling`, saved per world, format 15; off by default, older worlds off). In warm, dry
@@ -188,7 +135,7 @@ rivers as its developer intends. Tested with FreeTerraForged 1.0.0027, 1.0.0030 
 - **Removed: rivers start below mountains (`river_headwaters`, `river_mountain_height`, `river_fade_in`).** FTF's improved
   river placement is used as it is. Rivers again cross mountain ranges where FTF routes them.
 - These removals take out 4 of the 11 hooks into FTF (the river carver, the river network, the heightmap and FTF's `Cell`),
-  which also lets Worldgen Accelerator's fast path for FTF rivers work again. Saved values in older worlds are ignored, so
+  and FTF's own river code runs unchanged again. Saved values in older worlds are ignored, so
   new chunks of those worlds won't match old ones along lakes and rivers.
 - **Standing water in salt lakes** (`salt_lake_water`, default 0.35): wide, irregular sheets one block deep over white
   calcite, with round calcite islands, as on Still Life's own salt lakes. On stepped ground, small round pools instead
@@ -207,8 +154,7 @@ rivers as its developer intends. Tested with FreeTerraForged 1.0.0027, 1.0.0030 
   Life 0.3.5-ftf; 0.3.6-ftf adds the river beds.
 
 ### 5.0.0
-- **Needs FreeTerraForged 1.0.0027** or later (4.x needs 1.0.0025). Built and tested against 1.0.0027 with Worldgen
-  Accelerator 0.63.4.
+- **Needs FreeTerraForged 1.0.0027** or later (4.x needs 1.0.0025). Built and tested against 1.0.0027.
 - **Removed `river_flank_max_cut` / `river_flank_slope`.** FTF now gives river valleys natural ~24-degree sides itself; the
   bridge's limit on top of that only left a terrace edge around valleys and steeper valley floors. Saved values in existing
   worlds are ignored.

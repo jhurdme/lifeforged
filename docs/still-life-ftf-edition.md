@@ -44,8 +44,8 @@ half of its band. Ores and vanilla's granite/diorite blobs are features and are 
 ### VanillaBackport's surfaces for its biomes (0.3.x)
 
 VanillaBackport adds its biomes' surfaces (for example the Dappled Forest's) through `NoiseBasedChunkGenerator.buildSurface`,
-which FTF's generator does not use. They are added to Still Life's surface rule instead, written with 2D noise so FTF and
-Worldgen Accelerator's GPU surface path accept them. (Bridge 4.3-5.6 placed the Sulfur Caves' rock itself; since 6.0 the
+which FTF's generator does not use. They are added to Still Life's surface rule instead, written with 2D noise so FTF's
+surface step accepts them. (Bridge 4.3-5.6 placed the Sulfur Caves' rock itself; since 6.0 the
 bridge no longer places VanillaBackport's biomes or their rock.)
 
 ### Big snow patches also on rock (0.3.x)

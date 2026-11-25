@@ -44,7 +44,7 @@ public final class BridgeHooks {
       }
    }
 
-   /** rock_strata=deep (prototype): the regional rock through the chunk's body, at the start of its LIGHT step. */
+   /** rock_strata=deep: the regional rock through the chunk's body, at the start of its LIGHT step. */
    public static void deepRock(net.minecraft.server.level.ServerLevel level, net.minecraft.world.level.chunk.ChunkAccess chunk) {
       if (!BridgeConfig.enabled()) {
          return;

@@ -110,7 +110,7 @@ From FTF's source changes (git `40b2a1e9..a3b1142b`) and cell maps (FTF's raw te
   tester's preset, seed 8982759974645396284). Cell maps show no continent, terrain-region or control-point change across
   it; it lies in the river carver's `ValleyFadeout` zone, with high ground on one side, a sudden drop, then a gentle valley
   floor, as if the valley carve depth jumps where the nearest river segment changes. It appears with FTF and Still Life
-  alone, with or without Worldgen Accelerator. Still Life's steep-slope rule paints the face bare stone, so it shows as a
+  alone. Still Life's steep-slope rule paints the face bare stone, so it shows as a
   grey strip. (Up to bridge 5.0, its "rivers start below mountains" setting kept rivers out of such ranges, which hid it.)
 
 ## Cave biomes and surface biomes underground

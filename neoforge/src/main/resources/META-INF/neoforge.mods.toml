@@ -5,10 +5,10 @@ license = "MIT"
 [[mods]]
 modId = "stilllife_ftf_bridge"
 version = "${version}"
-displayName = "Still Life x FreeTerraForged Bridge"
+displayName = "Lifeforged"
 authors = "Sondre"
-credits = "Still Life by Jayzet; FreeTerraForged by the FreeTerraForged team; Lithosphere, whose climate layout Still Life's table follows. 4.0: snow caps, river headwaters, valley-side limits and humid swamps. 4.1: valley sides as even slopes. 4.2: VanillaBackport biome prevalence. 4.3: Sulfur Caves rock."
-description = '''Places Still Life's biomes properly on FreeTerraForged terrain, and makes the ground, rock, snow and plants follow the land: scree below cliffs, regional rock, a snow line by climate with snow where weather would put it, a natural treeline, shores and forest edges; beaches like Still Life's own, wetlands and salt lakes at any height, Still Life's ground kept off cave floors, and gentle terraces instead of FreeTerraForged's coastal uplift cliff. Options in config/stilllife_ftf_bridge.properties, saved per world. Needs FreeTerraForged 1.0.0027 or later and the Still Life FTF edition.'''
+credits = "Still Life by Jayzet; FreeTerraForged by the FreeTerraForged team; Lithosphere, whose climate layout Still Life follows. Bridge 3.0.1 by Sondre; later versions written by Claude (Anthropic) for and with the repository owner."
+description = '''Lifeforged (formerly Still Life x FreeTerraForged Bridge) puts Still Life's biomes on FreeTerraForged terrain and makes the land follow its shape. Biomes and climate: every biome where it belongs, a latitude climate, one biome set per landmass. Mountains and snow: a snow line by climate, snow where weather would put it. Ground and rock: scree below cliffs, regional rock and rock layers. Plants: a natural treeline and forest edges. Water and wetlands: shores, beaches, swamps and salt lakes at any height. Settings in config/stilllife_ftf_bridge.properties, saved per world. Needs FreeTerraForged 1.0.0027 or later and the Still Life FTF edition.'''
 
 [[mixins]]
 config = "stilllife_ftf_bridge.mixins.json"

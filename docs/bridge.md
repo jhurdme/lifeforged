@@ -446,7 +446,7 @@ meadows, prairie highlands, alpine tundra, cold barren highlands) below its cap.
 - rivers, lakes and the sea, and all land below the highlands.
 
 **Checked** with the tester's seed, preset and settings (biome maps of the game's biome source, 8-block steps; and chunks
-generated on FTF 1.0.0033 with Worldgen Accelerator 0.70.3, whose surface biomes matched the map 99.1%). With 0.25: snow
+generated on FTF 1.0.0033, whose surface biomes matched the map 99.1%). With 0.25: snow
 cap edges next to a warm biome 18.6% / 7.7% -> 0.0% / 0.0% (`latitude=still_life` region: 14.1% -> 0.0%); snow caps cover
 the same land as before (3.34% / 2.89%); land below Y 300 changed 0.1-0.2% (edge dither); above Y 300 22-30% changed, to
 the belts. Over 192 x 192 km at 64-block steps: 2.4% of all land changed (26% of land above Y 300), mostly alpine tundra to
@@ -818,8 +818,7 @@ for block to the tester's own), around a snowy peak, a desert and the tester's t
 Bridge 5.0 also reshaped FTF's lakes and rivers. 5.1 removes those changes, so the bridge depends on less of FTF's code
 (4 of its 11 hooks went: the river carver, the river network, the heightmap and FTF's `Cell`) and FTF's own lakes and rivers
 are used as its developer makes them. Their settings in older worlds' files are ignored, so new chunks there will not match
-old ones along lakes and rivers. A side effect: Worldgen Accelerator's fast path for FTF rivers ("far rivers skipped"),
-which these hooks had switched off, works again.
+old ones along lakes and rivers.
 
 ### FTF lakes as salt lakes (`salt_lakes_on_lakes`, 4.6-5.0)
 
@@ -848,7 +847,7 @@ than 160 blocks above its water, fading it in from a dry valley.
 **Why removed:** FTF 1.0.0027-1.0.0032 place rivers much better, and cutting through ranges is FTF's design (its own test
 checks that rivers do). One FTF effect shows again where a river crosses a coastal range: a straight cliff 15-20 blocks
 high can run from the river mouth up the slope along the edge of FTF's valley carving (seen in a test world with FTF
-1.0.0030, also without the bridge and without Worldgen Accelerator): that is FTF's own valley carving.
+1.0.0030, also without the bridge): that is FTF's own valley carving.
 
 ## 14. Removed in 5.0: no longer needed with FTF 1.0.0027
 
@@ -1282,7 +1281,7 @@ Kaolin clay rock needs Nature's Spirit: a region is dry country when Still Life'
 and about half of the dry regions are clay rock (buff on the lighter steps, ochre on the darker ones, so their brightness
 still fits their neighbours). Their fine talus is crumbled kaolin with gravel.
 
-**`deep` (experimental, not tested in game).** `rock_strata=deep` is `bedded` plus the regional rock through the body of
+**`deep`.** `rock_strata=deep` is `bedded` plus the regional rock through the body of
 the land (`DeepRock`, `mixin/ChunkStatusTasksMixin`). Each region is a stack of one to four rock units: its usual suite,
 in some regions a cap unit on the highest ground, and up to two older units below, with contacts set relative to the
 regional ground level, so tall mountains change rock with height and deep valleys cut into older rock. Regions are
@@ -1291,9 +1290,8 @@ deepslate, flood basalt, Nature's Spirit travertine and chert, Create's limeston
 otherwise a vanilla stand-in). The pass replaces only `minecraft:stone`, at the start of a chunk's LIGHT step, when the
 chunk and its neighbours have finished their features, so ores, carvers and structures are unchanged and the result does
 not depend on chunk order. Below an undulating contact some 15 blocks under the sea the rock stays plain stone; the top
-three blocks of stone-topped or submerged columns stay stone. Measured cost: about 5-17% more generation time. With
-Worldgen Accelerator's `gpuLight` on, the light step does not run through this hook, so the body pass is skipped and only
-the surface rock changes.
+three blocks of stone-topped or submerged columns stay stone. Measured cost: about 5-17% more generation time, most of it in mountains. If another
+mod replaces Minecraft's light step, this pass does not run and only the surface rock changes.
 
 ### Snow: one model
 
@@ -1462,7 +1460,7 @@ biome temperature is 0.45-1 and it rains, `riverside_birches` at -0.2-0.45 with 
 ## How the images were made
 
 All on a headless NeoForge 21.1.265 server (the loader comparison in the introduction also on Fabric Loader 0.20.1 with
-Fabric API 0.116.18 and the Fabric jars of the same mods) with Worldgen Accelerator 0.63.4, VanillaBackport 1.2.2 and the same seed
+Fabric API 0.116.18 and the Fabric jars of the same mods) with VanillaBackport 1.2.2 and the same seed
 (8982759974645396284), with the settings of the tested world; each pair changes one option. Images up to bridge 5.0: FTF
 1.0.0027, Still Life 0.3.5-ftf and the test preset. Images new in 5.1 (biome-set border, salt lakes, wetland pools, river
 beds): FTF 1.0.0030 or 1.0.0032 and Still Life 0.3.6-ftf, with the test preset (salt flats map, bayou) or the in-game

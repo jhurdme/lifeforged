@@ -140,7 +140,7 @@ record Settings(
    static final String STRATA_OFF = "off";
    static final String STRATA_REGIONAL = "regional";
    static final String STRATA_BEDDED = "bedded";
-   /** PROTOTYPE: bedded, plus the regional rock through the whole body of the land (DeepRock). */
+   /** bedded, plus the regional rock through the whole body of the land (DeepRock). */
    static final String STRATA_DEEP = "deep";
 
    /** A rock_strata value as written in a file: off, regional or bedded (anything else, or missing: off). */

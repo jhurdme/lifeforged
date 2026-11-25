@@ -83,11 +83,11 @@ final class FtfCompat {
       if (!missing.isEmpty()) {
          String version = StillLifeFtfBridge.modVersion("freeterraforged");
          throw new IllegalStateException(
-            "Still Life x FreeTerraForged Bridge does not support FreeTerraForged "
+            "Lifeforged (stilllife_ftf_bridge) does not support FreeTerraForged "
                + version
                + ": it no longer has "
                + String.join(", ", missing)
-               + ". Update the bridge, or set enabled=false in config/" + BridgeConfig.FILE_NAME + " (Still Life biomes will then be misplaced)."
+               + ". Update Lifeforged, or set enabled=false in config/" + BridgeConfig.FILE_NAME + " (Still Life biomes will then be misplaced)."
          );
       }
    }

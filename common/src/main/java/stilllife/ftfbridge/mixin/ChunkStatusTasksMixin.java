@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import stilllife.ftfbridge.BridgeHooks;
 
 /**
- * rock_strata=deep (prototype): the regional rock through the body of the land, laid at the start of a chunk's LIGHT step,
+ * rock_strata=deep: the regional rock through the body of the land, laid at the start of a chunk's LIGHT step,
  * when the chunk and its eight neighbours have finished their features (see DeepRock). Optional: without it deep falls
  * back to the skin only.
  */
