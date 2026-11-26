@@ -1,12 +1,13 @@
 # The Still Life FTF edition
 
 `still-life-patch/make_ftf_edition.py` turns the Still Life 0.3 jar (from Modrinth; one jar for NeoForge and Fabric) into
-`still_life-0.3.7-ftf`. Still Life is All Rights Reserved, so neither the original nor the result is in this repository;
-the script edits your own download on your own computer. Its output was checked to be identical, file for file, to the
-0.3.7-ftf jar used in testing (only the version in the metadata differs); 0.3.7-ftf adds the third layer
-(`patch_terrain.py`) and river beds at any height.
+`still_life-0.3.8-ftf`. Still Life is All Rights Reserved, so neither the original nor the result is in this repository;
+the script edits your own download on your own computer. Its output was checked against the 0.3.7-ftf jar used in
+testing: the same content file for file (JSON compared by value), except the Dappled Forest rule (0.3.8) and the version
+in the metadata. 0.3.7-ftf added the third layer (`patch_terrain.py`) and river beds at any height; 0.3.8-ftf brings the
+Dappled Forest ground back.
 
-0.3.7-ftf is meant for bridge 6.0 and was tested with FreeTerraForged 1.0.0034. The first two layers (0.3.6-ftf) work
+0.3.8-ftf is meant for bridge 6.0 and was tested with FreeTerraForged 1.0.0034. The first two layers (0.3.6-ftf) work
 with FreeTerraForged 1.0.0027-1.0.0032 and bridge 5.x (checked by generating salt lakes, wetlands, rivers and coasts,
 with no datapack or tag errors); 0.3.5-ftf still works with bridge 5.1, without the river beds.
 
@@ -32,7 +33,7 @@ terrain half has nothing to do except break: it references Lithosphere functions
 Everything else (biomes, the climate table, surface rules, features, structures) is kept as Still Life ships it. Placing
 the biomes correctly on FTF terrain is the bridge's job (`docs/bridge.md`).
 
-## 2. The fixes (0.3.1-ftf to 0.3.7-ftf): `patch_sl.py`
+## 2. The fixes (0.3.1-ftf to 0.3.8-ftf): `patch_sl.py`
 
 Found while testing on FTF terrain. Each change is applied to Still Life's own files by the script, not copied in.
 
@@ -85,16 +86,26 @@ Still Life only paints river beds where the floor is between Y 52 and Y 63, beca
 level. FTF's rivers run at their own height, so every bed above Y 63 stayed bare stone or soil. The band is now measured
 from the water above the floor instead: under water, at most 11 blocks (plus the surface depth) below the water surface.
 
-### No Dappled Forest rule
+### The Dappled Forest ground (0.3.1-0.3.6, again from 0.3.8)
 
-Up to 0.3.6-ftf the surface rule also had a rule for VanillaBackport's Dappled Forest. Lifeforged 6.0 no longer places
-VanillaBackport's biomes in Still Life's layout, so the rule is gone.
+VanillaBackport gives its Dappled Forest small patches of coarse dirt with a surface rule that it adds through
+`NoiseBasedChunkGenerator.buildSurface`, which FreeTerraForged's generator does not use. The edition's surface rule carries
+the same rule (2D noise, so FreeTerraForged's surface step accepts it): on dry floor surfaces of the Dappled Forest,
+coarse dirt where `minecraft:small_patch` is above 1.2. It only acts where the biome is, and Lifeforged places the
+Dappled Forest only with `dappled_forest` above 0 (off by default), so with the default settings it changes nothing.
+0.3.7-ftf, made while Lifeforged 6.0 did not place VanillaBackport's biomes, left it out.
+
+The Pale Garden has no surface rule of its own (grass and dirt, as Still Life's surface gives it), and the Sulfur Caves
+rock is placed by Lifeforged as a feature (`sulfur_rock`), because FreeTerraForged skips surface rules deep in rock. The
+VanillaBackport biomes are not carved into the climate table either: Lifeforged adds them at run time, at each world's
+amounts.
 
 ### Still Life Naturalized carries its own copy
 
 Still Life Naturalized ships its own copy of these surface rules (`noise_settings/overworld.json`), and that is the copy the
 game uses when it is installed. A change to the FTF edition's surface rules therefore has to be regenerated into
-Naturalized too (Naturalized 1.3.1-ftf has the 0.3.7-ftf rules).
+Naturalized too (Naturalized 1.3.1-ftf has the 0.3.7-ftf rules; 1.3.2-ftf is 1.3.1-ftf with the Dappled Forest rule
+added, nothing else changed).
 
 ## 3. Trees and plants that read the terrain (0.3.7-ftf): `patch_terrain.py`
 
@@ -114,7 +125,7 @@ mountain snow disks run only in biomes that keep Still Life's own surface, so sn
 
 `make_ftf_edition.py` runs it as its last step. It can also be run on its own, on a jar or an extracted folder:
 `python3 patch_terrain.py in.jar [out.jar]` (default output `<name>-terrain.jar`), for example on an add-on whose
-tree features override Still Life's (Still Life Naturalized 1.3.1-ftf already has it applied). It is idempotent: the filter it writes replaces any terrain filter a
+tree features override Still Life's (Still Life Naturalized 1.3.1-ftf and 1.3.2-ftf already have it applied). It is idempotent: the filter it writes replaces any terrain filter a
 feature already has, so it can run again on its own output. The bridge adds the features above the treeline itself
 (clumps, krummholz, the subalpine belt, ledge plants).
 

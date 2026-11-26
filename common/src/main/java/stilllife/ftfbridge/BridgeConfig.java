@@ -90,6 +90,10 @@ final class BridgeConfig {
          snowLineEquator = d.snowLineEquator();
          snowLineTundra = d.snowLineTundra();
       }
+      double paleGarden = number(p, "pale_garden", d.paleGarden(), 0.0, 2.0);
+      double dappledForest = number(p, "dappled_forest", d.dappledForest(), 0.0, 2.0);
+      double sulfurCaves = number(p, "sulfur_caves", d.sulfurCaves(), 0.0, 2.0);
+      boolean sulfurRock = bool(p, "sulfur_rock", d.sulfurRock());
       boolean shores = bool(p, "shores", d.shores());
       boolean forestVariety = bool(p, "forest_variety", d.forestVariety());
       LIMITS.put("rock_strata", "Default: " + d.rockStrata() + ". Allowed: off, regional, bedded or deep.");
@@ -110,7 +114,7 @@ final class BridgeConfig {
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
          caveFloorGuard, columnDepth, mountainCooling, naturalSnow, groundCover, mountainSnow, d.snowLineClimate(), shores, forestVariety,
-         rockStrata, snowLineEquator, snowLineTundra, !stillLife
+         rockStrata, snowLineEquator, snowLineTundra, !stillLife, paleGarden, dappledForest, sulfurCaves, sulfurRock
       );
 
       String text = text(enabled, settings);
@@ -171,6 +175,16 @@ final class BridgeConfig {
       option(t, "biome_set_region_size", plain(s.biomeSetRegionSize()), """
          Only with biome_sets=regions: region size in percent of an average continent's land
          (25 = about four regions per continent).""");
+      option(t, "pale_garden", plain(s.paleGarden()), """
+         VanillaBackport's Pale Garden, in the most humid old temperate forests. 0 = off (the
+         default). 0.18 = the amount of Lifeforged 5.x, 1 = a full band, 2 = about double.""");
+      option(t, "dappled_forest", plain(s.dappledForest()), """
+         VanillaBackport's Dappled Forest, in the drier cool temperate forests, same scale. 0 = off
+         (the default), 0.5 = the 5.x amount. Its ground needs Still Life FTF edition 0.3.8-ftf.""");
+      option(t, "sulfur_caves", plain(s.sulfurCaves()), """
+         VanillaBackport's Sulfur Caves, in part of Still Life's barren caves, same scale. 0 = off
+         (the default), 0.5 = the 5.x amount. A biome switched off in VanillaBackport's own config
+         (vanillabackport-common.toml) stays off whatever this file says.""");
 
       section(t, "Mountains and snow", null);
       option(t, "snow_line_equator", s.snowLineEquator() == Settings.AUTO ? "auto" : plain(s.snowLineEquator()), """
@@ -202,9 +216,14 @@ final class BridgeConfig {
            off      = the world's own stone.
            regional = each mountain region has its own rock.
            bedded   = regional, plus tilted and folded rock layers.
-           deep     = bedded through the whole land, not only at the surface; about 5-17% slower
-                      generation, most of it in mountains.
-         Nature's Spirit and Create add some rock types (kaolin, travertine, chert, limestone).""");
+           deep     = bedded through the whole land, not only at the surface (the default). Costs
+                      about 5-17% more generation time, most of it in mountains; set bedded
+                      to save that.
+         Nature's Spirit adds kaolin, travertine and (deep only) chert; Create adds its limestone to
+         the pale limestone regions in every mode.""");
+      option(t, "sulfur_rock", s.sulfurRock(), """
+         true = Sulfur Caves (sulfur_caves above 0) get their yellow sulfur and red cinnabar rock.
+         false = plain stone there.""");
       option(t, "cave_floor_guard", s.caveFloorGuard(), """
          Where Still Life's surface blocks (snow, sand, mud) may go in caves.
            exact   = only on ground open to the sky or under water, never on cave floors.

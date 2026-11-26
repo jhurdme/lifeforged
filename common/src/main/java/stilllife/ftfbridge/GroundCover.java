@@ -1079,7 +1079,7 @@ final class GroundCover {
       final BlockState brownKaolin;
       final BlockState whiteKaolin;
       final java.util.Map<String, Palette> talus = new java.util.concurrent.ConcurrentHashMap<>();
-      /** Create's limestone: null when Create is not installed (rock_strata=deep only). */
+      /** Create's limestone: null when Create is not installed. */
       BlockState createLimestone;
       /** Blocks of Strata's rocks, by index. */
       final BlockState[] rocks = new BlockState[Strata.COUNT];
@@ -1207,7 +1207,9 @@ final class GroundCover {
          return deepColumn(seed, x, z);
       }
       boolean bedding = mode.equals(Settings.STRATA_BEDDED);
-      int key = bedding ? 1 : 0;
+      // Create's limestone in limestone provinces, as rock_strata=deep has it (worlds made before it came: never)
+      boolean create = DeepRock.CREATE_ALLOWED && Extra.get().createLimestone != null && WorldLock.createLimestone();
+      int key = (bedding ? 1 : 0) | (create ? 8 : 0);
       Strata.Column c = COLUMN.get();
       if (!c.is(seed, x, z, key)) {
          // the provinces sharing the column: their rocks interfinger across a ~150-block transition
@@ -1216,7 +1218,7 @@ final class GroundCover {
          for (int i = 0; i < kaolin.length; i++) {
             kaolin[i] = kaolinRegion(blend.provinces()[i]);
          }
-         c.set(seed, x, z, blend, bedding, kaolin, key);
+         c.set(seed, x, z, blend, bedding, kaolin, create, key);
       }
       return c;
    }
@@ -1255,7 +1257,7 @@ final class GroundCover {
             kaolin[i] = ns && kaolinRegion(p);
             flags[i] = (kaolin[i] ? 1 : 0) | (ns ? 2 : 0) | (ns && drierHalf(p) ? 4 : 0) | (create ? 8 : 0);
          }
-         c.set(seed, x, z, blend, true, kaolin, key);
+         c.set(seed, x, z, blend, true, kaolin, false, key);
          DeepRock.setup(c, seed, x, z, blend, flags);
       }
       return c;

@@ -60,7 +60,7 @@ final class CaveFloorGuard {
    private CaveFloorGuard() {
    }
 
-   /** The climate layout FreeTerraForged places biomes from. */
+   /** The climate layout FreeTerraForged places biomes from (after the VanillaBackport biomes were added). */
    static void layout(List<Pair<Climate.ParameterPoint, Holder<Biome>>> entries) {
       Set<String> cave = new HashSet<>();
       Set<String> all = new HashSet<>();

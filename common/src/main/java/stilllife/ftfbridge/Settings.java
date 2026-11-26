@@ -76,6 +76,10 @@ package stilllife.ftfbridge;
  *                            format 19)
  * @param ftfCurve            latitude=ftf worlds made with format 19 or later: the snow-line curve, its bands and snow zone
  *                            from FreeTerraForged's own temperature at sea level (format 18 and older ftf worlds: false)
+ * @param paleGarden          VanillaBackport Pale Garden amount (1 = the standard band, 0 = none, up to 2; 5.x default 0.18)
+ * @param dappledForest       VanillaBackport Dappled Forest amount (5.x default 0.5)
+ * @param sulfurCaves         VanillaBackport Sulfur Caves amount (5.x default 0.5)
+ * @param sulfurRock          sulfur and cinnabar rock in VanillaBackport's Sulfur Caves
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -114,7 +118,11 @@ record Settings(
    String rockStrata,
    double snowLineEquator,
    double snowLineTundra,
-   boolean ftfCurve
+   boolean ftfCurve,
+   double paleGarden,
+   double dappledForest,
+   double sulfurCaves,
+   boolean sulfurRock
 ) {
    /** snow_line_equator / snow_line_tundra "auto": resolved from the world's measured land heights (format 19). */
    static final double AUTO = -1.0;
@@ -170,11 +178,11 @@ record Settings(
       return v.equals(SETS_REGIONS) || v.equals(SETS_HALVES) || v.equals(SETS_CELLS) ? v : SETS_CONTINENTS;
    }
 
-   /** Defaults for a fresh properties file: every v4 improvement on. */
-   static final Settings DEFAULT = new Settings(true, 50000.0, 0.5, false, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true, 0.25, true, true, true, 0.0, true, true, STRATA_BEDDED, AUTO, AUTO, false);
+   /** Defaults for a fresh properties file (the VanillaBackport biomes off: 0, 0, 0). */
+   static final Settings DEFAULT = new Settings(true, 50000.0, 0.5, true, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true, 0.25, true, true, true, 0.0, true, true, STRATA_DEEP, AUTO, AUTO, false, 0.0, 0.0, 0.0, true);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CELLS, 25.0, GUARD_OFF, false, 0.0, false, false, false, 0.0, false, false, STRATA_OFF, 0.0, 0.0, false);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CELLS, 25.0, GUARD_OFF, false, 0.0, false, false, false, 0.0, false, false, STRATA_OFF, 0.0, 0.0, false, 0.0, 0.0, 0.0, false);
    }
 }

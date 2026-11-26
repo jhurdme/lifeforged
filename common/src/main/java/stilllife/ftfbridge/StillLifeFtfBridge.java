@@ -21,6 +21,9 @@ public final class StillLifeFtfBridge {
    public static final String MOD_ID = "stilllife_ftf_bridge";
    static final Logger LOG = LoggerFactory.getLogger(MOD_ID);
 
+   /** Sulfur and cinnabar rock in VanillaBackport's Sulfur Caves: biomes tagged {@link #HAS_SULFUR_ROCK}, raw generation step. */
+   public static final ResourceLocation SULFUR_ROCK = id("sulfur_rock");
+   public static final TagKey<Biome> HAS_SULFUR_ROCK = TagKey.create(Registries.BIOME, id("has_sulfur_rock"));
    /** Standing water in Still Life's wetlands and salt lakes: biomes tagged {@link #HAS_WETLAND_POOLS}, lakes step. */
    public static final ResourceLocation WETLAND_POOLS = id("wetland_pools");
    /** Surface rule condition: the column's surface layer (see {@link SurfaceLayer}); registered for datapacks too. */
@@ -137,6 +140,11 @@ public final class StillLifeFtfBridge {
     */
    public static com.mojang.serialization.MapCodec<TerrainCondition> terrainConditionCodec() {
       return TerrainCondition.MAP_CODEC;
+   }
+
+   /** The sulfur rock feature (registered whatever the config says: it does nothing outside the Sulfur Caves or when off). */
+   public static Feature<NoneFeatureConfiguration> sulfurRockFeature() {
+      return new SulfurRockFeature(NoneFeatureConfiguration.CODEC);
    }
 
    /** The wetland pools feature (does nothing unless the world has wetland_pools on). */

@@ -9,13 +9,16 @@ earlier version keep them off.
 ### 6.0.0
 The mod is now called **Lifeforged**. New worlds save their settings as format 19; worlds made with 5.x keep generating
 as before (new features off), except where noted under "Existing worlds". Tested on NeoForge with FreeTerraForged
-1.0.0034 and Still Life FTF edition 0.3.7-ftf; the Fabric jar has only been tested on a dedicated server, not played on a
+1.0.0034 and Still Life FTF edition 0.3.7-ftf and 0.3.8-ftf; the Fabric jar has only been tested on a dedicated server, not played on a
 client. New guide:
 [`docs/guide.md`](docs/guide.md).
 
 **Biomes and climate**
 - One biome set per landmass: continents joined by land bridges share one (`biome_sets=continents`; the old layout is `cells`).
-- New default `pole_distance` 50000 (was 40000) and `humid_swamps` false (was true); old config files keep their values.
+- New default `pole_distance` 50000 (was 40000); old config files keep their values.
+- VanillaBackport's Pale Garden, Dappled Forest and Sulfur Caves are now off by default (`pale_garden`, `dappled_forest`,
+  `sulfur_caves` 0; the 5.x amounts were 0.18, 0.5 and 0.5). Old config files keep their values. The Dappled Forest's
+  ground needs Still Life FTF edition 0.3.8-ftf (Naturalized 1.3.2-ftf).
 
 **Mountains and snow**
 - The snow line follows the climate, from the equator to the sea at the cold edge of the tundra (`snow_line_equator`, `snow_line_tundra`).
@@ -30,9 +33,11 @@ client. New guide:
 
 **Ground and rock**
 - Scree below cliffs and on bare high ground, thin rocky soil on steep slopes (`ground_cover`).
-- Each mountain region has its own rock, with tilted and folded rock layers (`rock_strata`, default `bedded`).
-- `rock_strata=deep` carries the rock layers through the whole land (about 5-17% slower generation, most in mountains).
-- Optional rock from Nature's Spirit (kaolin, travertine, chert) and Create (limestone).
+- Each mountain region has its own rock, with tilted and folded rock layers (`rock_strata`).
+- `rock_strata=deep`, the default, carries the rock layers through the whole land. It costs about 5-17% more generation
+  time, most in mountains; `rock_strata=bedded` keeps the surface rock without that cost.
+- Optional rock from Nature's Spirit (kaolin, travertine, chert) and Create (limestone, in limestone regions in every
+  `rock_strata` mode).
 - Sand only where the ground is sand already; river banks are left as they are.
 
 **Plants**
@@ -42,18 +47,17 @@ client. New guide:
 
 **Water and wetlands**
 - Rocky shores, mud flats and lake reeds (`shores`); river banks are not decorated.
+- `humid_swamps` stays on by default: very humid lowland can become swamp, marsh or fen.
 
 **Compatibility**
 - FreeTerraForged's preview and seed viewers use a quick height lookup, so their maps can differ slightly on mountains.
 - Datapacks: `stilllife_ftf_bridge:terrain` is now also a surface rule condition, with many new fields.
 
-**Removed**
-- The VanillaBackport Pale Garden, Dappled Forest and Sulfur Caves placement (`pale_garden`, `dappled_forest`, `sulfur_caves`, `sulfur_rock`).
-
 **Existing worlds**
-- New chunks no longer get the removed VanillaBackport biomes.
+- Worlds made with 4.2-5.6 keep their saved Pale Garden, Dappled Forest and Sulfur Caves amounts.
 - Fixes for generation order (biome sets near coasts, snow and rock along chunk edges) can change a few spots in new chunks.
-- Worlds made with 6.0 test builds keep the snow line and mountain biomes they were made with.
+- Worlds made with 6.0 test builds keep the snow line and mountain biomes they were made with, have no VanillaBackport
+  biomes, and keep diorite (not Create's limestone) with `rock_strata` `regional` or `bedded`.
 - The config file is regrouped with shorter explanations; same keys and values.
 
 ### 5.6.0
@@ -231,6 +235,9 @@ rivers as its developer intends. Tested with FreeTerraForged 1.0.0027, 1.0.0030 
 
 ## Still Life FTF edition
 
+- **0.3.8-ftf**: the Dappled Forest ground again (coarse dirt patches, as up to 0.3.6-ftf), for worlds where Lifeforged
+  places VanillaBackport's biomes; it changes nothing where there is no Dappled Forest. Still Life Naturalized 1.3.2-ftf
+  is 1.3.1-ftf with the same rule.
 - **0.3.7-ftf** (needs bridge 6.0): `patch_terrain.py` puts the bridge's terrain filter on Still Life's trees and plants:
   trees off cliffs, faces and fresh scree and out of steep gullies, fewer on ridges and wind-swept ground, a ragged
   treeline, natural clearings and regional tree mixes, snowy spruces only in snowfields, meadows thinner on exposed

@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:has_sulfur_rock",
+  "features": "stilllife_ftf_bridge:sulfur_rock",
+  "step": "raw_generation"
+}

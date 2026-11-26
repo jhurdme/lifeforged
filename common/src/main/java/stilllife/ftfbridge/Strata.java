@@ -51,7 +51,7 @@ final class Strata {
    static final int CHERT = 19;
    /** Nature's Spirit yellow kaolin (rock_strata=deep only; calcite without it). */
    static final int K_YELLOW = 20;
-   /** Create's limestone (rock_strata=deep only; diorite without it). */
+   /** Create's limestone (only chosen with Create installed; diorite without it). */
    static final int C_LIMESTONE = 21;
    static final int COUNT = 22;
 
@@ -90,7 +90,7 @@ final class Strata {
       KAOLIN_BUFF(K_LIGHT_GRAY, K_GRAY, K_LIGHT_GRAY, K_WHITE, BEDDED),
       /** Ochre clay rock (L 51): kaolin; grain and beds orange kaolin (7); brown kaolin markers (20). */
       KAOLIN_OCHRE(K_PLAIN, K_ORANGE, K_ORANGE, K_BROWN, BEDDED),
-      // ---- rock_strata=deep only (never chosen by the other modes)
+      // ---- rock_strata=deep only (never chosen by the other modes), except LIMESTONE_C
       /** Warm limestone (L 63, Nature's Spirit): travertine; beds light grey kaolin (7); white kaolin markers (12). */
       TRAVERTINE(Strata.TRAVERTINE, K_LIGHT_GRAY, Strata.TRAVERTINE, K_WHITE, BEDDED),
       /** Chert (L 57, Nature's Spirit): chert; grain orange kaolin (4); beds kaolin (7); yellow kaolin markers (14). */
@@ -99,7 +99,10 @@ final class Strata {
       SLATE(DEEPSLATE, TUFF, BASALT, STONE, MASSIVE),
       /** Flood basalt (L 31): smooth basalt; grain deepslate (4). Massive. */
       BASALT_FLOW(BASALT, TUFF, DEEPSLATE, TUFF, MASSIVE),
-      /** Limestone with Create (L 75): Create's limestone; grain diorite (7); beds calcite (15); andesite markers (20). */
+      /**
+       * Limestone with Create (L 75): Create's limestone; grain diorite (7); beds calcite (15); andesite markers (20). Every
+       * mode with Create installed (regional / bedded: worlds made with bridge 6.0 that saved create_limestone).
+       */
       LIMESTONE_C(C_LIMESTONE, CALCITE, DIORITE, ANDESITE, BEDDED);
 
       final int main;
@@ -146,6 +149,11 @@ final class Strata {
          case 3 -> Suite.DOLOMITE;
          default -> Suite.LIMESTONE;
       };
+   }
+
+   /** LIMESTONE as Create's limestone when Create is installed (the same swap DeepRock.stack makes for its units). */
+   static Suite withCreate(Suite s, boolean create) {
+      return create && s == Suite.LIMESTONE ? Suite.LIMESTONE_C : s;
    }
 
    /**
@@ -199,13 +207,14 @@ final class Strata {
       /**
        * @param bedding   bedding lenses and seams ("bedded"); false = one mottled rock per province ("regional")
        * @param dryKaolin a dry climate with Nature's Spirit installed: the province may be kaolin clay rock
+       * @param create    Create installed (and allowed by the world): limestone provinces are Create's limestone
        */
-      void set(long seed, int x, int z, Provinces.Province p, boolean bedding, boolean dryKaolin) {
+      void set(long seed, int x, int z, Provinces.Province p, boolean bedding, boolean dryKaolin, boolean create) {
          this.seed = seed;
          this.x = x;
          this.z = z;
          this.key = (bedding ? 1 : 0) | (dryKaolin ? 2 : 0);
-         this.suite = suite(p, seed, dryKaolin);
+         this.suite = withCreate(suite(p, seed, dryKaolin), create);
          this.bedded = bedding ? bedded(p, this.suite, seed) : 0.0F;
          this.bedScale = 5.0F + 5.0F * CoverNoise.hash(seed, p.id(), 2, 735);
          this.seams = bedding && this.bedded > 0.0F && CoverNoise.hash(seed, p.id(), 3, 737) < 0.6F;
@@ -232,8 +241,9 @@ final class Strata {
        *
        * @param blend  the provinces sharing the column (Provinces.blend with Provinces.BLEND)
        * @param kaolin per province of the blend: a dry region with Nature's Spirit installed (may be clay rock)
+       * @param create Create installed (and allowed by the world): limestone provinces are Create's limestone
        */
-      void set(long seed, int x, int z, Provinces.Blend blend, boolean bedding, boolean[] kaolin, int key) {
+      void set(long seed, int x, int z, Provinces.Blend blend, boolean bedding, boolean[] kaolin, boolean create, int key) {
          Provinces.Province[] ps = blend.provinces();
          // the main province (largest share) sets the column's own character
          int main = 0;
@@ -244,7 +254,7 @@ final class Strata {
                main = i;
             }
          }
-         this.set(seed, x, z, ps[main], bedding, kaolin[main]);
+         this.set(seed, x, z, ps[main], bedding, kaolin[main], create);
          this.key = key;
          if (ps.length > 1) {
             // everything blended by share, so nothing jumps where the main province changes
@@ -257,7 +267,7 @@ final class Strata {
             for (int i = 0; i < ps.length; i++) {
                float w = blend.upTo()[i] - prev;
                prev = blend.upTo()[i];
-               ss[i] = suite(ps[i], seed, kaolin[i]);
+               ss[i] = withCreate(suite(ps[i], seed, kaolin[i]), create);
                mixed |= ss[i] != this.suite;
                float bi = bedded(ps[i], ss[i], seed);
                bed += bi * w;

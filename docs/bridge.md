@@ -12,10 +12,10 @@ bridge keeps working as FTF changes and FTF's own terrain stays as its developer
 **NeoForge and Fabric (5.3).** Everything in this document is shared code (`common/`) and works the same on both loaders.
 FTF's code is the same on both, and every mixin hooks FTF's own classes by name, so the mixins need no changes. Only the
 start-up differs: `neoforge/` and `fabric/` each hold one entry point that hands the shared code the loader's config folder
-(`Platform`), registers the wetland pools feature, the `surface_layer` and `terrain` surface conditions and the `terrain`
+(`Platform`), registers the wetland pools and Sulfur Caves rock features, the `surface_layer` and `terrain` surface conditions and the `terrain`
 placement filter, adds the bridge's features to their biomes (NeoForge: the biome modifier files in
 `neoforge/.../biome_modifier`; Fabric: Fabric API's `BiomeModifications`), and opens and closes the world's settings when
-a world starts and stops. (Up to 5.6 it also registered the Sulfur Caves rock feature, removed in 6.0.) Fabric runs Minecraft with its own names for classes and methods
+a world starts and stops. Fabric runs Minecraft with its own names for classes and methods
 (`class_2791` for `ChunkAccess`), so the Fabric jar is remapped to them when it is built (Fabric Loom in the Gradle build,
 `tools/RemapJar.java` in `tools/build-javac.sh`). Checked by generating the same areas on a NeoForge and a Fabric server
 with the same seed, preset and world settings: a snowy mountainside (biomes 99.9% identical, snow in the caps 55.7% on
@@ -37,8 +37,8 @@ a readable message.
 - [7. Snow on peaks](#7-snow-on-peaks)
 - [8. Wetlands stay off hillsides](#8-wetlands-stay-off-hillsides)
 - [9. The coastal uplift cliff](#9-the-coastal-uplift-cliff)
-- [10. VanillaBackport biomes (removed in 6.0)](#10-vanillabackport-biomes-removed-in-60)
-- [11. Sulfur Caves rock (removed in 6.0)](#11-sulfur-caves-rock-removed-in-60)
+- [10. VanillaBackport biomes](#10-vanillabackport-biomes)
+- [11. Sulfur Caves rock](#11-sulfur-caves-rock)
 - [12. Cave floors](#12-cave-floors)
 - [13. Removed in 5.1: FTF's lakes and rivers left to FTF](#13-removed-in-51-ftfs-lakes-and-rivers-left-to-ftf)
 - [14. Removed in 5.0: no longer needed with FTF 1.0.0027](#14-removed-in-50-no-longer-needed-with-ftf-100027)
@@ -236,7 +236,7 @@ a small one (32%), `halves` 36-67% (the wandering line moves some land across). 
 
 ## 3. Swamps in humid lowland
 
-*4.0. `humid_swamps` (off by default for new worlds since 6.0), `swamp_humidity`, `swamp_max_height`.*
+*4.0. `humid_swamps` (on by default), `swamp_humidity`, `swamp_max_height`.*
 
 **Problem.** Still Life's swamps, marshes and fens live in its "wetland" erosion band, which Lithosphere gives to low,
 wet land. FTF only marks its own river wetlands (a few spots along rivers), so Still Life's large swamp biomes almost
@@ -693,14 +693,21 @@ same map the biggest jump between cells 4 blocks apart is 48 blocks without smoo
 ![uplift cliff map](images/uplift-cliff-map.png)
 *3 x 3 km at the test spawn, raw FTF terrain. Left: `uplift_smoothing=0` (the thin bright line is the cliff); right: 1600.*
 
-## 10. VanillaBackport biomes (removed in 6.0)
+## 10. VanillaBackport biomes
 
-> **Removed in 6.0.** The bridge no longer places the Pale Garden, Dappled Forest or Sulfur Caves in Still Life's layout
-> (Still Life Naturalized already brings the Dappled Forest into Still Life, and the Pale Garden is its own underground
-> biome). The options `pale_garden`, `dappled_forest` and `sulfur_caves` are gone and ignored in old files and worlds.
-> VanillaBackport stays required for Still Life's blocks. What follows describes 4.2-5.6.
+*4.2; off by default from 6.0. `pale_garden`, `dappled_forest`, `sulfur_caves`. `VanillaBackportBiomes`,
+`mixin/MinecraftBiomeSourceGraphsMixin`.*
 
-*4.2. `pale_garden`, `dappled_forest`, `sulfur_caves`. `VanillaBackportBiomes`, `mixin/MinecraftBiomeSourceGraphsMixin`.*
+**6.0: off by default.** New worlds get amounts of 0, so FTF's layout is used exactly as Still Life ships it (the bridge
+hands FTF its own layout object back untouched). To have them, set the amounts before creating the world: 0.18 / 0.5 / 0.5
+are the 4.4-5.6 defaults. Saved amounts are kept: worlds made with 4.2-5.6 keep theirs, 4.0 / 4.1 worlds (format 2, made
+with Still Life 0.3.1-ftf, whose saved layout already has the biomes) keep that layout, and a format 3+ world file without
+the keys (made with a 6.0 test build) has none. The Dappled Forest's coarse dirt patches come from the Still Life FTF
+edition's surface rule (0.3.1-0.3.6 and again from 0.3.8-ftf; Naturalized 1.3.2-ftf); with 0.3.7-ftf or Naturalized
+1.3.1-ftf it is plain Still Life ground. The VanillaBackport biomes' own trees and plants carry no terrain filter, so
+inside them trees can stand on cliffs and fresh scree, and the subalpine belt features (tagged per Still Life biome) do not
+grow there. Snow, scree, rock strata and the snow line work on them as on any other biome (they go by climate, height and
+slope, not by biome).
 
 VanillaBackport adds the Pale Garden, Dappled Forest and Sulfur Caves to vanilla's layout, which Still Life replaces. The
 bridge adds them to the layout FTF places biomes from (`MinecraftBiomeSourceGraphs.multiNoiseRoot`) by taking a humidity
@@ -730,12 +737,9 @@ without it neither loader starts.
 ![vb sulfur caves](images/vb-sulfur-caves.png)
 *Sulfur Caves at Y -20 (`sulfur_caves` 0.5) vs 0. The square shapes are FreeTerraForged's underground biome banding (cave biomes are laid out in square cells), not the bridge.*
 
-## 11. Sulfur Caves rock (removed in 6.0)
+## 11. Sulfur Caves rock
 
-> **Removed in 6.0** together with section 10: no `sulfur_rock` option and no sulfur rock feature any more. What follows
-> describes 4.3-5.6.
-
-*4.3, own setting in 5.0. `sulfur_rock`. `SulfurRockFeature`.*
+*4.3, own setting in 5.0. `sulfur_rock` (default true; only acts where `sulfur_caves` placed the biome). `SulfurRockFeature`.*
 
 VanillaBackport paints the Sulfur Caves with a surface rule driven by a 3D noise. FTF doesn't run VanillaBackport's surface
 rule and skips surface rules for rock far from open space, so the caves were plain stone. The bridge places the same rock
@@ -1168,7 +1172,7 @@ Mediterranean / barren peaks), T 104016..104784, -13488..-12720 (the owner's pea
 ## 16. Ground, rock, snow, shores and forests (6.0)
 
 *6.0. `ground_cover`, `rock_strata`, `mountain_snow`, `natural_snow_layers`, `shores`, `forest_variety` (all on for new
-worlds; `rock_strata=bedded`). `GroundCover`, `TalusField`, `Provinces`, `Strata`, `SnowModel`, `SnowField`,
+worlds; `rock_strata=deep`). `GroundCover`, `TalusField`, `Provinces`, `Strata`, `SnowModel`, `SnowField`,
 `MountainSnow`, `NaturalSnow`, `Shores`, `ForestEdges`; `mixin/ScreeFeatureMixin`, `mixin/DecorateSnowFeatureMixin`.
 Worlds saved before 6.0 have all of them off; worlds saved by 6.0 test builds before `rock_strata` existed load it as
 `off`.*
@@ -1273,13 +1277,20 @@ andesite, diorite, granite, tuff) is replaced; other rock (Still Life's basalt, 
 | `granitic` (step 1, 30%) | stone | andesite | andesite | granite (dykes) | massive |
 | `andesitic` (step 2) | andesite | stone | stone | tuff | massive |
 | `dolomite` (step 3) | andesite | stone | tuff | diorite | bedded |
-| `limestone` (step 4) | diorite | calcite | calcite | andesite | bedded |
+| `limestone` (step 4) | diorite (Create's limestone with Create) | calcite | calcite | andesite | bedded |
 | `kaolin_buff` | light grey kaolin | light grey kaolin | grey kaolin | white kaolin | bedded |
 | `kaolin_ochre` | kaolin | orange kaolin | orange kaolin | brown kaolin | bedded |
 
 Kaolin clay rock needs Nature's Spirit: a region is dry country when Still Life's humidity at its centre is below -0.35,
 and about half of the dry regions are clay rock (buff on the lighter steps, ochre on the darker ones, so their brightness
 still fits their neighbours). Their fine talus is crumbled kaolin with gravel.
+
+With Create installed, `limestone` regions use Create's limestone (`create:limestone`) as their main rock in every mode
+(grain diorite, beds calcite, as `deep` has always done), so a region keeps its rock when the mode changes: cliffs,
+risers, outcrops and the rock pieces in talus show it. In `regional` and `bedded` only for worlds whose settings file has
+`"create_limestone": true` (written by 6.0.0 release builds for new worlds); worlds made earlier keep diorite. Without
+Create, or if it is removed later, those regions use diorite again in new chunks; the world still loads. The terrain
+filter's `rock_suites` still calls these regions `limestone`.
 
 **`deep`.** `rock_strata=deep` is `bedded` plus the regional rock through the body of
 the land (`DeepRock`, `mixin/ChunkStatusTasksMixin`). Each region is a stack of one to four rock units: its usual suite,
@@ -1290,7 +1301,8 @@ deepslate, flood basalt, Nature's Spirit travertine and chert, Create's limeston
 otherwise a vanilla stand-in). The pass replaces only `minecraft:stone`, at the start of a chunk's LIGHT step, when the
 chunk and its neighbours have finished their features, so ores, carvers and structures are unchanged and the result does
 not depend on chunk order. Below an undulating contact some 15 blocks under the sea the rock stays plain stone; the top
-three blocks of stone-topped or submerged columns stay stone. Measured cost: about 5-17% more generation time, most of it in mountains. If another
+three blocks of stone-topped or submerged columns stay stone. `deep` is the default for new worlds. Measured cost: about 5-17% more generation time, most of it in mountains;
+`rock_strata=bedded` keeps the surface look without it. If another
 mod replaces Minecraft's light step, this pass does not run and only the surface rock changes.
 
 ### Snow: one model

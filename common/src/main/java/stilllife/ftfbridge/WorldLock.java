@@ -106,7 +106,15 @@ final class WorldLock {
                   num(o, "snow_line_equator", 0.0),
                   num(o, "snow_line_tundra", 0.0),
                   // latitude=ftf worlds get the curve from format 19 (bridge 6.0 release); older ftf worlds keep FTF's bands
-                  format >= 19 && !stillLife
+                  format >= 19 && !stillLife,
+                  // VanillaBackport biomes: saved by format 3-15 worlds (bridge 4.2-5.6) and by 6.0 worlds made after they came
+                  // back; 4.0 / 4.1 worlds (format 2) were made with Still Life 0.3.1, whose saved layout already has them.
+                  // Missing in a format 3+ file = a world made with a 6.0 test build without them: none.
+                  num(o, "pale_garden", format < 3 ? 1.0 : 0.0),
+                  num(o, "dappled_forest", format < 3 ? 1.0 : 0.0),
+                  num(o, "sulfur_caves", format < 3 ? 1.0 : 0.0),
+                  // sulfur rock came with bridge 4.3 for every world (it only acts in the Sulfur Caves)
+                  bool(o, "sulfur_rock", true)
                );
             }
 
@@ -115,6 +123,9 @@ final class WorldLock {
             // format 19: the vertical scale of the snow zone and bands, worked out once from the measured heights (format 18
             // and older: 1, the numbers as they were tuned)
             lock.snowScale = format >= 19 ? num(o, "snow_scale", Double.NaN) : 1.0;
+            // Create's limestone in rock_strata=regional / bedded came with the 6.0 release: worlds saved without it keep
+            // diorite there (rock_strata=deep always had it)
+            lock.createLimestone = bool(o, "create_limestone", false);
             StillLifeFtfBridge.LOG.info("[{}] using this world's saved settings: {}", StillLifeFtfBridge.MOD_ID, s);
          } catch (Exception e) {
             throw new IllegalStateException(
@@ -124,6 +135,7 @@ final class WorldLock {
          }
       } else {
          lock = new WorldLock.Lock(file, BridgeConfig.settings(), null, null, null, FORMAT);
+         lock.createLimestone = true;
          save(lock);
          StillLifeFtfBridge.LOG.info("[{}] saved settings for this world: {}", StillLifeFtfBridge.MOD_ID, lock.settings);
       }
@@ -133,6 +145,12 @@ final class WorldLock {
 
    static void close() {
       current = null;
+   }
+
+   /** Whether rock_strata=regional / bedded may use Create's limestone in this world (no world running: yes). */
+   static boolean createLimestone() {
+      WorldLock.Lock lock = current;
+      return lock == null || lock.createLimestone;
    }
 
    /** biome_sets of a saved world: "continents" became one set per landmass in format 17; older worlds keep one per cell. */
@@ -174,6 +192,12 @@ final class WorldLock {
          o.addProperty("swamp_max_height", s.swampMaxHeight());
          o.addProperty("snow_caps", s.snowCaps());
          o.addProperty("snow_cliff_steepness", s.snowCliffSteepness());
+         if (lock.format >= 3) {
+            o.addProperty("pale_garden", s.paleGarden());
+            o.addProperty("dappled_forest", s.dappledForest());
+            o.addProperty("sulfur_caves", s.sulfurCaves());
+         }
+
          if (lock.format >= 4) {
             o.addProperty("aspen_swamps", s.aspenSwamps());
             o.addProperty("salt_lakes", s.saltLakes());
@@ -191,6 +215,7 @@ final class WorldLock {
          if (lock.format >= 10) {
             o.addProperty("wetland_max_height", s.wetlandMaxHeight());
             o.addProperty("keep_wetland_biomes", s.keepWetlandBiomes());
+            o.addProperty("sulfur_rock", s.sulfurRock());
             o.addProperty("beach_max_height", s.beachMaxHeight());
             o.addProperty("beach_shallows", s.beachShallows());
             o.addProperty("salt_lake_water", s.saltLakeWater());
@@ -237,6 +262,9 @@ final class WorldLock {
          }
          if (lock.format >= 19 && lock.snowScale > 0.0) {
             o.addProperty("snow_scale", lock.snowScale);
+         }
+         if (lock.createLimestone) {
+            o.addProperty("create_limestone", true);
          }
       }
 
@@ -308,6 +336,8 @@ final class WorldLock {
       volatile double snowEquator;
       volatile double snowTundra;
       volatile double snowScale = Double.NaN;
+      /** Create's limestone in rock_strata=regional / bedded (worlds made with the 6.0 release on). */
+      volatile boolean createLimestone;
 
       Lock(Path file, Settings settings, double[] heights, double[] edge, String terrain, int format) {
          this.file = file;

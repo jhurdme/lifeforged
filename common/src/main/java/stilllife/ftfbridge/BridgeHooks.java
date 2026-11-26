@@ -152,7 +152,8 @@ public final class BridgeHooks {
    public static etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot biomeLayout(
       etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot root, net.minecraft.core.HolderLookup.Provider lookups
    ) {
-      etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot out = root;
+      // the VanillaBackport biomes at this world's amounts (none by default), then the readers of the final layout
+      etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot out = VanillaBackportBiomes.apply(root, lookups);
       if (out != null && BridgeConfig.enabled()) {
          try {
             CaveFloorGuard.layout(out.entries());

@@ -22,12 +22,12 @@ shape of the land. This guide is for players and server owners. The technical de
 | NeoForge | required | 21.1 (tested 21.1.265) |
 | Java | required | 21 or newer |
 | FreeTerraForged | required | 1.0.0027 or newer (tested 1.0.0034) |
-| Still Life FTF edition | required | 0.3.7-ftf, made from your own Still Life 0.3 download |
+| Still Life FTF edition | required | 0.3.8-ftf, made from your own Still Life 0.3 download |
 | VanillaBackport | required | 1.2.2 or newer (tested 1.2.2) |
 | Platform | required (by VanillaBackport) | tested 1.4.2 |
 | Lifeforged | required | 6.0.0 (`stilllife_ftf_bridge-6.0.0-neoforge.jar`) |
 | Nature's Spirit | optional | tested 2.3.2 |
-| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.3.1-ftf (ready-made, no patching) |
+| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.3.2-ftf (ready-made, no patching) |
 | Create | optional | tested 6.0.10 |
 
 Do **not** install Lithosphere, MoreDensityFunctions or the normal Still Life jar. The 6.0 Fabric jar has only been
@@ -41,9 +41,9 @@ your own download, with Python 3.8 or newer:
 
 1. Download **Still Life 0.3 for Minecraft 1.21.1** (the mod jar) from Modrinth.
 2. Run `python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar`. It writes
-   `still_life-0.3.7-ftf-1.21.1.jar`. Please don't upload it anywhere.
-3. Still Life Naturalized (optional): use its FTF build 1.3.1-ftf as it is. Older FTF builds lack the treeline and
-   cliff rules.
+   `still_life-0.3.8-ftf-1.21.1.jar`. Please don't upload it anywhere.
+3. Still Life Naturalized (optional): use its FTF build 1.3.2-ftf as it is. Older FTF builds lack the treeline and
+   cliff rules (and 1.3.1 the Dappled Forest ground).
 4. Put FreeTerraForged, VanillaBackport, Platform, the Still Life FTF edition and Lifeforged in `mods` (on a dedicated
    server: the server's `mods`).
 5. Start the game once. Lifeforged writes `config/stilllife_ftf_bridge.properties`, with every setting explained.
@@ -61,6 +61,8 @@ give the world Still Life's 576-block height, with every mountain cut off flat a
 - The world has one warm equator running east-west, and gets colder to the north and south.
 - Still Life has two biome sets, American and Afro-Eurasian. Each landmass gets one, and where two meet their biomes mix
   in a ragged band.
+- If you switch them on: VanillaBackport's Pale Garden, Dappled Forest and Sulfur Caves inside Still Life's forests and
+  caves (off by default).
 
 **Mountains and snow**
 - The snow line follows the climate: high near the equator, low towards the poles. Tropical mountains are green far up.
@@ -72,7 +74,7 @@ give the world Still Life's 576-block height, with every mountain cut off flat a
 
 **Ground and rock**
 - Scree (loose broken rock) lies below cliffs and on bare high ground. Steep slopes have thin rocky soil.
-- Each mountain region has its own rock, and some show tilted and folded rock layers.
+- Each mountain region has its own rock, and some show tilted and folded rock layers, through the whole land.
 - Sand appears only where the ground is sand already. River banks are left as they are.
 - Cave floors stay free of snow and sand.
 
@@ -101,10 +103,13 @@ These are in `config/stilllife_ftf_bridge.properties`, and apply to **new** worl
 | `snow_line_tundra` | `auto` | Snow line at the warm edge of the tundra (Y). `auto` = Y 250 on tall presets. |
 | `mountain_snow` | `true` | Snow where weather would put it. `false` = Still Life's solid white peaks. |
 | `ground_cover` | `true` | Scree and rocky soil. `false` = FreeTerraForged's one mix. |
-| `rock_strata` | `bedded` | `off`, `regional` (own rock per region), `bedded` (plus rock layers), `deep` (rock layers through the whole land; about 5-17% slower generation, most in mountains). |
+| `rock_strata` | `deep` | `off`, `regional` (own rock per region), `bedded` (plus rock layers), `deep` (rock layers through the whole land). `deep` costs about 5-17% more generation time, most in mountains; set `bedded` to save it. |
 | `forest_variety` | `true` | Forest edges, clearings, regional tree mixes. |
 | `shores` | `true` | Rocky shores, mud flats, lake reeds. |
-| `humid_swamps` | `false` | Swamps also in very humid lowland, not only along rivers. |
+| `humid_swamps` | `true` | Swamps also in very humid lowland, not only along rivers. |
+| `pale_garden` | `0` | VanillaBackport's Pale Garden in the most humid old temperate forests. 0 = off; 0.18 = the amount of Lifeforged 5.x; up to 2. |
+| `dappled_forest` | `0` | VanillaBackport's Dappled Forest in the drier cool temperate forests. 0 = off; 0.5 = the 5.x amount; up to 2. |
+| `sulfur_caves` | `0` | VanillaBackport's Sulfur Caves in part of Still Life's barren caves. 0 = off; 0.5 = the 5.x amount; up to 2. |
 
 The other settings are fine-tuning: see [all other settings](#all-other-settings).
 
@@ -115,9 +120,9 @@ The other settings are fine-tuning: see [all other settings](#all-other-settings
 - To change a world, edit or delete its `stilllife_ftf_bridge.json` and restart. Only chunks generated afterwards change,
   so a seam can show where old and new chunks meet.
 - Chunks that already exist never change.
-- Worlds made with an older version keep generating as that version did (new features off). A few things can still
-  change in their new chunks: the VanillaBackport Pale Garden, Dappled Forest and Sulfur Caves are no longer placed, a
-  few coast and ocean spots can change biome set, and the new Still Life FTF edition changes some trees and plants.
+- Worlds made with an older version keep generating as that version did (new features off), including their saved
+  amounts of Pale Garden, Dappled Forest and Sulfur Caves. A few things can still change in their new chunks: a few
+  coast and ocean spots can change biome set, and the new Still Life FTF edition changes some trees and plants.
 - An old config file keeps its values; new settings are added with their defaults.
 - Back up your worlds before updating.
 
@@ -125,10 +130,10 @@ The other settings are fine-tuning: see [all other settings](#all-other-settings
 
 | Mod | Needed? | What changes | Notes |
 |---|---|---|---|
-| VanillaBackport, Platform | required | Nothing from Lifeforged: Still Life uses VanillaBackport's newer blocks (pale oak, bushes, leaf litter...). | Without them the game does not start. |
-| Nature's Spirit | optional | With `ground_cover` on: kaolin clay rock in about half of the dry mountain regions (with `rock_strata` `regional`, `bedded` or `deep`), travertine in the scree of pale regions, sandy soil on dry sandy ground. Above the treeline: fir krummholz and alpine grasses and heathers. With `rock_strata=deep` also: travertine as the main rock of some pale regions and chert under some clay rock. | Without it the same places use vanilla stone (diorite, andesite, calcite, coarse dirt). Tested with 2.3.2. |
-| Still Life Naturalized | optional | Lifeforged adds Naturalized's reed edges around lakes and leaves out its own riverside plants and lake reeds (willows, birches, sugar cane, grass and ferns). Its trees follow the treeline and cliff rules. | Needs its FTF build 1.3.1-ftf and Nature's Spirit. The build is ready-made: no patching. Its rock layer under the soil stays; with `rock_strata=deep` it is kept in the top 4 blocks and the regional rock is used below. Tested with 1.3.1-ftf. |
-| Create | optional | Only with `rock_strata=deep`: Create's limestone (`create:limestone`) replaces diorite as the main rock of limestone regions. No other Create block is used. | With `off`, `regional` or `bedded` nothing changes. Create's own generated stone is untouched. Without Create those regions use diorite and calcite. Tested in one test world with Create 6.0.10. |
+| VanillaBackport, Platform | required | Still Life uses VanillaBackport's newer blocks (pale oak, bushes, leaf litter...). With `pale_garden`, `dappled_forest` or `sulfur_caves` above 0, Lifeforged places those biomes (Sulfur Caves with their sulfur and cinnabar rock). | Without them the game does not start. A biome switched off in `config/vanillabackport-common.toml` stays off. The Dappled Forest's coarse dirt patches need Still Life FTF edition 0.3.8-ftf (Naturalized 1.3.2-ftf). Their own trees do not follow the treeline and cliff rules. |
+| Nature's Spirit | optional | With `ground_cover` on: kaolin clay rock in about half of the dry mountain regions (with `rock_strata` `regional`, `bedded` or `deep`), travertine in the scree of pale regions, sandy soil on dry sandy ground. Above the treeline: fir krummholz and alpine grasses and heathers. With `rock_strata=deep` (the default) also: travertine as the main rock of some pale regions and chert under some clay rock. | Without it the same places use vanilla stone (diorite, andesite, calcite, coarse dirt). Tested with 2.3.2. |
+| Still Life Naturalized | optional | Lifeforged adds Naturalized's reed edges around lakes and leaves out its own riverside plants and lake reeds (willows, birches, sugar cane, grass and ferns). Its trees follow the treeline and cliff rules. | Needs its FTF build 1.3.2-ftf and Nature's Spirit. The build is ready-made: no patching. Its rock layer under the soil stays; with `rock_strata=deep` it is kept in the top 4 blocks and the regional rock is used below. Tested with 1.3.1-ftf and 1.3.2-ftf (1.3.2 = 1.3.1 plus the Dappled Forest ground). |
+| Create | optional | With `rock_strata` `regional`, `bedded` or `deep`: Create's limestone (`create:limestone`) replaces diorite as the main rock of limestone regions, on cliffs, in scree and (with `deep`) through the land. No other Create block is used. | With `off` nothing changes. Create's own generated stone is untouched. Without Create those regions use diorite and calcite; removing Create later only changes new chunks. With `regional` or `bedded`, only worlds made with Lifeforged 6.0.0 or later. Tested with Create 6.0.10 on NeoForge (`bedded` and `deep`). |
 | Streams Reflowing | optional | Its default restyles other mods' water as its own banks, which removes Lifeforged's pools and leaves mud rings. | Set `allWaterBanks=0` in `config/streamsreflowing.properties`. Tested with 2.17.5. |
 | C2ME, Lithium, ModernFix, FerriteCore | optional | Nothing. | No known problems. |
 | Seasons mods | optional | They add their own snow during play. | That snow is not part of world generation. |
@@ -169,6 +174,7 @@ You can skip this part unless you need it.
 | `mountain_cooling` | `0.25` | With `latitude=still_life`: cold alpine biomes instead of desert scrub under snow caps (0 to 1; 0 = off). |
 | `peak_line_variation` | `40` | Blocks by which the snow line wanders, lower in gullies, higher on ridges (0 to 160). |
 | `natural_snow_layers` | `true` | Thin snow follows the real ground; leaves keep snow only in snowfields. Needs the Smooth Layer Decorator. |
+| `sulfur_rock` | `true` | Sulfur and cinnabar rock in the Sulfur Caves (with `sulfur_caves` above 0). |
 | `cave_floor_guard` | `exact` | `exact`: no snow or sand on cave floors. `vanilla`: Minecraft's check. `off`: Still Life's own rules. |
 | `uplift_smoothing` | `1600` | UPLIFT presets: blocks over which the coastal cliff is spread as terraces (0 to 4000; 0 = off). |
 | `beach_max_height` | `8` | Coast more than this above the sea is never beach (0 to 256; 0 = no limit). |
@@ -216,10 +222,10 @@ about 150 blocks.
 | Granitic | stone | andesite, rare granite veins |
 | Andesitic | andesite | stone |
 | Dolomite | andesite | stone, tuff layers, rare diorite |
-| Limestone | diorite | calcite, rare andesite |
+| Limestone | diorite (Create's limestone with Create) | calcite, rare andesite |
 | Clay rock (Nature's Spirit, dry regions) | kaolin | other kaolin colours |
 
-With `deep`, regions get stacks of rock types that tilt and fold, so tall mountains and deep valleys change rock with
+With `deep` (the default), regions get stacks of rock types that tilt and fold, so tall mountains and deep valleys change rock with
 height; Nature's Spirit and Create add some rock types ([details](#6-compatibility-with-other-mods)). Ores stay where they are, and the rock from
 about sea level down stays normal stone and deepslate.
 

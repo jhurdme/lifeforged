@@ -21,10 +21,11 @@ places every biome where it belongs and makes the ground, rock, snow and plants 
 ## What you get
 
 - **Biomes and climate**: every Still Life biome where it belongs, a climate with one warm equator, one biome set per
-  landmass.
+  landmass; optionally VanillaBackport's Pale Garden, Dappled Forest and Sulfur Caves (off by default).
 - **Mountains and snow**: a snow line that follows the climate, Still Life's mountain biomes under it, and snow where
   weather would put it.
-- **Ground and rock**: scree below cliffs, each mountain region with its own rock, tilted and folded rock layers.
+- **Ground and rock**: scree below cliffs, each mountain region with its own rock, tilted and folded rock layers through
+  the whole land.
 - **Plants**: a ragged treeline with small trees and alpine plants above it, forest edges and clearings.
 - **Water and wetlands**: rocky shores, low beaches, swamps and salt lakes with water at any height, no coastal cliff on
   UPLIFT presets.
@@ -39,12 +40,12 @@ places every biome where it belongs and makes the ground, rock, snow and plants 
 | NeoForge | required | 21.1 (tested 21.1.265) |
 | Java | required | 21 or newer |
 | FreeTerraForged | required | 1.0.0027 or newer (tested 1.0.0034) |
-| Still Life FTF edition | required | 0.3.7-ftf, made from your own Still Life 0.3 download |
+| Still Life FTF edition | required | 0.3.8-ftf, made from your own Still Life 0.3 download |
 | VanillaBackport | required | 1.2.2 or newer (tested 1.2.2) |
 | Platform | required (by VanillaBackport) | tested 1.4.2 |
 | Lifeforged | required | 6.0.0 (`stilllife_ftf_bridge-6.0.0-neoforge.jar`) |
 | Nature's Spirit | optional | tested 2.3.2 |
-| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.3.1-ftf (ready-made, no patching) |
+| Still Life Naturalized | optional (needs Nature's Spirit) | FTF build 1.3.2-ftf (ready-made, no patching) |
 | Create | optional | tested 6.0.10 |
 
 The 6.0 Fabric jar has only been tested on a dedicated server (Fabric Loader 0.20.1, Fabric API 0.116.18), not played on
@@ -55,8 +56,8 @@ Naturalized, Create and other mods: [guide, section 6](docs/guide.md#6-compatibi
 
 ## Install
 
-1. `python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar` writes `still_life-0.3.7-ftf-1.21.1.jar`.
-   Still Life Naturalized: use its FTF build 1.3.1-ftf as it is.
+1. `python3 still-life-patch/make_ftf_edition.py still_life-0.3-1.21.1.jar` writes `still_life-0.3.8-ftf-1.21.1.jar`.
+   Still Life Naturalized: use its FTF build 1.3.2-ftf as it is.
 2. Put FreeTerraForged, VanillaBackport, Platform, the Still Life FTF edition and
    `stilllife_ftf_bridge-6.0.0-neoforge.jar` in `mods/` (on a server, the server's `mods/`).
 3. Start the game once: `config/stilllife_ftf_bridge.properties` is written, with every setting explained.

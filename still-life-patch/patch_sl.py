@@ -51,6 +51,25 @@ log.append('surface geology: granite/diorite only 3+ blocks below the surface (e
 
 def biome(*b): return {'type': 'minecraft:biome', 'biome_is': list(b)}
 
+# 1b. 0.3.8-ftf (as in 0.3.1-0.3.6-ftf): VanillaBackport's Dappled Forest ground, small coarse dirt patches. VanillaBackport
+#     adds its surface rules through NoiseBasedChunkGenerator.buildSurface, which FreeTerraForged's generator does not use.
+#     2D noise version so FTF and the GPU surface path accept it. Inert unless the world has the biome: Lifeforged places it
+#     only with its dappled_forest option above 0 (off by default). The Pale Garden has no surface rule of its own, and
+#     Lifeforged places the Sulfur Caves rock as a feature (FreeTerraForged skips surface rules deep in rock).
+vb_rules = [
+    cond(biome('minecraft:dappled_forest'),
+         cond({'type': 'minecraft:stone_depth', 'offset': 0, 'add_surface_depth': False, 'secondary_depth_range': 0, 'surface_type': 'floor'},
+              cond({'type': 'minecraft:water', 'offset': 0, 'surface_depth_multiplier': 0, 'add_stone_depth': False},
+                   cond(noise('minecraft:small_patch', 1.2, 1000.0), block('minecraft:coarse_dirt'))))),
+]
+assert sr['type'].endswith('sequence')
+seq = sr['sequence']
+# keep the bedrock floor first
+first = json.dumps(seq[0])
+assert 'bedrock' in first, first[:200]
+sr['sequence'] = [seq[0]] + vb_rules + seq[1:]
+log.append('surface: added dappled_forest (coarse dirt) rule')
+
 # 1c. Wetlands at any height. Still Life builds its salt lakes for sea level (Lithosphere drops wetland climate to sea level):
 #     the salt crust only at Y 62-64 and the lake bed at Y 40-61. On FreeTerraForged terrain they sit anywhere, so the crust
 #     goes on dry ground at any height (mostly white calcite, dithered with clay, as Still Life's Y 62 band) and clay under water.
