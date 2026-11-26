@@ -1,0 +1,27 @@
+{
+  "feature": "minecraft:patch_waterlily",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "terrain_categories": [
+        "lake"
+      ],
+      "requires_option": "shores",
+      "min_temperature": 0.35
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

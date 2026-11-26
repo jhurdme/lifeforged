@@ -1,0 +1,30 @@
+{
+  "feature": "stilllife_ftf_bridge:riverside_reeds",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 4
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "terrain_categories": [
+        "lake"
+      ],
+      "requires_option": "shores",
+      "min_temperature": 0.3,
+      "skip_if_loaded": [
+        "still_life_naturalized"
+      ]
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

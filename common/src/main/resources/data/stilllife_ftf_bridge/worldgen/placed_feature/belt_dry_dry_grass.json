@@ -1,0 +1,51 @@
+{
+  "feature": "still_life:cf_foliage/ground/dry_grass_patches",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 1
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 3
+    },
+    {
+      "type": "minecraft:noise_based_count",
+      "noise_to_count_ratio": 2,
+      "noise_factor": 50,
+      "noise_offset": -0.05
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "fade_in": [
+        -56.0,
+        -36.0
+      ],
+      "treeline": [
+        -18.0,
+        -6.0
+      ],
+      "snow": false,
+      "min_slope": 0.3,
+      "treeline_shelter": 25.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

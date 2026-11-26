@@ -1,0 +1,41 @@
+{
+  "feature": "still_life:cf_terrain/forest/podzol_patches",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 10
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "fade_in": [
+        -56.0,
+        -36.0
+      ],
+      "treeline": [
+        -18.0,
+        -6.0
+      ],
+      "snow": false,
+      "min_slope": 0.3,
+      "treeline_shelter": 25.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

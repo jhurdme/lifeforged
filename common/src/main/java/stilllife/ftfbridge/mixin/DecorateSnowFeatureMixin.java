@@ -1,7 +1,9 @@
 package stilllife.ftfbridge.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import etcodehome.freeterraforged.world.worldgen.feature.DecorateSnowFeature;
 import etcodehome.freeterraforged.world.worldgen.feature.ScreeFeature;
+import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -9,8 +11,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import stilllife.ftfbridge.BridgeHooks;
 
 /**
- * FreeTerraForged's snow decorator clears snow layers off any slope steeper than 0.45 above a height made for
- * 256-block worlds (Y 95), so in tall worlds almost no snow survives on mountains. With snow_caps it only clears cliffs.
+ * FreeTerraForged's snow decorator. With snow_caps its erosion only clears cliffs (it clears snow layers off any slope
+ * steeper than 0.45 above a height made for 256-block worlds). With natural_snow_layers its smooth-layer step is switched
+ * off and the bridge's own pass sets the snow depth from the real ground afterwards.
  */
 @Mixin(value = DecorateSnowFeature.class, remap = false)
 abstract class DecorateSnowFeatureMixin {
@@ -21,6 +24,23 @@ abstract class DecorateSnowFeatureMixin {
       Boolean erode = BridgeHooks.snowLayerErosion(erodeConfig, x, z, steepness);
       if (erode != null) {
          cir.setReturnValue(erode);
+      }
+   }
+
+   @ModifyExpressionValue(
+      method = "place",
+      at = @At(value = "FIELD", target = "Letcodehome/freeterraforged/world/worldgen/feature/DecorateSnowFeature$Config;smooth:Z", remap = false),
+      remap = true
+   )
+   private boolean stilllife$skipFtfSmoothing(boolean smooth) {
+      return smooth && !BridgeHooks.naturalSnowLayers();
+   }
+
+   @Inject(method = "place", at = @At("RETURN"), remap = true)
+   private void stilllife$naturalSnow(FeaturePlaceContext<DecorateSnowFeature.Config> context, CallbackInfoReturnable<Boolean> cir) {
+      DecorateSnowFeature.Config config = context.config();
+      if (cir.getReturnValueZ() && config.smooth()) {
+         BridgeHooks.naturalSnow(context.level(), context.origin(), config.coverPlants(), config.erodeConfig());
       }
    }
 }

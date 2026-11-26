@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "stilllife_ftf_bridge",
   "version": "${version}",
-  "name": "Still Life x FreeTerraForged Bridge",
-  "description": "Places Still Life's biomes properly on FreeTerraForged terrain: oceans, coasts, mountains and continents get the biomes Still Life meant for them. Also (each in config/stilllife_ftf_bridge.properties, saved per world): beaches like Still Life's own; Still Life's snow on peaks at every altitude, with a snow line that wanders and fades in patchily instead of a level edge; wetlands kept off hillsides; humid lowland swamps; aspen swamps and salt lakes on dry flat land; standing water in Still Life's wetlands and salt lakes at any height; irregular, blended borders where two continents with different Still Life biome sets meet; adjustable VanillaBackport biomes; Still Life's ground (snow, sand, mud) kept off the floors of caves; and the coastal \"uplift cliff\" turned into gentle terraces. Needs FreeTerraForged 1.0.0027 or later.",
+  "name": "Lifeforged",
+  "description": "Lifeforged (formerly Still Life x FreeTerraForged Bridge) puts Still Life's biomes on FreeTerraForged terrain and makes the land follow its shape. Biomes and climate: every biome where it belongs, a latitude climate, one biome set per landmass. Mountains and snow: a snow line by climate, snow where weather would put it. Ground and rock: scree below cliffs, regional rock and rock layers. Plants: a natural treeline and forest edges. Water and wetlands: shores, beaches, swamps and salt lakes at any height. Settings in config/stilllife_ftf_bridge.properties, saved per world. Needs FreeTerraForged 1.0.0027 or later and the Still Life FTF edition.",
   "authors": [
     "Sondre"
   ],

@@ -1,0 +1,8 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:belt_hot",
+  "features": [
+    "stilllife_ftf_bridge:belt_hot_bushes"
+  ],
+  "step": "vegetal_decoration"
+}

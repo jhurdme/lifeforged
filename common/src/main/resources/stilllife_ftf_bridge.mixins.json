@@ -11,7 +11,8 @@
     "MinecraftBiomeSourceGraphsMixin",
     "TerrainBiomeRoleSelectionMixin",
     "UpliftContinentGeneratorMixin",
-    "FastStrataSequenceRuleMixin"
+    "FastStrataSequenceRuleMixin",
+    "ChunkStatusTasksMixin"
   ],
   "injectors": {
     "defaultRequire": 1

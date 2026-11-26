@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "still_life:alpine_tundra",
+      "required": false
+    },
+    {
+      "id": "still_life:boreal_alpine_tundra",
+      "required": false
+    },
+    {
+      "id": "still_life:snowy_boreal_alpine_tundra",
+      "required": false
+    }
+  ]
+}

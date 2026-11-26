@@ -1,0 +1,39 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "natures_spirit"
+    }
+  ],
+  "fabric:load_conditions": [
+    {
+      "condition": "fabric:all_mods_loaded",
+      "values": [
+        "natures_spirit"
+      ]
+    }
+  ],
+  "type": "minecraft:random_patch",
+  "config": {
+    "tries": 7,
+    "xz_spread": 3,
+    "y_spread": 2,
+    "feature": {
+      "feature": "stilllife_ftf_bridge:krummholz_bush_ns",
+      "placement": [
+        {
+          "type": "minecraft:block_predicate_filter",
+          "predicate": {
+            "type": "minecraft:would_survive",
+            "state": {
+              "Name": "minecraft:spruce_sapling",
+              "Properties": {
+                "stage": "0"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

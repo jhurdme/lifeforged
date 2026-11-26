@@ -8,3 +8,6 @@ accessible field net/minecraft/world/level/levelgen/SurfaceRules$Context blockX 
 accessible field net/minecraft/world/level/levelgen/SurfaceRules$Context blockY I
 accessible field net/minecraft/world/level/levelgen/SurfaceRules$Context blockZ I
 accessible field net/minecraft/world/level/levelgen/SurfaceRules$Context lastUpdateXZ J
+# stilllife_ftf_bridge:terrain (surface condition); FreeTerraForged's access transformer opens it too. Should FTF's Fabric
+# widener not open it at run time, the condition falls back on the climate bridge's world (TerrainCondition.lookUp)
+accessible field net/minecraft/world/level/levelgen/SurfaceRules$Context randomState Lnet/minecraft/world/level/levelgen/RandomState;

@@ -1,0 +1,72 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "natures_spirit"
+    }
+  ],
+  "fabric:load_conditions": [
+    {
+      "condition": "fabric:all_mods_loaded",
+      "values": [
+        "natures_spirit"
+      ]
+    }
+  ],
+  "feature": "stilllife_ftf_bridge:krummholz_ns",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "requires_rain": true,
+      "max_temperature": 0.6,
+      "max_climate": 0.45,
+      "treeline": [
+        -44.0,
+        -22.0
+      ],
+      "fade_in": [
+        -96.0,
+        -70.0
+      ],
+      "wind_thinning": 0.6,
+      "min_shelter": 0.05,
+      "max_slope": 0.6,
+      "treeline_shelter": 30.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0,
+      "avoid_talus": [
+        "fresh",
+        "rock"
+      ],
+      "faces": [
+        "open",
+        "ledge"
+      ],
+      "snow": false
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

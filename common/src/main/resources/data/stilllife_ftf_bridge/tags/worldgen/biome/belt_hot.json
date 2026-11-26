@@ -1,0 +1,61 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "still_life:tropical_highlands",
+      "required": false
+    },
+    {
+      "id": "still_life:dry_tropical_highlands",
+      "required": false
+    },
+    {
+      "id": "still_life:savanna_highlands",
+      "required": false
+    },
+    {
+      "id": "still_life:tropical_broadleaf_forest",
+      "required": false
+    },
+    {
+      "id": "still_life:tropical_rainforest",
+      "required": false
+    },
+    {
+      "id": "still_life:old_growth_tropical_rainforest",
+      "required": false
+    },
+    {
+      "id": "still_life:old_growth_tropical_deciduous_rainforest",
+      "required": false
+    },
+    {
+      "id": "still_life:tropical_deciduous_rainforest",
+      "required": false
+    },
+    {
+      "id": "still_life:monsoon_forest",
+      "required": false
+    },
+    {
+      "id": "still_life:tropical_dry_forest",
+      "required": false
+    },
+    {
+      "id": "still_life:humid_savanna",
+      "required": false
+    },
+    {
+      "id": "still_life:wooded_savanna",
+      "required": false
+    },
+    {
+      "id": "still_life:tropical_thorn_forest",
+      "required": false
+    },
+    {
+      "id": "still_life:tropical_thorn_clearings",
+      "required": false
+    }
+  ]
+}

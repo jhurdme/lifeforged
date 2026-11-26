@@ -1,0 +1,63 @@
+{
+  "type": "minecraft:random_selector",
+  "config": {
+    "features": [
+      {
+        "chance": 0.5,
+        "feature": {
+          "feature": "stilllife_ftf_bridge:krummholz_bush",
+          "placement": [
+            {
+              "type": "minecraft:block_predicate_filter",
+              "predicate": {
+                "type": "minecraft:would_survive",
+                "state": {
+                  "Name": "minecraft:spruce_sapling",
+                  "Properties": {
+                    "stage": "0"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "default": {
+      "feature": "stilllife_ftf_bridge:pioneer_bush",
+      "placement": [
+        {
+          "type": "minecraft:block_predicate_filter",
+          "predicate": {
+            "type": "minecraft:all_of",
+            "predicates": [
+              {
+                "type": "minecraft:matching_blocks",
+                "blocks": "minecraft:air"
+              },
+              {
+                "type": "minecraft:matching_blocks",
+                "blocks": [
+                  "minecraft:gravel",
+                  "minecraft:cobblestone",
+                  "minecraft:mossy_cobblestone",
+                  "minecraft:coarse_dirt",
+                  "minecraft:rooted_dirt",
+                  "minecraft:moss_block",
+                  "minecraft:grass_block",
+                  "minecraft:dirt",
+                  "minecraft:podzol"
+                ],
+                "offset": [
+                  0,
+                  -1,
+                  0
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

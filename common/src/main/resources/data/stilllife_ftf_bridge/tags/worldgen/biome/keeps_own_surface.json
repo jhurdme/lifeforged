@@ -1,0 +1,8 @@
+{
+  "values": [
+    {"id": "#still_life:is_arctic", "required": false},
+    {"id": "#c:is_icy", "required": false},
+    {"id": "still_life:arctic_river", "required": false},
+    {"id": "still_life:snowy_tundra", "required": false}
+  ]
+}

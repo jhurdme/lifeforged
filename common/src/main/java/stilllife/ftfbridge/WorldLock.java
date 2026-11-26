@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 15;
+   private static final int FORMAT = 19;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -59,10 +59,6 @@ final class WorldLock {
                   num(o, "swamp_max_height", d.swampMaxHeight()),
                   bool(o, "snow_caps", false),
                   num(o, "snow_cliff_steepness", d.snowCliffSteepness()),
-                  // 4.0 / 4.1 worlds (format 2) were made with Still Life 0.3.1, whose saved layout already has these biomes
-                  num(o, "pale_garden", 1.0),
-                  num(o, "dappled_forest", 1.0),
-                  num(o, "sulfur_caves", 1.0),
                   // worlds from before bridge 4.4 (format 2/3) keep generating without the dry wetlands
                   num(o, "aspen_swamps", 0.0),
                   num(o, "salt_lakes", 0.0),
@@ -74,8 +70,6 @@ final class WorldLock {
                   num(o, "wetland_max_height", num(o, "river_flank_max_cut", format >= 10 ? d.wetlandMaxHeight() : 0.0)),
                   // FTF up to 1.0.0025 kept every wetland biome; 5.0 keeps them by default
                   bool(o, "keep_wetland_biomes", true),
-                  // sulfur rock came with bridge 4.3 for every world
-                  bool(o, "sulfur_rock", true),
                   // beach limits came with bridge 5.0 (format 10)
                   num(o, "beach_max_height", format >= 10 ? d.beachMaxHeight() : 0.0),
                   num(o, "beach_shallows", format >= 10 ? d.beachShallows() : 0.0),
@@ -88,7 +82,8 @@ final class WorldLock {
                   num(o, "biome_set_blend", format >= 11 ? d.biomeSetBlend() : 0.0),
                   num(o, "peak_line_variation", format >= 12 ? d.peakLineVariation() : 0.0),
                   num(o, "snow_cap_fade", format >= 12 ? d.snowCapFade() : 0.0),
-                  Settings.biomeSetsMode(format >= 13 && o.has("biome_sets") ? o.get("biome_sets").getAsString() : null),
+                  // before format 17 "continents" (and no value) meant one set per FTF continent cell: such worlds keep it as "cells"
+                  legacyBiomeSets(format, Settings.biomeSetsMode(format >= 13 && o.has("biome_sets") ? o.get("biome_sets").getAsString() : null)),
                   num(o, "biome_set_region_size", d.biomeSetRegionSize()),
                   // the cave floor guard came with bridge 5.5 (format 14); older worlds keep Still Life's ground on cave floors
                   format >= 14 ? Settings.caveFloorGuardMode(o.has("cave_floor_guard") ? o.get("cave_floor_guard").getAsString() : d.caveFloorGuard())
@@ -96,12 +91,41 @@ final class WorldLock {
                   // depth as a share of the column came with bridge 5.5 too; older worlds keep 1/128 per block
                   bool(o, "column_depth", format >= 14 && d.columnDepth()),
                   // mountain belts came with bridge 5.6 (format 15); older worlds keep Still Life's own bands
-                  num(o, "mountain_cooling", format >= 15 ? d.mountainCooling() : 0.0)
+                  num(o, "mountain_cooling", format >= 15 ? d.mountainCooling() : 0.0),
+                  // natural snow layers, ground cover, mountain snow, shores and forest variety came with bridge 6.0 (format 16)
+                  bool(o, "natural_snow_layers", false),
+                  bool(o, "ground_cover", false),
+                  bool(o, "mountain_snow", false),
+                  num(o, "snow_line_climate", 0.0),
+                  bool(o, "shores", false),
+                  bool(o, "forest_variety", false),
+                  // rock strata came later in bridge 6.0 (format 16 too): worlds saved without it keep the world's stone
+                  Settings.rockStrataMode(o.has("rock_strata") ? o.get("rock_strata").getAsString() : null),
+                  // the snow-line curve came with format 18: older worlds (no values) keep snow_line_climate and the ramped
+                  // mountain_cooling, so their new chunks match the old ones
+                  num(o, "snow_line_equator", 0.0),
+                  num(o, "snow_line_tundra", 0.0),
+                  // latitude=ftf worlds get the curve from format 19 (bridge 6.0 release); older ftf worlds keep FTF's bands
+                  format >= 19 && !stillLife,
+                  // VanillaBackport biomes: saved by format 3-15 worlds (bridge 4.2-5.6) and by 6.0 worlds made after they came
+                  // back; 4.0 / 4.1 worlds (format 2) were made with Still Life 0.3.1, whose saved layout already has them.
+                  // Missing in a format 3+ file = a world made with a 6.0 test build without them: none.
+                  num(o, "pale_garden", format < 3 ? 1.0 : 0.0),
+                  num(o, "dappled_forest", format < 3 ? 1.0 : 0.0),
+                  num(o, "sulfur_caves", format < 3 ? 1.0 : 0.0),
+                  // sulfur rock came with bridge 4.3 for every world (it only acts in the Sulfur Caves)
+                  bool(o, "sulfur_rock", true)
                );
             }
 
             lock = new WorldLock.Lock(file, s, doubles(o, "heights"), doubles(o, "coast_edge"), o.has("terrain") ? o.get("terrain").getAsString() : null, format);
             lock.landArea = num(o, "continent_land_area", 0.0);
+            // format 19: the vertical scale of the snow zone and bands, worked out once from the measured heights (format 18
+            // and older: 1, the numbers as they were tuned)
+            lock.snowScale = format >= 19 ? num(o, "snow_scale", Double.NaN) : 1.0;
+            // Create's limestone in rock_strata=regional / bedded came with the 6.0 release: worlds saved without it keep
+            // diorite there (rock_strata=deep always had it)
+            lock.createLimestone = bool(o, "create_limestone", false);
             StillLifeFtfBridge.LOG.info("[{}] using this world's saved settings: {}", StillLifeFtfBridge.MOD_ID, s);
          } catch (Exception e) {
             throw new IllegalStateException(
@@ -111,6 +135,7 @@ final class WorldLock {
          }
       } else {
          lock = new WorldLock.Lock(file, BridgeConfig.settings(), null, null, null, FORMAT);
+         lock.createLimestone = true;
          save(lock);
          StillLifeFtfBridge.LOG.info("[{}] saved settings for this world: {}", StillLifeFtfBridge.MOD_ID, lock.settings);
       }
@@ -122,9 +147,28 @@ final class WorldLock {
       current = null;
    }
 
+   /** Whether rock_strata=regional / bedded may use Create's limestone in this world (no world running: yes). */
+   static boolean createLimestone() {
+      WorldLock.Lock lock = current;
+      return lock == null || lock.createLimestone;
+   }
+
+   /** biome_sets of a saved world: "continents" became one set per landmass in format 17; older worlds keep one per cell. */
+   static String legacyBiomeSets(int format, String mode) {
+      return format < 17 && Settings.SETS_CONTINENTS.equals(mode) ? Settings.SETS_CELLS : mode;
+   }
+
    /** The measured land area of an average FTF continent (blocks squared), kept so regions keep their size in this world. */
    static synchronized void storeLandArea(WorldLock.Lock lock, double area) {
       lock.landArea = area;
+      save(lock);
+   }
+
+   /** Format 19: the snow lines and vertical scale this world resolved to (saved, so the world never shifts). */
+   static synchronized void storeSnowScale(WorldLock.Lock lock, double equator, double tundra, double scale) {
+      lock.snowEquator = equator;
+      lock.snowTundra = tundra;
+      lock.snowScale = scale;
       save(lock);
    }
 
@@ -200,6 +244,27 @@ final class WorldLock {
 
          if (lock.format >= 15) {
             o.addProperty("mountain_cooling", s.mountainCooling());
+            o.addProperty("natural_snow_layers", s.naturalSnowLayers());
+            o.addProperty("ground_cover", s.groundCover());
+            o.addProperty("mountain_snow", s.mountainSnow());
+            if (lock.format < 18) {
+               o.addProperty("snow_line_climate", s.snowLineClimate());
+            }
+            o.addProperty("shores", s.shores());
+            o.addProperty("forest_variety", s.forestVariety());
+            o.addProperty("rock_strata", s.rockStrata());
+         }
+
+         if (lock.format >= 18) {
+            // format 19: "auto" is saved as the heights it resolved to, once the world's land heights are measured
+            o.addProperty("snow_line_equator", lock.format >= 19 && lock.snowEquator > 0.0 ? lock.snowEquator : s.snowLineEquator());
+            o.addProperty("snow_line_tundra", lock.format >= 19 && lock.snowTundra > 0.0 ? lock.snowTundra : s.snowLineTundra());
+         }
+         if (lock.format >= 19 && lock.snowScale > 0.0) {
+            o.addProperty("snow_scale", lock.snowScale);
+         }
+         if (lock.createLimestone) {
+            o.addProperty("create_limestone", true);
          }
       }
 
@@ -267,6 +332,12 @@ final class WorldLock {
       volatile double[] edge;
       volatile String terrain;
       volatile double landArea;
+      /** Format 19: the resolved snow lines (0 = not yet / as in the settings) and the vertical scale (NaN = not yet). */
+      volatile double snowEquator;
+      volatile double snowTundra;
+      volatile double snowScale = Double.NaN;
+      /** Create's limestone in rock_strata=regional / bedded (worlds made with the 6.0 release on). */
+      volatile boolean createLimestone;
 
       Lock(Path file, Settings settings, double[] heights, double[] edge, String terrain, int format) {
          this.file = file;

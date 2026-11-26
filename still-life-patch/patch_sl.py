@@ -2,7 +2,6 @@
 import json, sys, os, copy
 
 ROOT = sys.argv[1]
-CARVE = '--no-carve' not in sys.argv  # 0.3.2+: the bridge places the VanillaBackport biomes at runtime
 def p(*a): return os.path.join(ROOT, *a)
 def load(path): return json.load(open(path))
 def save(path, d):
@@ -50,15 +49,14 @@ found[0]['then_run']['sequence'] = [
 ]
 log.append('surface geology: granite/diorite only 3+ blocks below the surface (exposed by erosion), diorite band halved')
 
-# 1b. VanillaBackport surface for its biomes (VB injects these through NoiseBasedChunkGenerator.buildSurface,
-#     which FreeTerraForged's generator does not use). 2D noise version so FTF and the GPU surface path accept it.
-def cond(c, then): return {'type': 'minecraft:condition', 'if_true': c, 'then_run': then}
-def block(n): return {'type': 'minecraft:block', 'result_state': {'Name': n}}
-def noise(name, lo, hi): return {'type': 'minecraft:noise_threshold', 'noise': name, 'min_threshold': lo, 'max_threshold': hi}
 def biome(*b): return {'type': 'minecraft:biome', 'biome_is': list(b)}
 
+# 1b. 0.3.8-ftf (as in 0.3.1-0.3.6-ftf): VanillaBackport's Dappled Forest ground, small coarse dirt patches. VanillaBackport
+#     adds its surface rules through NoiseBasedChunkGenerator.buildSurface, which FreeTerraForged's generator does not use.
+#     2D noise version so FTF and the GPU surface path accept it. Inert unless the world has the biome: Lifeforged places it
+#     only with its dappled_forest option above 0 (off by default). The Pale Garden has no surface rule of its own, and
+#     Lifeforged places the Sulfur Caves rock as a feature (FreeTerraForged skips surface rules deep in rock).
 vb_rules = [
-    # Sulfur Caves rock: placed by the bridge (4.3+) as a feature, because FreeTerraForged skips surface rules deep in rock.
     cond(biome('minecraft:dappled_forest'),
          cond({'type': 'minecraft:stone_depth', 'offset': 0, 'add_surface_depth': False, 'secondary_depth_range': 0, 'surface_type': 'floor'},
               cond({'type': 'minecraft:water', 'offset': 0, 'surface_depth_multiplier': 0, 'add_stone_depth': False},
@@ -132,6 +130,38 @@ def _walk_rivers(o):
 _walk_rivers(sr)
 assert _beds == 2, _beds
 log.append('river beds: by water depth for the temperate and arid river groups')
+
+# 1e. River beds at any height. Still Life paints river beds only where the floor is between Y 52 and Y 63 (a y_above(52)
+#     group whose rules are each limited by not(y_above(63))): on Lithosphere every river runs at sea level, on FreeTerraForged
+#     rivers run at their own height and every bed above Y 63 stayed bare. The band is now measured from the water above the
+#     floor: under water, at most 11 blocks (plus surface depth) below the water surface. Vanilla conditions only.
+def _is_y_above(c, y):
+    return isinstance(c, dict) and c.get('type') in ('minecraft:y_above', 'y_above') and c.get('anchor') == {'absolute': y}
+def _is_band_top(c):
+    return isinstance(c, dict) and c.get('type') in ('minecraft:not', 'not') and _is_y_above(c.get('invert'), 63)
+_band = {'low': 0, 'high': 0}
+def _walk_band(o):
+    if isinstance(o, list):
+        for v in o: _walk_band(v)
+        return
+    if not isinstance(o, dict):
+        return
+    c = o.get('if_true')
+    if o.get('type') in ('minecraft:condition', 'condition') and _is_y_above(c, 52):
+        run = o.get('then_run', {})
+        children = run.get('sequence', [run]) if isinstance(run, dict) else []
+        tops = [x for x in children if isinstance(x, dict) and _is_band_top(x.get('if_true'))]
+        if tops and len(tops) == len(children):
+            o['if_true'] = _water_m(-11, c.get('surface_depth_multiplier', 0))
+            _band['low'] += 1
+            for x in tops:
+                x['if_true'] = {'type': 'minecraft:not', 'invert': _water_m(0, x['if_true']['invert'].get('surface_depth_multiplier', 0))}
+                _band['high'] += 1
+    for v in o.values(): _walk_band(v)
+def _water_m(off, mult): return {'type': 'minecraft:water', 'offset': off, 'surface_depth_multiplier': mult, 'add_stone_depth': False}
+_walk_band(sr)
+assert _band['low'] >= 1 and _band['high'] >= _band['low'], _band
+log.append(f"river beds: band measured from the water surface ({_band['low']} lower, {_band['high']} upper bounds)")
 save(ns_path, ns)
 
 # ---------------------------------------------------------------- 2. big snow patches also on rock
@@ -154,64 +184,6 @@ dc['placement'] = [m for m in dc['placement'] if m.get('type') != 'minecraft:hei
 assert len(dc['placement']) == before_n - 1
 save(dc_path, dc)
 log.append('disk_calcite_salt_lake: no longer limited to Y 60-62 (still only in shallow water over a mud/clay bed)')
-
-# ---------------------------------------------------------------- 3. VanillaBackport biomes in Still Life's climate table
-if not CARVE:
-    for l in log: print(l)
-    print('dimension: left as Still Life ships it (the bridge adds the VanillaBackport biomes)')
-    sys.exit(0)
-dim_path = p('data/minecraft/dimension/overworld.json')
-dim = load(dim_path)
-entries = dim['generator']['biome_source']['biomes']
-before = len(entries)
-
-def rng(v): return [v, v] if isinstance(v, (int, float)) else list(v)
-
-def carve(donor, new, dim_key, lo, hi, where=lambda prm: True):
-    """Split every `donor` entry along `dim_key`; the part inside [lo, hi] becomes `new`."""
-    global entries
-    out, n = [], 0
-    for e in entries:
-        if e['biome'] != donor or not where(e['parameters']):
-            out.append(e); continue
-        a, b = rng(e['parameters'][dim_key])
-        s, t = max(a, lo), min(b, hi)
-        if not (t > s):
-            out.append(e); continue
-        n += 1
-        if a < s:
-            low = copy.deepcopy(e); low['parameters'][dim_key] = [a, s]; out.append(low)
-        mid = copy.deepcopy(e); mid['biome'] = new; mid['parameters'][dim_key] = [s, t]; out.append(mid)
-        if b > t:
-            high = copy.deepcopy(e); high['parameters'][dim_key] = [t, b]; out.append(high)
-    entries = out
-    log.append(f'{new}: carved from {n} {donor} entries ({dim_key} {lo}..{hi})')
-    return n
-
-def temp_in(lo, hi):
-    return lambda prm: rng(prm['temperature'])[0] >= lo - 1e-6 and rng(prm['temperature'])[1] <= hi + 1e-6
-
-# Pale Garden: the most humid part of Still Life's temperate old-growth / mixed-wood forests
-assert carve('still_life:old_growth_temperate_forest', 'minecraft:pale_garden', 'humidity', 0.6, 1.0) > 0
-assert carve('still_life:mixed_wood_forest', 'minecraft:pale_garden', 'humidity', 0.6, 1.0) > 0
-# Dappled Forest: the drier, cool part of temperate forest (Afro-Eurasian) and wooded prairie (American)
-assert carve('still_life:temperate_forest', 'minecraft:dappled_forest', 'humidity', -0.275, -0.105, temp_in(-0.35, -0.27)) > 0
-assert carve('still_life:wooded_prairie', 'minecraft:dappled_forest', 'humidity', -0.275, -0.105, temp_in(-0.35, -0.27)) > 0
-# ... and the same dry band of cool aspen woodlands (American) and inland temperate mixed forest (Afro-Eurasian)
-assert carve('still_life:aspen_woodlands', 'minecraft:dappled_forest', 'humidity', -0.275, -0.105) > 0
-assert carve('still_life:temperate_mixed_forest', 'minecraft:dappled_forest', 'humidity', -0.275, -0.105, temp_in(-0.41, -0.34)) > 0
-# Sulfur Caves: a thin humidity band of Still Life's generic barren caves in every climate (shallow and deep) ...
-assert carve('still_life:barren_caves', 'minecraft:sulfur_caves', 'humidity', 0.18, 0.235,
-             lambda prm: rng(prm['humidity'])[0] >= 0.179 and rng(prm['humidity'])[1] <= 0.236) > 0
-# ... plus a warm band
-assert carve('still_life:barren_caves', 'minecraft:sulfur_caves', 'humidity', 0.035, 1.0,
-             lambda prm: abs(rng(prm['temperature'])[0] - 0.3) < 1e-3 and abs(rng(prm['temperature'])[1] - 0.345) < 1e-3) > 0
-assert carve('still_life:barren_caves', 'minecraft:sulfur_caves', 'humidity', -0.405, 1.0,
-             lambda prm: abs(rng(prm['temperature'])[0] - 0.23) < 1e-3 and abs(rng(prm['temperature'])[1] - 0.345) < 1e-3 and rng(prm['depth'])[0] > 0.5) > 0
-
-dim['generator']['biome_source']['biomes'] = entries
-save(dim_path, dim)
-log.append(f'dimension: {before} -> {len(entries)} parameter points')
 
 for l in log:
     print(l)

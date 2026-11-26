@@ -22,6 +22,8 @@ final class FtfCompat {
          {"GeneratorContext", "field", "lookup"},
          {"GeneratorContext", "field", "levels"},
          {"GeneratorContext", "field", "heightmap"},
+         {"GeneratorContext", "field", "filteredChunkCache"},
+         {"cell.heightmap.FilteredChunkCache", "method", "getFilteredChunk", int.class, int.class},
          {"cell.heightmap.Heightmap", "method", "continent"},
          {"cell.CellPopulator", "method", "apply", FTF + "cell.Cell", float.class, float.class},
          {"densityfunction.CellSampler", "method", "getCachedOrLookup", FTF + "cell.heightmap.WorldLookup", int.class, int.class, boolean.class},
@@ -81,12 +83,64 @@ final class FtfCompat {
       if (!missing.isEmpty()) {
          String version = StillLifeFtfBridge.modVersion("freeterraforged");
          throw new IllegalStateException(
-            "Still Life x FreeTerraForged Bridge does not support FreeTerraForged "
+            "Lifeforged (stilllife_ftf_bridge) does not support FreeTerraForged "
                + version
                + ": it no longer has "
                + String.join(", ", missing)
-               + ". Update the bridge, or set enabled=false in config/" + BridgeConfig.FILE_NAME + " (Still Life biomes will then be misplaced)."
+               + ". Update Lifeforged, or set enabled=false in config/" + BridgeConfig.FILE_NAME + " (Still Life biomes will then be misplaced)."
          );
       }
+   }
+
+   /**
+    * What biome_sets=continents needs to find FTF's bridged landmasses (Landmasses). Unlike {@link #verify}, a miss does not
+    * stop the game: it is logged as an error and the sets go per continent cell (as biome_sets=cells) instead.
+    */
+   static boolean verifyLandmasses() {
+      List<String> missing = new ArrayList<>();
+      ClassLoader loader = FtfCompat.class.getClassLoader();
+      String uplift = "cell.continent.uplift.UpliftContinentGenerator";
+      String plates = "cell.continent.uplift.PlateUpliftBridge";
+      String voronoi = "cell.continent.uplift.PlateUpliftBridge$CellVoronoi";
+      Object[][] needed = new Object[][]{
+         {uplift, "method", "getPlateUpliftBridge"},
+         {uplift, "method", "getBridgeChance"},
+         {uplift, "method", "canBridge", int.class, int.class},
+         {plates, "method", "getVoronoi", int.class, int.class},
+         {voronoi, "field", "centroidX"},
+         {voronoi, "field", "centroidY"},
+         {voronoi, "field", "edgeCount"},
+         {voronoi, "field", "ncx"},
+         {voronoi, "field", "ncy"},
+         {voronoi, "field", "isBridged"},
+         {"cell.Cell", "field", "continentX"},
+         {"cell.Cell", "field", "continentZ"},
+         {"cell.Cell", "field", "continentId"}
+      };
+      for (Object[] n : needed) {
+         try {
+            Class<?> c = Class.forName(FTF + n[0], false, loader);
+            if ("field".equals(n[1])) {
+               c.getField((String)n[2]);
+            } else {
+               Class<?>[] params = new Class[n.length - 3];
+               for (int i = 3; i < n.length; i++) {
+                  params[i - 3] = (Class<?>)n[i];
+               }
+               c.getMethod((String)n[2], params);
+            }
+         } catch (Throwable t) {
+            missing.add(n[0] + "." + n[2]);
+         }
+      }
+      if (!missing.isEmpty()) {
+         StillLifeFtfBridge.LOG.error(
+            "[{}] FreeTerraForged {} no longer has {}. biome_sets=continents cannot find landmasses joined by continent bridges,"
+               + " so every FreeTerraForged continent cell gets its own biome set (as biome_sets=cells) until the bridge is updated.",
+            StillLifeFtfBridge.MOD_ID, StillLifeFtfBridge.modVersion("freeterraforged"), String.join(", ", missing)
+         );
+         return false;
+      }
+      return true;
    }
 }

@@ -1,0 +1,59 @@
+{
+  "feature": "stilllife_ftf_bridge:treeline_clumps",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "requires_rain": true,
+      "max_temperature": 0.6,
+      "max_climate": 0.45,
+      "treeline": [
+        -62.0,
+        -34.0
+      ],
+      "fade_in": [
+        -120.0,
+        -84.0
+      ],
+      "wind_thinning": 0.5,
+      "min_shelter": 0.0,
+      "max_slope": 0.55,
+      "avoid_chutes": true,
+      "treeline_shelter": 25.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0,
+      "avoid_talus": [
+        "fresh",
+        "rock"
+      ],
+      "faces": [
+        "open",
+        "ledge"
+      ],
+      "snow": false
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

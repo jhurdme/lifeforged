@@ -1,0 +1,11 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#stilllife_ftf_bridge:has_riverside_plants",
+  "features": [
+    "stilllife_ftf_bridge:riverside_willows",
+    "stilllife_ftf_bridge:riverside_birches",
+    "stilllife_ftf_bridge:riverside_reeds",
+    "stilllife_ftf_bridge:riverside_plants"
+  ],
+  "step": "vegetal_decoration"
+}

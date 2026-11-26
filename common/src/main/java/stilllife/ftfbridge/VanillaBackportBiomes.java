@@ -92,6 +92,7 @@ final class VanillaBackportBiomes {
          HolderLookup.RegistryLookup<Biome> biomes = lookups.lookupOrThrow(Registries.BIOME);
          List<Pair<ParameterPoint, Holder<Biome>>> out = new ArrayList<>(entries);
          StringBuilder report = new StringBuilder();
+         int total = 0;
          for (String biome : List.of(PALE_GARDEN, DAPPLED_FOREST, SULFUR_CAVES)) {
             // off in either config (amount 0 in the bridge's, or switched off in VanillaBackport's): left out
             boolean vbOn = VanillaBackportConfig.biomeEnabled(vbSwitches, biome);
@@ -110,10 +111,12 @@ final class VanillaBackportBiomes {
                .append(!holder.isPresent() ? " (not installed)"
                   : !vbOn ? " (off in VanillaBackport's config: " + VanillaBackportConfig.key(biome) + " = false)"
                   : " (" + carved + " climate cells)");
+            total += carved;
          }
 
          log("VanillaBackport biomes in Still Life's layout: " + report);
-         return BiomeCandidateRoot.fromEntries(out);
+         // none placed (the default): FreeTerraForged's own layout object, untouched
+         return total == 0 ? root : BiomeCandidateRoot.fromEntries(out);
       } catch (Throwable t) {
          StillLifeFtfBridge.LOG.error("[{}] could not add the VanillaBackport biomes; using Still Life's layout unchanged", StillLifeFtfBridge.MOD_ID, t);
          return root;

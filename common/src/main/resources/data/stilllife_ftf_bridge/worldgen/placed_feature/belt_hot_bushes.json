@@ -1,0 +1,56 @@
+{
+  "feature": "still_life:cf_foliage/groups/savanna_bushes",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "stilllife_ftf_bridge:terrain",
+      "river_zones": [
+        "none",
+        "valley_fadeout"
+      ],
+      "min_climate": 0.45,
+      "fade_in": [
+        -110.0,
+        -80.0
+      ],
+      "treeline": [
+        -40.0,
+        -14.0
+      ],
+      "wind_thinning": 0.5,
+      "min_shelter": 0.0,
+      "max_slope": 0.6,
+      "treeline_shelter": 25.0,
+      "treeline_sun": 30.0,
+      "treeline_wind": 15.0,
+      "treeline_ragged": 12.0,
+      "treeline_ragged_size": 28.0,
+      "avoid_talus": [
+        "fresh",
+        "rock"
+      ],
+      "faces": [
+        "open",
+        "ledge"
+      ],
+      "snow": false
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -13,6 +13,112 @@ public final class BridgeHooks {
    private BridgeHooks() {
    }
 
+   // ---------------------------------------------------------------- snow layers and ground cover
+
+   /** True when the world uses natural_snow_layers (FTF's own smoothing is then skipped). */
+   public static boolean naturalSnowLayers() {
+      return NaturalSnow.active(WorldLock.activeSettings());
+   }
+
+   /** The bridge's snow layer pass, after FTF's snow decorator on one chunk. */
+   public static void naturalSnow(net.minecraft.world.level.WorldGenLevel level, net.minecraft.core.BlockPos origin, boolean coverPlants, ScreeFeature.Config config) {
+      if (!naturalSnowLayers()) {
+         return;
+      }
+      if (MountainSnow.active(WorldLock.activeSettings()) && !StillLifeClimateBridge.screeDecorator()) {
+         // presets with FreeTerraForged's erosion decorator off: mountain_snow's pass (normally at the end of that
+         // decorator) runs here instead, before the layers; without the decorator there is no scree under bared snow
+         GroundCover.begin(level);
+         try {
+            MountainSnow.chunk(level, level.getChunk(origin.getX() >> 4, origin.getZ() >> 4));
+         } catch (RuntimeException | LinkageError e) {
+            logOnce("mountain snow", e);
+         } finally {
+            GroundCover.end();
+         }
+      }
+      try {
+         NaturalSnow.decorate(level, origin, coverPlants, config);
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("natural snow layers", e);
+      }
+   }
+
+   /** rock_strata=deep: the regional rock through the chunk's body, at the start of its LIGHT step. */
+   public static void deepRock(net.minecraft.server.level.ServerLevel level, net.minecraft.world.level.chunk.ChunkAccess chunk) {
+      if (!BridgeConfig.enabled()) {
+         return;
+      }
+      try {
+         DeepRock.lightStep(level, chunk);
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("deep rock", e);
+      }
+   }
+
+   /** Start / end of FTF's erosion decorator on one chunk (ground_cover reads neighbouring terrain through the level). */
+   public static void groundCoverBegin(net.minecraft.world.level.WorldGenLevel level) {
+      GroundCover.begin(level);
+   }
+
+   public static void groundCoverEnd() {
+      GroundCover.end();
+   }
+
+   /** shores' pass over one chunk, at the end of FTF's erosion decorator. */
+   public static void shoresChunk(net.minecraft.world.level.WorldGenLevel level, net.minecraft.core.BlockPos origin) {
+      if (!Shores.active(WorldLock.activeSettings())) {
+         return;
+      }
+      try {
+         Shores.chunk(level, level.getChunk(origin.getX() >> 4, origin.getZ() >> 4));
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("shores", e);
+      }
+   }
+
+   /** mountain_snow's pass over one chunk, at the end of FTF's erosion decorator. */
+   public static void mountainSnowChunk(net.minecraft.world.level.WorldGenLevel level, net.minecraft.core.BlockPos origin) {
+      if (!MountainSnow.active(WorldLock.activeSettings())) {
+         return;
+      }
+      try {
+         MountainSnow.chunk(level, level.getChunk(origin.getX() >> 4, origin.getZ() >> 4));
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("mountain snow", e);
+      }
+   }
+
+   /** The erosion decorator's settings and noise for the column it is about to do (kept for the snow pass after it). */
+   public static void erosionPass(ScreeFeature.Config config, Levels levels, etcodehome.freeterraforged.world.worldgen.noise.module.Noise rand) {
+      GroundCover.pass(config, levels, rand);
+   }
+
+   /** True when ground_cover took over this column of FTF's erosion decorator. */
+   public static boolean groundCover(
+      ScreeFeature.Config config, Levels levels, etcodehome.freeterraforged.world.worldgen.noise.module.Noise rand,
+      net.minecraft.world.level.chunk.ChunkAccess chunk, Cell cell, net.minecraft.core.BlockPos.MutableBlockPos pos, int surfaceY
+   ) {
+      if (!GroundCover.active(WorldLock.activeSettings())) {
+         return false;
+      }
+      try {
+         GroundCover.erodeColumn(config, levels, rand, chunk, cell, pos, surfaceY);
+         return true;
+      } catch (RuntimeException | LinkageError e) {
+         logOnce("ground cover", e);
+         return false;
+      }
+   }
+
+   private static final java.util.Set<String> LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+   private static void logOnce(String what, Throwable t) {
+      if (LOGGED.add(what)) {
+         StillLifeFtfBridge.LOG.error("[{}] {} failed (FreeTerraForged changed?); FreeTerraForged's own behaviour is used where it fails", StillLifeFtfBridge.MOD_ID, what, t);
+      }
+   }
+
    // ---------------------------------------------------------------- snow
 
    /**
@@ -43,15 +149,21 @@ public final class BridgeHooks {
 
    // ---------------------------------------------------------------- biomes
 
-   public static etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot vanillaBackportBiomes(
+   public static etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot biomeLayout(
       etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot root, net.minecraft.core.HolderLookup.Provider lookups
    ) {
+      // the VanillaBackport biomes at this world's amounts (none by default), then the readers of the final layout
       etcodehome.freeterraforged.world.worldgen.runtime.BiomeCandidateRoot out = VanillaBackportBiomes.apply(root, lookups);
       if (out != null && BridgeConfig.enabled()) {
          try {
             CaveFloorGuard.layout(out.entries());
          } catch (Throwable t) {
             StillLifeFtfBridge.LOG.error("[{}] could not read the biome layout for the cave floor guard", StillLifeFtfBridge.MOD_ID, t);
+         }
+         try {
+            AlpineCooling.layout(out.entries(), lookups);
+         } catch (Throwable t) {
+            StillLifeFtfBridge.LOG.error("[{}] could not read the biome layout for mountain cooling; format 18 worlds get no cooling", StillLifeFtfBridge.MOD_ID, t);
          }
       }
 
