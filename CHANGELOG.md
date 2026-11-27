@@ -6,6 +6,44 @@ earlier version keep them off.
 
 ## Lifeforged (formerly Still Life x FreeTerraForged Bridge)
 
+### 6.0.1
+New worlds save their settings as format 20. Tested on NeoForge with FreeTerraForged 1.0.0034 (dedicated server); the
+preset screen fix has not been tried in a client yet.
+
+- FreeTerraForged's **Coastal Moisture Boost** now acts on the coast (`coastal_moisture_reach`, default 700 blocks). FTF
+  applies it by height, not by distance from the sea, so it wetted all low land: on a tall preset a boost of 0.22 moved
+  most lowland two Still Life humidity bands wetter, and going from 0.22 to 0.30 took the land humid enough for
+  (coastal) temperate rainforest from 29% to 72%. Lifeforged now applies the boost in full at the shore and fades it
+  out inland. `0` = FTF's own boost. Worlds made before 6.0.1 keep FTF's humidity.
+- Still Life's **coast-only biomes** (coastal temperate rainforest and its old growth, pine woods, coastal shrubland
+  and others) now form a belt along the whole coast, up to about 370 blocks inland (`coastal_biomes`). They only
+  appeared where the land rises steeply out of the sea. On a gentle rainforest coast, land 50-370 blocks from the sea
+  went from 3-22% coastal rainforest to 97-99%. New worlds only.
+- **The "auto" snow lines no longer depend on what lies at the origin** on presets with large continents. The bridge
+  measured land heights within 16,384 blocks of the origin: about ten continents of the preset it was tuned on, but less
+  than one at continent scale 10,000. On such a preset the equator snow line came out anywhere from Y 380 to Y 940
+  depending on the seed (reported: alpine tundra at Y 600 and no snowy peaks). The measured area now grows with the
+  continent spacing. Presets up to continent scale 2,560 measure exactly as before. Existing worlds keep their saved
+  lines; set `snow_line_equator` and `snow_line_tundra` in the world's `stilllife_ftf_bridge.json` to change them.
+- `rock_strata` is now `off`, `bedded` or `deep`, and **`bedded` and `deep` use the same rocks**: `bedded` shows on bare
+  rock exactly what `deep` shows there (slate, basalt, travertine and chert included), without carrying it underground.
+  New worlds only; `bedded` worlds made by 6.0.0 keep their rocks. `regional` is gone: the config reads it as `bedded`,
+  worlds saved with it keep it.
+- Still Life FTF edition **0.3.9-ftf**: biome tags for the American biome set (`still-life-patch/patch_tags.py`).
+- With `coastal_moisture_reach` on, snow no longer reads FTF's **Rain Shadow**: tall peaks got less snow than their
+  foothills. Biomes still get the rain shadow as the preset sets it.
+- The preset screen's Coastal Moisture Boost slider shows the saved value. FTF builds it from the altitude cooling
+  strength, so it looked reset every time the page opened and the first touch wrote a wrong value.
+- `forest_variety` no longer plants belts of birches, spruces and bushes at forest edges (it put birches along jungle
+  borders and belts between two wooded biomes). In every world, new chunks only.
+- Forest clearings are now what the option says: a tenth of the land in irregular patches mostly about 40 blocks across
+  (they were about 3%, 10-18 blocks across, on a 40-block grid). New worlds only.
+  Measured on generated chunks: 9.0% of the land, a tenth as many tree trunks inside as outside.
+- Regional tree mixes are gone in new worlds: they thinned every tree group by a fifth on average and hardly changed
+  the mix. Forests in new worlds are denser for it. Worlds made by 6.0.0 keep their clearings and mixes.
+- The three moisture changes check FreeTerraForged's own code when a world is made and step aside (the log says so) if a later FTF
+  version computes moisture differently.
+
 ### 6.0.0
 The mod is now called **Lifeforged**. New worlds save their settings as format 19; worlds made with 5.x keep generating
 as before (new features off), except where noted under "Existing worlds". Tested on NeoForge with FreeTerraForged

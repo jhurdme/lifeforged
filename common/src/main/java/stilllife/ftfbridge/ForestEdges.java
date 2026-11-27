@@ -6,8 +6,10 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 
 /**
- * forest_variety's forest edges: where a forest biome meets open land (grassland, steppe, tundra, clearings...), the
- * bridge's edge features put a belt of bushes and young trees on both sides, instead of the forest ending in a line.
+ * The terrain filter's {@code forest_edge} field, for datapacks: true near where a forest biome meets open land (grassland,
+ * steppe, tundra, clearings...). Lifeforged's own edge belts (bushes and young trees on both sides, 6.0.0) were removed in
+ * 6.0.1: the name test below calls several wooded biomes open land (tropical highlands, wooded prairie, rivers inside a
+ * forest), so belts ran between two forests, with birches at jungle borders.
  * Biomes count as forest by name (forest, taiga, woods, woodlands, rainforest, jungle, grove), not clearings, plains,
  * steppe, prairie, savanna, fields, tundra, wetlands or rivers.
  */

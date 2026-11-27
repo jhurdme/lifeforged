@@ -11,7 +11,9 @@ import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * rock_strata=deep: the regional rock through the whole body of the land, not only its bare skin.
+ * rock_strata=deep: the regional rock through the whole body of the land, not only its bare skin. From format 20
+ * rock_strata=bedded shows the same rock (this class's unit stacks, tilt and contacts) on bare ground, laid by the erosion
+ * pass alone: everything below except the pass through the body.
  *
  * <ul>
  *   <li><b>Unit stacks</b>: each rock province is a stack of one to four rock units (suites): its usual suite as the main

@@ -45,7 +45,7 @@ final class MountainSnow {
     * its mountain country) is about 0.95, a normal climate; only deserts (below about -0.5) are arid.
     */
    static float climateSnow(int x, int y, int z, long seed) {
-      return snowiness(StillLifeClimateBridge.humidity(x, y, z), GroundCover.patch(seed, x, z, 131, 1100.0F), StillLifeClimateBridge.latitudeTemperature(z));
+      return snowiness(StillLifeClimateBridge.snowHumidity(x, y, z), GroundCover.patch(seed, x, z, 131, 1100.0F), StillLifeClimateBridge.latitudeTemperature(z));
    }
 
    /**
@@ -339,10 +339,10 @@ final class MountainSnow {
    private static boolean snowable(BlockState top) {
       return top.is(BlockTags.DIRT) || top.is(Blocks.GRAVEL) || top.is(BlockTags.BASE_STONE_OVERWORLD) || top.is(Blocks.COBBLESTONE)
          || top.is(Blocks.CALCITE) || top.is(Blocks.PACKED_MUD) || top.is(Blocks.MOSSY_COBBLESTONE) || top.is(BlockTags.TERRACOTTA)
-         || clayRock(top.getBlock()) || deepRock(top) && GroundCover.deep();
+         || clayRock(top.getBlock()) || deepRock(top) && GroundCover.deepRocks();
    }
 
-   /** rock_strata=deep's other bare rocks: smooth basalt, Create's limestone, Nature's Spirit's chert. */
+   /** The other bare rocks of rock_strata deep and (format 20) bedded: smooth basalt, Create's limestone, Nature's Spirit's chert. */
    private static boolean deepRock(BlockState top) {
       if (top.is(Blocks.SMOOTH_BASALT)) {
          return true;

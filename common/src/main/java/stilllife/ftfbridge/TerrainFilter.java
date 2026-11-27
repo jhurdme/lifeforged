@@ -47,7 +47,7 @@ import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
  *   "requires_option": "shores",              // only when this bridge option is on in the world (shores, ground_cover,
  *                                             // mountain_snow, natural_snow_layers, forest_variety)
  *   "forest_edge": 12,                        // only within this many blocks of where forest meets open land
- *   "clearings": 0.1,                         // (forest_variety) skipped in natural clearings, about this share of the land
+ *   "clearings": 0.1,                         // (forest_variety) skipped in natural clearings, this share of the land
  *   "regional_mix": 0.4, "mix_salt": 17,      // (forest_variety) skipped up to this share of the time, by a slow
  *                                             // regional variation of its own (mix_salt), so tree mixes vary
  *

@@ -1,7 +1,7 @@
 # The Still Life FTF edition
 
 `still-life-patch/make_ftf_edition.py` turns the Still Life 0.3 jar (from Modrinth; one jar for NeoForge and Fabric) into
-`still_life-0.3.8-ftf`. Still Life is All Rights Reserved, so neither the original nor the result is in this repository;
+`still_life-0.3.9-ftf`. Still Life is All Rights Reserved, so neither the original nor the result is in this repository;
 the script edits your own download on your own computer. Its output was checked against the 0.3.7-ftf jar used in
 testing: the same content file for file (JSON compared by value), except the Dappled Forest rule (0.3.8) and the version
 in the metadata. 0.3.7-ftf added the third layer (`patch_terrain.py`) and river beds at any height; 0.3.8-ftf brings the
@@ -11,7 +11,8 @@ Dappled Forest ground back.
 with FreeTerraForged 1.0.0027-1.0.0032 and bridge 5.x (checked by generating salt lakes, wetlands, rivers and coasts,
 with no datapack or tag errors); 0.3.5-ftf still works with bridge 5.1, without the river beds.
 
-The edition has three layers. The third, the terrain filter on Still Life's trees and plants, needs bridge 6.0.
+The edition has four layers. The fourth (0.3.9-ftf, `patch_tags.py`) adds the biome tags Still Life's American biome set
+ships without; it is described at the end. The third, the terrain filter on Still Life's trees and plants, needs bridge 6.0.
 
 ## 1. The base edition (0.3-ftf): terrain shaping removed
 
@@ -113,7 +114,7 @@ added, nothing else changed).
 on Still Life's placed features, so they follow FreeTerraForged's terrain: trees off cliffs, 1:1 faces, fresh scree and
 bare rock and out of steep avalanche gullies, thinner on ridges and wind-swept ground; a ragged treeline (broadleaf trees
 from about 145 to 80 blocks below the snow line, conifers from 110 to 50) that climbs into sheltered gullies and up sunny
-faces; with the bridge's `forest_variety`, natural clearings and regional tree mixes; Still Life's snowy spruces and
+faces; with the bridge's `forest_variety`, natural clearings (worlds made by 6.0.0: also regional tree mixes); Still Life's snowy spruces and
 bushes only in the snow model's snowfields, with plain twins elsewhere; grass, fern and flower patches thinner on exposed
 crests, flowers leaning to sunny and ferns and moss to shady slopes; Still Life's steep-slope and stone-cliff patches only
 on steep ground (stone-cliff no longer leaves boxes of packed mud); its snow layer patches and calcite disks left to the
@@ -137,3 +138,26 @@ references from the feature lists of every biome (and any biome modifier) and de
 features and the two block tags only they use (`monolith_cannot_replace`, `monolith_invalid_blocks`). Checked on the
 regenerated jars: no file mentions "monolith", every JSON parses, the biomes are otherwise unchanged; Still Life
 Naturalized's FTF jar has no references.
+
+## 4. Biome tags for the American set (0.3.9-ftf): `patch_tags.py`
+
+Still Life 0.3 tags its Afro-Eurasian biomes with about a dozen tags each (Minecraft's `is_forest`, `is_taiga`,
+`is_overworld`, structure tags, animal variants; the common `c:` climate and landscape tags; Towns and Towers' village
+tags). The 61 biomes of its American set, added later, are only in `still_life:is_still_life`, and five of its coldest
+Afro-Eurasian biomes (`frozen_taiga`, `frozen_taiga_clearings`, `frozen_muskeg`, `frozen_tundra`, `arctic_snowy_beach`)
+have three tags. In those biomes there were no villages, pillager outposts, desert pyramids, jungle temples, swamp huts
+or strongholds, farm animals and frogs had no warm or cold variants, and other mods could not tell what kind of land it
+was. The bridge reads tags too: `c:is_mountain`, `c:is_dry`, `c:is_wet`, `c:is_beach`.
+
+Each of those 66 biomes now takes the tags of the tagged Still Life biome closest to it: 944 entries in 104 tag files.
+The pairs are the `ANALOG` table at the top of the script (prairies as `mixed_forest_steppe`, the temperate rainforests as
+`temperate_mixed_forest`, `taiga_shield` and `aspen_taiga` as `cold_taiga`, the tropical deciduous rainforests as
+`monsoon_forest`, `painted_peaks` as `barren_peaks`, and so on). Three tags are not copied: `c:is_rare`, and Still Life's
+own `still_life:is_arctic` and `still_life:is_tundra`, which stay as Still Life set them. A few biomes get tags of their
+own: the snowy and frozen taigas and muskegs `c:is_snowy`; the painted biomes `minecraft:is_badlands` (mesa mineshafts)
+and Towns and Towers' badlands villages and outposts.
+
+Nothing is removed and no biome that was tagged changes. Checked on the 0.3.8-ftf jar: the same files, only tag files and
+the version differ, every old entry still in place; only `buried_woods` is left with three tags (it has no clear
+counterpart). The jar loads on FreeTerraForged 1.0.0034 with no tag errors. Which structures then appear was not checked
+in generated chunks.

@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** The settings a world was created with, saved next to its level.dat. */
 final class WorldLock {
    static final String FILE_NAME = "stilllife_ftf_bridge.json";
-   private static final int FORMAT = 19;
+   private static final int FORMAT = 20;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
    private static volatile WorldLock.Lock current;
 
@@ -23,6 +23,12 @@ final class WorldLock {
 
    static WorldLock.Lock current() {
       return current;
+   }
+
+   /** The settings format of the running world (the current one when no world is running). */
+   static int format() {
+      WorldLock.Lock lock = current;
+      return lock != null ? lock.format : FORMAT;
    }
 
    /** Settings of the running world, or of the properties file when no world is running (world-creation preview). */
@@ -114,7 +120,10 @@ final class WorldLock {
                   num(o, "dappled_forest", format < 3 ? 1.0 : 0.0),
                   num(o, "sulfur_caves", format < 3 ? 1.0 : 0.0),
                   // sulfur rock came with bridge 4.3 for every world (it only acts in the Sulfur Caves)
-                  bool(o, "sulfur_rock", true)
+                  bool(o, "sulfur_rock", true),
+                  // the coastal reading of FTF's moisture boost came with format 20; older worlds keep FTF's humidity
+                  num(o, "coastal_moisture_reach", 0.0),
+                  bool(o, "coastal_biomes", false)
                );
             }
 
@@ -262,6 +271,10 @@ final class WorldLock {
          }
          if (lock.format >= 19 && lock.snowScale > 0.0) {
             o.addProperty("snow_scale", lock.snowScale);
+         }
+         if (lock.format >= 20) {
+            o.addProperty("coastal_moisture_reach", s.coastalMoistureReach());
+            o.addProperty("coastal_biomes", s.coastalBiomes());
          }
          if (lock.createLimestone) {
             o.addProperty("create_limestone", true);

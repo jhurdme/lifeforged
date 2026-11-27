@@ -81,7 +81,7 @@ give the world Still Life's 576-block height, with every mountain cut off flat a
 **Plants**
 - A ragged treeline, with small spruces and wind-shaped bushes above it, then alpine plants.
 - No trees on cliffs or fresh scree.
-- Forests have bushy edges, clearings, and tree mixes that change from region to region.
+- Forests have natural clearings.
 
 **Water and wetlands**
 - Beaches are a low band along the water.
@@ -103,10 +103,12 @@ These are in `config/stilllife_ftf_bridge.properties`, and apply to **new** worl
 | `snow_line_tundra` | `auto` | Snow line at the warm edge of the tundra (Y). `auto` = Y 250 on tall presets. |
 | `mountain_snow` | `true` | Snow where weather would put it. `false` = Still Life's solid white peaks. |
 | `ground_cover` | `true` | Scree and rocky soil. `false` = FreeTerraForged's one mix. |
-| `rock_strata` | `deep` | `off`, `regional` (own rock per region), `bedded` (plus rock layers), `deep` (rock layers through the whole land). `deep` costs about 5-17% more generation time, most in mountains; set `bedded` to save it. |
-| `forest_variety` | `true` | Forest edges, clearings, regional tree mixes. |
+| `rock_strata` | `deep` | `off`, `bedded` (each mountain region its own rock, in tilted and folded layers, where rock is bare), `deep` (the same rocks through the whole land, also underground). Both use the same rocks. `deep` costs about 5-17% more generation time, most in mountains; set `bedded` to save it. |
+| `forest_variety` | `true` | Natural clearings in forests. |
 | `shores` | `true` | Rocky shores, mud flats, lake reeds. |
 | `humid_swamps` | `true` | Swamps also in very humid lowland, not only along rivers. |
+| `coastal_biomes` | `true` | Still Life's coast-only biomes (coastal temperate rainforest, pine woods ...) along the whole coast, about 370 blocks deep. `false` = only under steep coasts. |
+| `coastal_moisture_reach` | `700` | Blocks inland over which the preset's Coastal Moisture Boost fades out. `0` = FreeTerraForged's own boost, which wets all low land. |
 | `pale_garden` | `0` | VanillaBackport's Pale Garden in the most humid old temperate forests. 0 = off; 0.18 = the amount of Lifeforged 5.x; up to 2. |
 | `dappled_forest` | `0` | VanillaBackport's Dappled Forest in the drier cool temperate forests. 0 = off; 0.5 = the 5.x amount; up to 2. |
 | `sulfur_caves` | `0` | VanillaBackport's Sulfur Caves in part of Still Life's barren caves. 0 = off; 0.5 = the 5.x amount; up to 2. |
@@ -131,9 +133,9 @@ The other settings are fine-tuning: see [all other settings](#all-other-settings
 | Mod | Needed? | What changes | Notes |
 |---|---|---|---|
 | VanillaBackport, Platform | required | Still Life uses VanillaBackport's newer blocks (pale oak, bushes, leaf litter...). With `pale_garden`, `dappled_forest` or `sulfur_caves` above 0, Lifeforged places those biomes (Sulfur Caves with their sulfur and cinnabar rock). | Without them the game does not start. A biome switched off in `config/vanillabackport-common.toml` stays off. The Dappled Forest's coarse dirt patches need Still Life FTF edition 0.3.8-ftf (Naturalized 1.3.2-ftf). Their own trees do not follow the treeline and cliff rules. |
-| Nature's Spirit | optional | With `ground_cover` on: kaolin clay rock in about half of the dry mountain regions (with `rock_strata` `regional`, `bedded` or `deep`), travertine in the scree of pale regions, sandy soil on dry sandy ground. Above the treeline: fir krummholz and alpine grasses and heathers. With `rock_strata=deep` (the default) also: travertine as the main rock of some pale regions and chert under some clay rock. | Without it the same places use vanilla stone (diorite, andesite, calcite, coarse dirt). Tested with 2.3.2. |
+| Nature's Spirit | optional | With `ground_cover` on: kaolin clay rock in about half of the dry mountain regions (with `rock_strata` `bedded` or `deep`), travertine in the scree of pale regions and as the main rock of some of them, chert under some clay rock, sandy soil on dry sandy ground. Above the treeline: fir krummholz and alpine grasses and heathers. | Without it the same places use vanilla stone (diorite, andesite, calcite, coarse dirt). Tested with 2.3.2. |
 | Still Life Naturalized | optional | Lifeforged adds Naturalized's reed edges around lakes and leaves out its own riverside plants and lake reeds (willows, birches, sugar cane, grass and ferns). Its trees follow the treeline and cliff rules. | Needs its FTF build 1.3.2-ftf and Nature's Spirit. The build is ready-made: no patching. Its rock layer under the soil stays; with `rock_strata=deep` it is kept in the top 4 blocks and the regional rock is used below. Tested with 1.3.1-ftf and 1.3.2-ftf (1.3.2 = 1.3.1 plus the Dappled Forest ground). |
-| Create | optional | With `rock_strata` `regional`, `bedded` or `deep`: Create's limestone (`create:limestone`) replaces diorite as the main rock of limestone regions, on cliffs, in scree and (with `deep`) through the land. No other Create block is used. | With `off` nothing changes. Create's own generated stone is untouched. Without Create those regions use diorite and calcite; removing Create later only changes new chunks. With `regional` or `bedded`, only worlds made with Lifeforged 6.0.0 or later. Tested with Create 6.0.10 on NeoForge (`bedded` and `deep`). |
+| Create | optional | With `rock_strata` `bedded` or `deep`: Create's limestone (`create:limestone`) replaces diorite as the main rock of limestone regions, on cliffs, in scree and (with `deep`) through the land. No other Create block is used. | With `off` nothing changes. Create's own generated stone is untouched. Without Create those regions use diorite and calcite; removing Create later only changes new chunks. With `bedded`, only worlds made with Lifeforged 6.0.0 or later. Tested with Create 6.0.10 on NeoForge (`bedded` and `deep`). |
 | Streams Reflowing | optional | Its default restyles other mods' water as its own banks, which removes Lifeforged's pools and leaves mud rings. | Set `allWaterBanks=0` in `config/streamsreflowing.properties`. Tested with 2.17.5. |
 | C2ME, Lithium, ModernFix, FerriteCore | optional | Nothing. | No known problems. |
 | Seasons mods | optional | They add their own snow during play. | That snow is not part of world generation. |

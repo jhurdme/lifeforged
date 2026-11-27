@@ -498,11 +498,20 @@ final class TerrainSpec {
          return false;
       }
       if ((f.clearings > 0.0F || f.regionalMix > 0.0F) && optionOn("forest_variety")) {
-         if (f.clearings > 0.0F && GroundCover.patch(seed, x, z, 171, 40.0F) > 1.0F - f.clearings) {
-            return false;
-         }
-         if (f.regionalMix > 0.0F && roll(random, seed, x, z, 4 + f.mixSalt) < f.regionalMix * GroundCover.patch(seed, x, z, 200 + f.mixSalt, 350.0F)) {
-            return false;
+         if (WorldLock.format() >= 20) {
+            // format 20: clearings of the share asked for (Clearings); regional_mix is ignored (it only ever thinned trees,
+            // by a fifth on average, and hardly changed which trees a forest is made of)
+            if (f.clearings > 0.0F && Clearings.at(seed, x, z, f.clearings)) {
+               return false;
+            }
+         } else {
+            // worlds made by 6.0.0 keep their clearings and regional mixes, so new chunks match the old ones
+            if (f.clearings > 0.0F && GroundCover.patch(seed, x, z, 171, 40.0F) > 1.0F - f.clearings) {
+               return false;
+            }
+            if (f.regionalMix > 0.0F && roll(random, seed, x, z, 4 + f.mixSalt) < f.regionalMix * GroundCover.patch(seed, x, z, 200 + f.mixSalt, 350.0F)) {
+               return false;
+            }
          }
       }
 

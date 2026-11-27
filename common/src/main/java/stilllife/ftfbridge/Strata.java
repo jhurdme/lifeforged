@@ -47,9 +47,9 @@ final class Strata {
    static final int K_ORANGE = 16;
    static final int K_BROWN = 17;
    static final int K_WHITE = 18;
-   /** Nature's Spirit chert (rock_strata=deep only; andesite without it). */
+   /** Nature's Spirit chert (DeepRock's stacks: rock_strata=deep and, from format 20, bedded; andesite without it). */
    static final int CHERT = 19;
-   /** Nature's Spirit yellow kaolin (rock_strata=deep only; calcite without it). */
+   /** Nature's Spirit yellow kaolin (DeepRock's stacks; calcite without it). */
    static final int K_YELLOW = 20;
    /** Create's limestone (only chosen with Create installed; diorite without it). */
    static final int C_LIMESTONE = 21;
@@ -90,7 +90,8 @@ final class Strata {
       KAOLIN_BUFF(K_LIGHT_GRAY, K_GRAY, K_LIGHT_GRAY, K_WHITE, BEDDED),
       /** Ochre clay rock (L 51): kaolin; grain and beds orange kaolin (7); brown kaolin markers (20). */
       KAOLIN_OCHRE(K_PLAIN, K_ORANGE, K_ORANGE, K_BROWN, BEDDED),
-      // ---- rock_strata=deep only (never chosen by the other modes), except LIMESTONE_C
+      // ---- DeepRock's stacks only (rock_strata=deep, and bedded from format 20; never in 6.0.0's bedded and regional),
+      // except LIMESTONE_C
       /** Warm limestone (L 63, Nature's Spirit): travertine; beds light grey kaolin (7); white kaolin markers (12). */
       TRAVERTINE(Strata.TRAVERTINE, K_LIGHT_GRAY, Strata.TRAVERTINE, K_WHITE, BEDDED),
       /** Chert (L 57, Nature's Spirit): chert; grain orange kaolin (4); beds kaolin (7); yellow kaolin markers (14). */

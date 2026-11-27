@@ -45,9 +45,7 @@ public final class StillLifeFtfBridge {
       id("treeline_clumps"), id("treeline_singles"), id("krummholz"), id("talus_pioneers"), id("talus_pioneers_toe"),
       id("ledge_shrubs"), id("alpine_flowers"), id("ledge_turf"), id("ledge_moss_dark"), id("ledge_plants"),
       // lakes
-      id("lake_reeds"), id("lake_lily_pads"),
-      // forest edges
-      id("forest_edge_birches"), id("forest_edge_spruces"), id("forest_edge_leaf_bushes"), id("forest_edge_bushes"));
+      id("lake_reeds"), id("lake_lily_pads"));
    /** Lake reed edges built from Still Life Naturalized's own reed features, added only when it is installed. */
    public static final java.util.List<ResourceLocation> NATURALIZED = java.util.List.of(
       id("lake_reeds_cold"), id("lake_reeds_cold_water"), id("lake_reeds_mild"), id("lake_reeds_mild_water"), id("lake_reeds_dry"), id("lake_reeds_dry_water"));

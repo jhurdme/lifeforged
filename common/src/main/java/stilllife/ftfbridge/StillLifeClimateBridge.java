@@ -223,7 +223,7 @@ public final class StillLifeClimateBridge {
          lowY, highY, alpThick, highMin, lowY + alpThick + highMin,
          Math.sqrt(settings.biomeSetRegionSize() / 100.0 * landArea), Math.sqrt(landArea), continentSpacing, landControlPoint,
          NormalNoise.create(new XoroshiroRandomSource(seed ^ 0x3C6EF372FE94F82BL), -10, new double[]{1.0, 0.5}),
-         new ConcurrentHashMap<>(), snow[0], snow[1], snow[2], ftfCooling(ctx), screeDecorator(ctx, settings, seed)
+         new ConcurrentHashMap<>(), snow[0], snow[1], snow[2], ftfCooling(ctx), screeDecorator(ctx, settings, seed), CoastalMoisture.of(ctx, settings)
       );
       devSurvey(made);
       return made;
@@ -242,7 +242,7 @@ public final class StillLifeClimateBridge {
       try {
          String[] p = spec.split(",", 6);
          int x0 = Integer.parseInt(p[0]), z0 = Integer.parseInt(p[1]), x1 = Integer.parseInt(p[2]), z1 = Integer.parseInt(p[3]), step = Integer.parseInt(p[4]);
-         StringBuilder sb = new StringBuilder("x,z,y,t,h,cat,ft").append(System.lineSeparator());
+         StringBuilder sb = new StringBuilder("x,z,y,t,h,cat,ft,hb,hs,dist,ter,cp,ct,sl,bl").append(System.lineSeparator());
          Cell cell = new Cell();
          for (int z = z0; z <= z1; z += step) {
             for (int x = x0; x <= x1; x += step) {
@@ -250,7 +250,21 @@ public final class StillLifeClimateBridge {
                double t = 0.2 * w.temperature.getValue(x * 1.1, 0.0, z * 1.1) + 1.0 - 2.0 * Math.abs(z + w.equatorZ) / w.settings.poleDistance();
                sb.append(x).append(',').append(z).append(',').append(Math.round(cell.height * w.ctx.levels.terrainScaleFactor)).append(',')
                   .append(String.format(Locale.ROOT, "%.3f,%.3f", t, cell.moisture)).append(',').append(cell.terrain.getDelegate())
-                  .append(String.format(Locale.ROOT, ",%.3f", ftfSeaTemperature(w, x, z))).append(System.lineSeparator());
+                  .append(String.format(Locale.ROOT, ",%.3f", ftfSeaTemperature(w, x, z)));
+               // the bridge's humidity for biomes and for snow, and the distance from the sea it works with
+               w.ctx.heightmap.apply(cell.reset(), x, z, true);
+               double seaDistance = lerp(w.edge, CONT_DISTANCES, cell.controlPoint);
+               float hb = w.coastalMoisture == null ? cell.moisture : w.coastalMoisture.biome(cell.moisture, cell.height, seaDistance);
+               float hs = w.coastalMoisture == null ? cell.moisture : w.coastalMoisture.snow(cell.moisture, cell.height, seaDistance);
+               sb.append(String.format(Locale.ROOT, ",%.3f,%.3f,%.0f", hb, hs, seaDistance)).append(',').append(cell.terrain.getName()).append(String.format(Locale.ROOT, ",%.4f,%.3f", cell.controlPoint, cell.temperature));
+               if (w.settings.snowCurve()) {
+                  double st = w.settings.stillLifeLatitude() ? t : ftfSeaTemperature(w, x, z);
+                  float sn = MountainSnow.snowiness(hs, GroundCover.patch(w.seed, x, z, 131, 1100.0F), 0.0F);
+                  sb.append(String.format(Locale.ROOT, ",%.0f,%.0f", snowLine(w, st), bandLine(w, st, sn)));
+               } else {
+                  sb.append(",,");
+               }
+               sb.append(System.lineSeparator());
             }
          }
          java.nio.file.Files.writeString(java.nio.file.Path.of(p[5]), sb.toString());
@@ -354,6 +368,17 @@ public final class StillLifeClimateBridge {
          final int cellContinentX = cell.continentX;
          final int cellContinentZ = cell.continentZ;
          final float cellControl = cell.controlPoint;
+         // coastal_moisture_reach (format 20): FTF's moisture boost by the distance from the sea. Applied as a difference to
+         // the humidity FTF asked for, so whatever FTF does to it underground stays.
+         long humidityQ = target.humidity();
+         float snowHumidity = Climate.unquantizeCoord(humidityQ);
+         if (w.coastalMoisture != null) {
+            double seaDistance = lerp(w.edge, CONT_DISTANCES, cellControl);
+            float ftfMoisture = cell.moisture;
+            float asked = snowHumidity;
+            humidityQ = Climate.quantizeCoord((float)clamp(asked + w.coastalMoisture.biome(ftfMoisture, cellHeight, seaDistance) - ftfMoisture, -1.0, 1.0));
+            snowHumidity = (float)clamp(asked + w.coastalMoisture.snow(ftfMoisture, cellHeight, seaDistance) - ftfMoisture, -1.0, 1.0);
+         }
          // peak_line_variation: the high-mountain bands start at a wandering height instead of a level line
          long temperature = target.temperature();
          double tLat = Double.NaN;
@@ -373,7 +398,7 @@ public final class StillLifeClimateBridge {
             // minus the rock belt where the peaks are bare rock), which wanders with peak_line_variation; land below the
             // fade-in height keeps its band
             if (!submerged && y > w.lowY) {
-               float snowiness = MountainSnow.snowiness(Climate.unquantizeCoord(target.humidity()), GroundCover.patch(w.seed, bx, bz, 131, 1100.0F),
+               float snowiness = MountainSnow.snowiness(snowHumidity, GroundCover.patch(w.seed, bx, bz, 131, 1100.0F),
                   w.settings.stillLifeLatitude() ? (float)clamp(1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance(), -1.0, 1.0) : 0.0F);
                double line = Math.max(bandLine(w, tLat, snowiness) - peakNoiseShift(w, ctx, qx, qz), w.lowY + w.alpThick + 10.0 * w.vs);
                yBand = bandHeight(w, y, line);
@@ -406,7 +431,7 @@ public final class StillLifeClimateBridge {
          // so Still Life's swamps/marshes/fens also appear in moisture-rich lowland away from FTF's river wetlands.
          // inland only (about 110+ blocks from the sea), so coasts keep their beaches
          double inland = lerp(w.edge, CONT, cellControl);
-         float humidity = Climate.unquantizeCoord(target.humidity());
+         float humidity = Climate.unquantizeCoord(humidityQ);
          boolean humidSwamp = w.settings.humidSwamps()
             && !submerged
             && !highland
@@ -442,6 +467,15 @@ public final class StillLifeClimateBridge {
 
          double wetland = terrain.isWetland() || humidSwamp || dryWetland ? 1.0 : 0.0;
          double erosion = group + 0.49 * clamp(aboveLowland * orogeny + 0.06 + wetland, -1.0, 1.0);
+         // coastal_biomes (format 20): low coastal land past the beach takes the band above the beach band where that gives
+         // one of Still Life's coast-only biomes (CoastalBiomes); wetlands keep theirs
+         if (w.settings.coastalBiomes() && !ocean && !submerged && wetland == 0.0 && magnitude >= BEACH_W_MIN && magnitude < BEACH_W_MAX) {
+            float c = Climate.unquantizeCoord(continentalness);
+            boolean positive = Climate.unquantizeCoord(weirdness) >= 0.0F;
+            if (c >= BEACH_C_MAX && CoastalBiomes.lifts(Climate.unquantizeCoord(temperature), humidity, c, (float)erosion, positive)) {
+               weirdness = Climate.quantizeCoord((float)(positive ? ABOVE_BEACH_W : -ABOVE_BEACH_W));
+            }
+         }
          long depth = target.depth();
          float ftfDepth = Climate.unquantizeCoord(depth);
          if (ftfDepth > 0.0F) {
@@ -485,7 +519,7 @@ public final class StillLifeClimateBridge {
             temperature = Climate.quantizeCoord((float)cooled);
          }
 
-         return new TargetPoint(temperature, target.humidity(), continentalness, Climate.quantizeCoord((float)erosion), depth, weirdness);
+         return new TargetPoint(temperature, humidityQ, continentalness, Climate.quantizeCoord((float)erosion), depth, weirdness);
       } else {
          return target;
       }
@@ -585,8 +619,23 @@ public final class StillLifeClimateBridge {
 
    static double[] calibrateHeights(GeneratorContext ctx) {
       long t0 = System.currentTimeMillis();
+      // The sampled square: 16,384 blocks each way from the origin, which is about ten continents of the preset the bands and
+      // snow lines were tuned on (continent scale 2500, continents 10,000 blocks apart). A preset with larger continents had
+      // less than one continent in it, so the height table, and with it the "auto" snow lines, followed whatever lay at the
+      // origin: continent scale 10,000 measured an equator snow line anywhere from Y 380 to Y 940 over one world. The square
+      // now grows with the continent spacing (same number of samples); presets up to continent scale 2560 measure as before.
       int half = 16384;
       int step = 192;
+      try {
+         double spacing = 4.0 * ctx.preset.world().continent.continentScale;
+         double wanted = Math.min(1.6 * spacing, 262144.0);
+         if (wanted > half) {
+            step = (int)Math.round(step * wanted / half);
+            half = (int)Math.round(wanted);
+         }
+      } catch (Throwable t) {
+         StillLifeFtfBridge.LOG.warn("[{}] could not read FreeTerraForged's continent scale; land heights are measured near the origin only", StillLifeFtfBridge.MOD_ID);
+      }
       Levels levels = ctx.levels;
       Cell cell = new Cell();
       double[] samples = new double[(2 * half / step + 1) * (2 * half / step + 1)];
@@ -1289,6 +1338,18 @@ public final class StillLifeClimateBridge {
     * underground banding changes nothing).
     */
    static float humidity(int x, int y, int z) {
+      return humidityOf(x, z, 0);
+   }
+
+   /**
+    * The humidity the snow model reads: {@link #humidity} without FreeTerraForged's rain shadow in worlds with
+    * coastal_moisture_reach (format 20), the same value in every other world.
+    */
+   static float snowHumidity(int x, int y, int z) {
+      return humidityOf(x, z, 2);
+   }
+
+   private static float humidityOf(int x, int z, int which) {
       StillLifeClimateBridge.World w = active;
       if (w == null) {
          return 0.0F;
@@ -1299,10 +1360,10 @@ public final class StillLifeClimateBridge {
       int qz = (int)Math.floor(fz);
       float tx = (float)(fx - qx);
       float tz = (float)(fz - qz);
-      float h00 = quartClimate(w, qx, qz)[0];
-      float h10 = quartClimate(w, qx + 1, qz)[0];
-      float h01 = quartClimate(w, qx, qz + 1)[0];
-      float h11 = quartClimate(w, qx + 1, qz + 1)[0];
+      float h00 = quartClimate(w, qx, qz)[which];
+      float h10 = quartClimate(w, qx + 1, qz)[which];
+      float h01 = quartClimate(w, qx, qz + 1)[which];
+      float h11 = quartClimate(w, qx + 1, qz + 1)[which];
       return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
    }
 
@@ -1325,8 +1386,17 @@ public final class StillLifeClimateBridge {
       }
       Cell cell = c.cell.reset();
       w.ctx.heightmap.apply(cell, QuartPos.toBlock(qx), QuartPos.toBlock(qz), true);
-      v[0] = Climate.unquantizeCoord(Climate.quantizeCoord(cell.moisture));
+      float moisture = cell.moisture;
+      float snowMoisture = moisture;
+      if (w.coastalMoisture != null) {
+         double seaDistance = lerp(w.edge, CONT_DISTANCES, cell.controlPoint);
+         snowMoisture = w.coastalMoisture.snow(cell.moisture, cell.height, seaDistance);
+         moisture = w.coastalMoisture.biome(cell.moisture, cell.height, seaDistance);
+      }
+      v[0] = Climate.unquantizeCoord(Climate.quantizeCoord(moisture));
       v[1] = Climate.unquantizeCoord(Climate.quantizeCoord(cell.temperature));
+      // the snow model's humidity (the same as [0] without coastal_moisture_reach)
+      v[2] = Climate.unquantizeCoord(Climate.quantizeCoord(snowMoisture));
       c.world[slot] = w;
       c.qx[slot] = qx;
       c.qz[slot] = qz;
@@ -1340,7 +1410,7 @@ public final class StillLifeClimateBridge {
       final Object[] world = new Object[SIZE];
       final int[] qx = new int[SIZE];
       final int[] qz = new int[SIZE];
-      final float[][] value = new float[SIZE][2];
+      final float[][] value = new float[SIZE][3];
       final Cell cell = new Cell();
    }
 
@@ -1477,7 +1547,7 @@ public final class StillLifeClimateBridge {
       }
       int bx = QuartPos.toBlock(qx);
       int bz = QuartPos.toBlock(qz);
-      double v = MountainSnow.snowiness(quartClimate(w, qx, qz)[0], GroundCover.patch(w.seed, bx, bz, 131, 1100.0F),
+      double v = MountainSnow.snowiness(quartClimate(w, qx, qz)[2], GroundCover.patch(w.seed, bx, bz, 131, 1100.0F),
          (float)clamp(1.0 - 2.0 * Math.abs(bz + w.equatorZ) / w.settings.poleDistance(), -1.0, 1.0));
       c.sWorld[slot] = w;
       c.sqx[slot] = qx;
@@ -1710,7 +1780,8 @@ public final class StillLifeClimateBridge {
       double snowTundra,
       double vs,
       double ftfCooling,
-      boolean screeDecorator
+      boolean screeDecorator,
+      CoastalMoisture coastalMoisture
    ) {
    }
 }

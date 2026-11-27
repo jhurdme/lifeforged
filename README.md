@@ -26,7 +26,7 @@ places every biome where it belongs and makes the ground, rock, snow and plants 
   weather would put it.
 - **Ground and rock**: scree below cliffs, each mountain region with its own rock, tilted and folded rock layers through
   the whole land.
-- **Plants**: a ragged treeline with small trees and alpine plants above it, forest edges and clearings.
+- **Plants**: a ragged treeline with small trees and alpine plants above it, forest clearings.
 - **Water and wetlands**: rocky shores, low beaches, swamps and salt lakes with water at any height, no coastal cliff on
   UPLIFT presets.
 - **Settings saved per world**, so new chunks always match old ones.
