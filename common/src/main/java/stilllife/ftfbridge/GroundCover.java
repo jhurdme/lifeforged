@@ -1186,7 +1186,7 @@ final class GroundCover {
       return col == null ? underlying : rockState(Strata.rock(col, y, 0.0F, 0.6F));
    }
 
-   /** This world's rock_strata (off, regional or bedded); off unless ground_cover is on. */
+   /** This world's rock_strata (off, bedded or deep; regional in worlds saved with it); off unless ground_cover is on. */
    static String rockStrata() {
       Settings s = WorldLock.activeSettings();
       return active(s) ? s.rockStrata() : Settings.STRATA_OFF;
@@ -1203,7 +1203,7 @@ final class GroundCover {
       if (mode.equals(Settings.STRATA_OFF)) {
          return null;
       }
-      if (mode.equals(Settings.STRATA_DEEP)) {
+      if (deepRocks()) {
          return deepColumn(seed, x, z);
       }
       boolean bedding = mode.equals(Settings.STRATA_BEDDED);
@@ -1223,17 +1223,27 @@ final class GroundCover {
       return c;
    }
 
-   /** True with rock_strata=deep (and ground_cover). */
+   /** True with rock_strata=deep (and ground_cover): the regional rock also goes through the body of the land. */
    static boolean deep() {
       return rockStrata().equals(Settings.STRATA_DEEP);
    }
 
    /**
-    * rock_strata=deep: the rock column at x/z (DeepRock: unit stacks, tilt by province), cached per thread; null when the
-    * world is not in deep mode.
+    * True when exposed rock comes from DeepRock's unit stacks: rock_strata=deep, and from format 20 also bedded, which is
+    * then deep's rock on bare ground only (the same rocks in the same places, without the pass through the body of the
+    * land). Bedded worlds made by 6.0.0 keep their own smaller set of rocks (Strata.rock), so new chunks match old ones.
+    */
+   static boolean deepRocks() {
+      String mode = rockStrata();
+      return mode.equals(Settings.STRATA_DEEP) || mode.equals(Settings.STRATA_BEDDED) && WorldLock.format() >= 20;
+   }
+
+   /**
+    * rock_strata=deep (and bedded from format 20): the rock column at x/z (DeepRock: unit stacks, tilt by province), cached
+    * per thread; null when the world does not use DeepRock's rocks.
     */
    static Strata.Column deepColumn(long seed, int x, int z) {
-      if (!deep()) {
+      if (!deepRocks()) {
          return null;
       }
       int key = 1 | 4;
@@ -1298,7 +1308,7 @@ final class GroundCover {
     * next, along chunk borders.)
     */
    static boolean kaolinRegion(Provinces.Province p) {
-      if (Extra.get().kaolin == null || !DeepRock.NS_ALLOWED && deep()) {
+      if (Extra.get().kaolin == null || !DeepRock.NS_ALLOWED && deepRocks()) {
          return false;
       }
       // StillLifeClimateBridge.humidity is a pure function of the world and position (the same from any thread, in any

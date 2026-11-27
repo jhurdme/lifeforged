@@ -95,12 +95,19 @@ final class BridgeConfig {
       double sulfurCaves = number(p, "sulfur_caves", d.sulfurCaves(), 0.0, 2.0);
       boolean sulfurRock = bool(p, "sulfur_rock", d.sulfurRock());
       boolean shores = bool(p, "shores", d.shores());
+      double coastalMoistureReach = number(p, "coastal_moisture_reach", d.coastalMoistureReach(), 0.0, 1300.0);
+      boolean coastalBiomes = bool(p, "coastal_biomes", d.coastalBiomes());
       boolean forestVariety = bool(p, "forest_variety", d.forestVariety());
-      LIMITS.put("rock_strata", "Default: " + d.rockStrata() + ". Allowed: off, regional, bedded or deep.");
+      LIMITS.put("rock_strata", "Default: " + d.rockStrata() + ". Allowed: off, bedded or deep.");
       String rockStrataRaw = p.getProperty("rock_strata", d.rockStrata());
       String rockStrata = Settings.rockStrataMode(rockStrataRaw);
-      if (!rockStrata.equals(rockStrataRaw.trim().toLowerCase(Locale.ROOT))) {
-         invalid("rock_strata", rockStrataRaw, "off, regional, bedded or deep");
+      if (rockStrata.equals(Settings.STRATA_REGIONAL)) {
+         // 6.0.0's "regional" (one rock per region, no layers) is gone for new worlds; worlds saved with it keep it
+         StillLifeFtfBridge.LOG.warn("[{}] config: rock_strata=regional no longer exists for new worlds; using bedded", StillLifeFtfBridge.MOD_ID);
+         rockStrata = Settings.STRATA_BEDDED;
+      } else if (!rockStrata.equals(rockStrataRaw.trim().toLowerCase(Locale.ROOT))) {
+         invalid("rock_strata", rockStrataRaw, "off, bedded or deep");
+         rockStrata = d.rockStrata();
       }
       LIMITS.put("cave_floor_guard", "Default: " + d.caveFloorGuard() + ". Allowed: exact, vanilla or off.");
       String caveFloorGuardRaw = p.getProperty("cave_floor_guard", d.caveFloorGuard());
@@ -114,7 +121,8 @@ final class BridgeConfig {
          aspen, salt, pools, upliftSmoothing, wetlandMaxHeight, keepWetlandBiomes, beachMaxHeight, beachShallows, saltLakeWater,
          saltLakeMaxRelief, saltLakeSlopePools, biomeSetBlend, peakLineVariation, snowCapFade, biomeSets, biomeSetRegionSize,
          caveFloorGuard, columnDepth, mountainCooling, naturalSnow, groundCover, mountainSnow, d.snowLineClimate(), shores, forestVariety,
-         rockStrata, snowLineEquator, snowLineTundra, !stillLife, paleGarden, dappledForest, sulfurCaves, sulfurRock
+         rockStrata, snowLineEquator, snowLineTundra, !stillLife, paleGarden, dappledForest, sulfurCaves, sulfurRock,
+         coastalMoistureReach, coastalBiomes
       );
 
       String text = text(enabled, settings);
@@ -186,6 +194,17 @@ final class BridgeConfig {
          (the default), 0.5 = the 5.x amount. A biome switched off in VanillaBackport's own config
          (vanillabackport-common.toml) stays off whatever this file says.""");
 
+      option(t, "coastal_moisture_reach", plain(s.coastalMoistureReach()), """
+         FreeTerraForged's Coastal Moisture Boost (climate page of the preset) wets all low land, however
+         far from the sea. With this, Lifeforged applies it in full at the shore and fades it out over
+         this many blocks inland; snow then also ignores the preset's Rain Shadow, so tall peaks do
+         not get less snow than their foothills. 0 = FreeTerraForged's own boost.""");
+
+      option(t, "coastal_biomes", s.coastalBiomes(), """
+         true = Still Life's coast-only biomes (coastal temperate rainforest, pine woods, coastal
+         shrubland ...) form a belt along the whole coast, up to about 370 blocks inland. false = only
+         where the land rises steeply out of the sea.""");
+
       section(t, "Mountains and snow", null);
       option(t, "snow_line_equator", s.snowLineEquator() == Settings.AUTO ? "auto" : plain(s.snowLineEquator()), """
          The snow line (the height above which snow lies all year) at the equator, as a Y level.
@@ -213,14 +232,14 @@ final class BridgeConfig {
          FreeTerraForged's one mix of tuff, andesite and moss. Needs the preset's Erosion Decorator.""");
       option(t, "rock_strata", s.rockStrata(), """
          Only with ground_cover=true: what bare rock is made of.
-           off      = the world's own stone.
-           regional = each mountain region has its own rock.
-           bedded   = regional, plus tilted and folded rock layers.
-           deep     = bedded through the whole land, not only at the surface (the default). Costs
-                      about 5-17% more generation time, most of it in mountains; set bedded
-                      to save that.
-         Nature's Spirit adds kaolin, travertine and (deep only) chert; Create adds its limestone to
-         the pale limestone regions in every mode.""");
+           off    = the world's own stone.
+           bedded = each mountain region has its own rock, in tilted and folded layers, where rock
+                    is bare (cliffs, peaks, steep slopes).
+           deep   = the same rocks through the whole land, also underground (the default). Costs
+                    about 5-17% more generation time, most of it in mountains; set bedded to save
+                    that.
+         Both use the same rocks. Nature's Spirit adds kaolin, travertine and chert; Create adds its
+         limestone to the pale limestone regions.""");
       option(t, "sulfur_rock", s.sulfurRock(), """
          true = Sulfur Caves (sulfur_caves above 0) get their yellow sulfur and red cinnabar rock.
          false = plain stone there.""");
@@ -233,8 +252,7 @@ final class BridgeConfig {
       section(t, "Plants", """
          The treeline and the plants above it have no option: they come with the Still Life FTF edition.""");
       option(t, "forest_variety", s.forestVariety(), """
-         true = bushes and young trees at forest edges, natural clearings, and tree mixes that change
-         from region to region.""");
+         true = natural clearings in forests, about a tenth of the land, mostly 40 blocks across.""");
 
       section(t, "Water and wetlands", null);
       option(t, "shores", s.shores(), """

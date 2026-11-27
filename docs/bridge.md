@@ -234,6 +234,82 @@ a small one (32%), `halves` 36-67% (the wandering line moves some land across). 
 ![biome set border](images/biome-set-border.png)
 *6 x 6 km around a border between an American and an Afro-Eurasian continent (red dots: the border), one colour per biome. Left: `biome_set_blend=0`; right: 384.*
 
+### Humidity: the coastal moisture boost and the rain shadow (6.0.1, format 20)
+
+*`coastal_moisture_reach` (700 blocks for new worlds; 0 in older worlds and to switch it off). `CoastalMoisture`,
+`mixin/ClimateSettingsPageMixin`.*
+
+**Problem.** Humidity is the one climate number the bridge takes from FTF. FTF (1.0.0032-0034) computes it from its 0..1
+moisture noise in two steps (`ClimateModule.modifyMoisture`): the *Coastal Moisture Boost*,
+`m += (1 - m) x boost x (1 - elevation)`, then above its ground level the *Rain Shadow*,
+`m ^ (2 ^ (elevation x strength))`, where elevation is the height above the sea as a share of the world height. So the
+boost does not depend on the coast at all: it wets all low land alike. Measured on the owner's preset (1024 high, boost
+0.218, rain shadow 1.29, moisture falloff 4; 40 x 40 km, 80-block grid), lowland at Y 64-120 gains +0.22 of humidity
+within 100 blocks of the sea and +0.24 more than 3000 blocks inland.
+
+Still Life's humidity bands are narrow (edges at -0.6, -0.405, -0.275, -0.105, 0.035, 0.18, 0.235, 0.33 and 0.4), and a
+moisture falloff above 1 gathers much of the land at one value (here 37% of lowland within 0.02 of 0), which the boost
+lifts as one block. Share of lowland (Y 64-150) by boost: Still Life's middle band (-0.105..0.035) 51% at 0, 5% at 0.22;
+humid enough for (coastal) temperate rainforest (0.235 and up) 16% at 0, 29% at 0.22, 46% at 0.26, 72% at 0.30. The
+rain shadow at the same time dries high ground, which the snow model read as a dry climate: the humidity part of the
+snow amount fell from 1.15 at Y 200-300 to 0.80 above Y 600.
+
+FTF's preset screen adds to it: `ClimateSettingsPage` builds the Coastal Moisture Boost slider from
+`altitudeCoolingStrength`, so the slider never shows the saved value and the first touch writes one counted from the
+wrong position.
+
+**Change.** `CoastalMoisture` takes both steps out of FTF's value (they are invertible), puts the boost back multiplied by
+a coast factor (1 in the sea and at the shore, falling smoothly to 0 at `coastal_moisture_reach` blocks inland; the
+distance from FTF's control point through the world's measured coast table, as for continentalness), and then:
+- the biome lookup gets FTF's rain shadow back unchanged. The result is applied as a difference to the humidity FTF asked
+  for, so what FTF does to humidity underground stays;
+- the snow model (`MountainSnow.climateSnow`, the snow-line bands) reads it without the rain shadow.
+`ground_cover`'s climate class, wetness and dry rock regions read the biome value. At the shore the result is FTF's own.
+`ClimateSettingsPageMixin` (client) hands the slider the preset's boost; it finds the slider by its translation key.
+
+**FTF is an unstable release**, so none of this assumes its formula: when a world is built the model is compared with
+FTF's `modifyMoisture` on a grid of heights and moistures, and if they differ by more than 0.002 or an FTF member is
+missing, the world uses FTF's humidity as it is and the log says so. A boost above 0.9 (too little of the noise left to
+recover) is passed through as well. The slider fix is optional in every part and changes nothing once FTF passes the
+right value.
+
+**Checked** on the same grid in a format 20 world (dedicated server, FTF 1.0.0034; the model passed its comparison):
+humidity added to lowland by the boost, by the bridge's distance from the sea: 0-100 blocks +0.21, 100-300 +0.18, 300-500
++0.09, 500-700 +0.02, beyond 700 none (FTF: +0.19 to +0.24 everywhere). Lowland more than 700 blocks inland in
+Still Life's middle band: 5% -> 47%; lowland humid enough for temperate rainforest: 28% -> 20% (within 370 blocks of the
+sea 25% -> 22%, beyond 700 blocks 31% -> 18%). Snow amount from humidity: 1.08 at every height (was 1.15 falling to
+0.80). The slider fix has not been tried in a client.
+
+**Side effect.** Inland mountains lose the boost that used to offset the rain shadow: land above Y 350 in Still Life's
+dry bands (below -0.275) goes from 13% to 38% on that preset, what its rain shadow of 1.29 gives on its own (7% with no
+rain shadow). Lower the preset's Rain Shadow Strength for greener mountains.
+
+### Coast-only biomes on low coasts (6.0.1, format 20)
+
+*`coastal_biomes` (on for new worlds). `CoastalBiomes`.*
+
+**Problem.** Still Life has biomes it only places near the sea (continentalness up to 0.17, about 370 blocks): coastal
+temperate rainforest and its old growth, pine woods, coastal xeric shrubland, shrub steppe and others (78 of the 1034
+surface climate boxes of that band in Still Life 0.3.8). All of them sit in its weirdness band 0.08-0.267, the band above the
+beach band (0.05-0.08). On Lithosphere weirdness makes the terrain, so that band is most coastal land at any height. The
+bridge reads weirdness back from the height, by the land's height percentiles over the whole world, and on FTF the land
+near the sea is the lowest land there is: the band starts at Still Life height 76, Y 138 on the owner's tall preset. So
+low coastal land got the beach band, where Still Life's table only has the inland biome, and a coastal rainforest showed
+up only where the land climbs steeply out of the sea: a strip under coastal mountains, nothing along a gentle coast (the
+owner's world, seed 388267736538679412, around 38000, -8000: of the coastal land with a rainforest climate in 13 x 12 km,
+76% lay in the beach band).
+
+**Change.** Land in the beach band that is past the beach itself (continentalness from 0.02), not a wetland, takes the
+band above (the same 0.09 the beach height limit uses) when the biome it gets there is a coast-only one; everywhere else
+nothing changes. "Coast-only" is read from the layout FTF places biomes from (a surface box of that band whose
+continentalness ends below 0.2), by Minecraft's nearest-box rule, memoised per small climate cell like `AlpineCooling`.
+
+**Checked** on generated chunks of that world (its level.dat, preset and settings; 512 x 512 blocks at 37376..37887,
+-8192..-7681, a gentle rainforest coast; the same build with `coastal_biomes` off and on): coastal temperate rainforest
+with its old growth 9% -> 64% of the box, temperate rainforest 81% -> 27%, beach and sea unchanged. By the bridge's
+distance from the sea, coastal rainforests on land: 0-50 blocks 21% -> 57% (the rest is beach), 50-200 blocks 3% -> 99%,
+200-370 blocks 22% -> 97%, 370-700 blocks 4% -> 6%. No other biome changed there.
+
 ## 3. Swamps in humid lowland
 
 *4.0. `humid_swamps` (on by default), `swamp_humidity`, `swamp_max_height`.*
@@ -968,8 +1044,8 @@ per column.
 | `min_greenness`, `max_greenness` | 0.3..1.4 | how readily plants take over the province's scree | ground_cover | |
 | `min_bare_rock`, `max_bare_rock` | 0..1 | how much bare rock shows through the province's thin soil | ground_cover | |
 | `forest_edge` | blocks | only within this many blocks of where forest meets open land | real; refused in surface rules | 8-12 |
-| `clearings` | 0..1 | skipped in natural clearings, about this share of the land | forest_variety | 0.1 |
-| `regional_mix`, `mix_salt` | 0..1, int | skipped up to this share by a slow regional variation of its own | forest_variety | 0.4 |
+| `clearings` | 0..1 | skipped in natural clearings, this share of the land | forest_variety | 0.1 |
+| `regional_mix`, `mix_salt` | 0..1, int | only in worlds made by 6.0.0 (ignored from format 20): skipped up to this share by a slow regional variation of its own | forest_variety | 0.4 |
 | `requires_option` | `shores`, `ground_cover`, `mountain_snow`, `natural_snow_layers`, `forest_variety`; `!` before the name: only when it is off | only when this option is on (off) | | `"!ground_cover"` |
 | `skip_with_natural_snow` | bool | not with `natural_snow_layers` (for features that set snow layers themselves) | | |
 | `skip_if_loaded` | list of mod ids | not when one of these mods is installed | | |
@@ -1264,11 +1340,24 @@ too), the rock pieces in medium and coarse talus, outcrops and risers. Only plai
 andesite, diorite, granite, tuff) is replaced; other rock (Still Life's basalt, calcite...) stays.
 
 - `off`: the world's stone.
-- `regional`: each region's **suite** (below), massive: its main rock with its fine-grain variant mixed in at a grain of
-  1-3 blocks and faint vertical joints.
-- `bedded`: as regional, plus beds in the layered suites (and weakly in half of the grey and dark regions): a field long
-  along a tilted, folded and undulating bed plane (~170 blocks) and thin across it (5-10 blocks), where the bed rock
+- `bedded`: each region's **suite** (below): its main rock with its fine-grain variant mixed in at a grain of 1-3 blocks
+  and faint vertical joints, plus beds in the layered suites (and weakly in half of the grey and dark regions): a field
+  long along a tilted, folded and undulating bed plane (~170 blocks) and thin across it (5-10 blocks), where the bed rock
   shows on about 10-15% of a face; rare thin marker seams; rare thin steep dykes in granitic regions.
+- `deep`: the same, through the body of the land too (below).
+
+**One set of rocks (6.0.1, format 20).** `bedded` and `deep` use the same rocks in the same places: both read the rock of
+a spot from `DeepRock`'s unit stacks (below), `bedded` only where the erosion pass lays bare rock, `deep` also through
+the body. So slate-like deepslate, flood basalt, travertine and chert, and the change of rock with height on tall
+mountains, are no longer `deep` only, and switching a new world's mode does not change what its cliffs are made of.
+Checked on generated chunks (256 x 256 blocks of mountain, the same seed in both modes): of 19,846 columns topped by rock
+in both, 99.1% have the same block, which is the difference between two runs of `deep` itself (99.1%); 30 blocks under
+the ground `bedded` is plain stone and ores, `deep` 24% andesite there. That site has andesitic, grey and dark rock and a
+little clay rock; the rarer suites were not in it. Worlds made by 6.0.0 with `bedded` keep 6.0.0's smaller set (the table
+below without the stacks), so new chunks match old ones.
+
+`regional` (6.0.0: one mottled rock per region, no beds) is no longer an option: in the config file it is read as
+`bedded`, with a line in the log. Worlds saved with it keep it.
 
 | Suite | Main | Grain | Beds | Markers | Style |
 |---|---|---|---|---|---|
@@ -1292,11 +1381,11 @@ risers, outcrops and the rock pieces in talus show it. In `regional` and `bedded
 Create, or if it is removed later, those regions use diorite again in new chunks; the world still loads. The terrain
 filter's `rock_suites` still calls these regions `limestone`.
 
-**`deep`.** `rock_strata=deep` is `bedded` plus the regional rock through the body of
+**The unit stacks, and `deep`.** `rock_strata=deep` is `bedded` plus the regional rock through the body of
 the land (`DeepRock`, `mixin/ChunkStatusTasksMixin`). Each region is a stack of one to four rock units: its usual suite,
 in some regions a cap unit on the highest ground, and up to two older units below, with contacts set relative to the
 regional ground level, so tall mountains change rock with height and deep valleys cut into older rock. Regions are
-flat-lying, dipping (12-28 degrees) or folded, blended over about 440 blocks. Extra suites only `deep` uses: slate-like
+flat-lying, dipping (12-28 degrees) or folded, blended over about 440 blocks. Suites that only occur in the stacks (in 6.0.0: only with `deep`): slate-like
 deepslate, flood basalt, Nature's Spirit travertine and chert, Create's limestone (each only when that mod is installed,
 otherwise a vanilla stand-in). The pass replaces only `minecraft:stone`, at the start of a chunk's LIGHT step, when the
 chunk and its neighbours have finished their features, so ores, carvers and structures are unchanged and the result does
@@ -1459,15 +1548,27 @@ biome temperature is 0.45-1 and it rains, `riverside_birches` at -0.2-0.45 with 
 
 ### Forests
 
-`forest_variety` gates three things through the terrain filter (section 15):
-- **Edges** (`ForestEdges`): where a forest biome (by name: forest, taiga, woods, woodland, rainforest, jungle, grove; not
-  clearings, plains, steppe, prairie, savanna, fields, tundra, wetlands, rivers) and open land meet within 12 blocks, the
-  `forest_edge_*` features put young birches (temperature 0.3-0.95, rain), small spruces (-0.5-0.3, rain), leaf bushes and
-  bush patches on both sides.
-- **Clearings**: Still Life's tree features (patched by `patch_terrain.py`) skip about a tenth of the land in noise
-  patches.
-- **Regional mixes**: each tree group thins out by up to 0.4 by its own slow noise (about 350 blocks), so one forest is
-  mostly birch, the next mostly oak.
+`forest_variety` gates natural **clearings** through the terrain filter (section 15): Still Life's tree features (patched
+by `patch_terrain.py`, `clearings: 0.1`) skip a tenth of the land, in irregular patches mostly about 40 blocks across and
+up to about 95 (`Clearings`: gradient noise in two sizes, 48 and 20 blocks, with a ragged edge; the threshold is taken
+from the measured spread of the field, so the share asked for is the share of the land; measured over 5.8 km2 on three
+seeds, thresholds agreeing within 0.002). On generated chunks (1345 chunks of savanna and scrub with scattered trees,
+format 20): clearings 9.0% of the land, 1.45 trunk columns per 1,000 inside against 14.63 outside (what is left inside is
+mostly wide trunks and features that are not trees); the 6.0.0 field covers 3.4% of the same chunks.
+
+**Changed in 6.0.1 (format 20).** 6.0.0 thresholded one octave of value noise on a 40-block lattice at `1 - share`: that
+gave about 3% of the land instead of 10%, in holes 10-18 blocks across sitting on a 40-block grid (value noise peaks on
+its lattice points). 6.0.0 also had **regional mixes**: each tree group thinned by up to 0.4 by its own slow noise (about
+350 blocks). That only ever removed trees (a fifth of each group on average, 8-32% by region) and moved two equal groups
+to about 58/42 at most, so format 20 worlds ignore `regional_mix`. Worlds made by 6.0.0 keep both as they were, so new
+chunks match old ones. (The 6.0.0 numbers are from simulating its noise, not from counting trees.)
+
+**Edge belts, removed in 6.0.1.** 6.0.0 also put a belt of young birches (biome temperature 0.3-0.95), small spruces, leaf
+bushes and bush patches within 12 blocks of where a forest biome met open land (`forest_edge_*` features). Forest was
+decided by the biome's name (`ForestEdges`), which calls several wooded biomes open land (tropical highlands and wetlands,
+rivers inside a rainforest, wooded prairie and highlands, pinelands), and every Still Life tropical biome has temperature
+exactly 0.95: belts ran between two forests, with birches along jungle borders. The features are gone in every world (new
+chunks only); the filter's `forest_edge` field stays for datapacks.
 
 ## How the images were made
 

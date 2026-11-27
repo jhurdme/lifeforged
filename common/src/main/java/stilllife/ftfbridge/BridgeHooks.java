@@ -165,6 +165,11 @@ public final class BridgeHooks {
          } catch (Throwable t) {
             StillLifeFtfBridge.LOG.error("[{}] could not read the biome layout for mountain cooling; format 18 worlds get no cooling", StillLifeFtfBridge.MOD_ID, t);
          }
+         try {
+            CoastalBiomes.layout(out.entries());
+         } catch (Throwable t) {
+            StillLifeFtfBridge.LOG.error("[{}] could not read the biome layout for coastal biomes; coastal_biomes does nothing", StillLifeFtfBridge.MOD_ID, t);
+         }
       }
 
       return out;

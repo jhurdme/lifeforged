@@ -58,13 +58,16 @@ package stilllife.ftfbridge;
  * @param snowLineClimate     worlds before format 18, latitude=still_life: blocks by which the high-mountain bands (alpine,
  *                            snowy peaks) rise at the equator and drop at the cold end; 0 = the same height everywhere
  *                            (format 18 worlds use snowLineEquator / snowLineTundra instead, and keep this 0)
- * @param forestVariety       belts of bushes and young trees at forest edges, natural clearings, regional tree mixes
+ * @param forestVariety       natural clearings in forests (6.0.0 worlds: also regional tree mixes; 6.0.0 had belts at
+ *                            forest edges too)
  * @param shores              rocky shores, mud flats, lake shores with reeds and lily pads, dune grass
  * @param groundCover         the bridge picks FTF's scree, talus and thin-soil blocks to suit the climate, and lays
  *                            rockfall gravel and boulders at the foot of cliffs, instead of FTF's one generic mix
- * @param rockStrata          ground_cover only: what bare rock is made of: "off" (the stone the world has), "regional" (one
- *                            dominant rock per rock province, softly mottled) or "bedded" (regional, plus bedding lenses
- *                            and rare seams)
+ * @param rockStrata          ground_cover only: what bare rock is made of: "off" (the stone the world has), "bedded" (the
+ *                            rock of the column's rock province, in beds, where rock is bare) or "deep" (the same rock
+ *                            through the body of the land too). From format 20 bedded and deep use the same rocks
+ *                            (DeepRock's unit stacks). "regional" (6.0.0: one mottled rock per province, no beds) only
+ *                            exists in worlds saved with it
  * @param snowLineEquator     latitude=still_life (format 18): the snow line at the equator, in blocks (Y). With
  *                            snowLineTundra it gives each place its snow line from Still Life's temperature there: linear
  *                            from the warm edge of the tundra (temperature -0.56) to the equator (1), then falling to the sea
@@ -80,6 +83,9 @@ package stilllife.ftfbridge;
  * @param dappledForest       VanillaBackport Dappled Forest amount (5.x default 0.5)
  * @param sulfurCaves         VanillaBackport Sulfur Caves amount (5.x default 0.5)
  * @param sulfurRock          sulfur and cinnabar rock in VanillaBackport's Sulfur Caves
+ * @param coastalMoistureReach blocks from the sea over which FreeTerraForged's Coastal Moisture Boost fades out (format
+ *                            20, CoastalMoisture); 0 = FTF's own boost, which wets all low land at any distance
+ * @param coastalBiomes       low coastal land past the beach gets Still Life's coast-only biomes (format 20, CoastalBiomes)
  */
 record Settings(
    boolean stillLifeLatitude,
@@ -122,7 +128,9 @@ record Settings(
    double paleGarden,
    double dappledForest,
    double sulfurCaves,
-   boolean sulfurRock
+   boolean sulfurRock,
+   double coastalMoistureReach,
+   boolean coastalBiomes
 ) {
    /** snow_line_equator / snow_line_tundra "auto": resolved from the world's measured land heights (format 19). */
    static final double AUTO = -1.0;
@@ -151,7 +159,7 @@ record Settings(
    /** bedded, plus the regional rock through the whole body of the land (DeepRock). */
    static final String STRATA_DEEP = "deep";
 
-   /** A rock_strata value as written in a file: off, regional or bedded (anything else, or missing: off). */
+   /** A rock_strata value as written in a file: off, bedded, deep or (saved worlds) regional; anything else, or missing: off. */
    static String rockStrataMode(String value) {
       if (value == null) {
          return STRATA_OFF;
@@ -179,10 +187,10 @@ record Settings(
    }
 
    /** Defaults for a fresh properties file (the VanillaBackport biomes off: 0, 0, 0). */
-   static final Settings DEFAULT = new Settings(true, 50000.0, 0.5, true, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true, 0.25, true, true, true, 0.0, true, true, STRATA_DEEP, AUTO, AUTO, false, 0.0, 0.0, 0.0, true);
+   static final Settings DEFAULT = new Settings(true, 50000.0, 0.5, true, 0.7, 80.0, true, 0.0, 1.0, 1.0, true, 1600.0, 48.0, true, 8.0, 4.0, 0.35, 2.0, true, 384.0, 40.0, 24.0, SETS_CONTINENTS, 25.0, GUARD_EXACT, true, 0.25, true, true, true, 0.0, true, true, STRATA_DEEP, AUTO, AUTO, false, 0.0, 0.0, 0.0, true, 700.0, true);
 
    /** What a world saved by bridge 3.x was generated with: none of the v4 changes. */
    static Settings legacy(boolean stillLifeLatitude, double poleDistance, double americanShare) {
-      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CELLS, 25.0, GUARD_OFF, false, 0.0, false, false, false, 0.0, false, false, STRATA_OFF, 0.0, 0.0, false, 0.0, 0.0, 0.0, false);
+      return new Settings(stillLifeLatitude, poleDistance, americanShare, false, 0.5, 84.0, false, 0.0, 0.0, 0.0, false, 0.0, 0.0, true, 0.0, 0.0, 0.0, 4.0, false, 0.0, 0.0, 0.0, SETS_CELLS, 25.0, GUARD_OFF, false, 0.0, false, false, false, 0.0, false, false, STRATA_OFF, 0.0, 0.0, false, 0.0, 0.0, 0.0, false, 0.0, false);
    }
 }

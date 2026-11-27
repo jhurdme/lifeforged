@@ -3,7 +3,7 @@
   "id": "stilllife_ftf_bridge",
   "version": "${version}",
   "name": "Lifeforged",
-  "description": "Lifeforged (formerly Still Life x FreeTerraForged Bridge) puts Still Life's biomes on FreeTerraForged terrain and makes the land follow its shape. Biomes and climate: every biome where it belongs, a latitude climate, one biome set per landmass. Mountains and snow: a snow line by climate, snow where weather would put it. Ground and rock: scree below cliffs, regional rock and rock layers. Plants: a natural treeline and forest edges. Water and wetlands: shores, beaches, swamps and salt lakes at any height. Settings in config/stilllife_ftf_bridge.properties, saved per world. Needs FreeTerraForged 1.0.0027 or later and the Still Life FTF edition.",
+  "description": "Lifeforged (formerly Still Life x FreeTerraForged Bridge) puts Still Life's biomes on FreeTerraForged terrain and makes the land follow its shape. Biomes and climate: every biome where it belongs, a latitude climate, one biome set per landmass. Mountains and snow: a snow line by climate, snow where weather would put it. Ground and rock: scree below cliffs, regional rock and rock layers. Plants: a natural treeline and forest clearings. Water and wetlands: shores, beaches, swamps and salt lakes at any height. Settings in config/stilllife_ftf_bridge.properties, saved per world. Needs FreeTerraForged 1.0.0027 or later and the Still Life FTF edition.",
   "authors": [
     "Sondre"
   ],
